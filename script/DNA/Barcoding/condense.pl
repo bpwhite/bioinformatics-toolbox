@@ -1,6 +1,6 @@
 # Condenses haplotypes based on haplotype and location so that remaining sequences
 # either differ by location or haplotype.
-# aa
+# 
 # Copyright (c) 2013, Bryan White, bpcwhite@gmail.com
 
 # This program is free software: you can redistribute it and/or modify
@@ -15,11 +15,11 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-# require '..\Bioinformatics\General\Kimura_Distance_C.pl';
+
 use FindBin;
 
 # Must require these functions to work.
-require "$FindBin::Bin/../Sequence/Kimura_Distance_C.pl";
+require "$FindBin::Bin/../../../libs/Sequence/Kimura_Distance_C.pl";
 
 # use Bioinformatics::General;
 use Bio::TreeIO;

@@ -1,6 +1,6 @@
 # Condenses haplotypes based on haplotype and location so that remaining sequences
 # either differ by location or haplotype.
-#
+# aa
 # Copyright (c) 2013, Bryan White, bpcwhite@gmail.com
 
 # This program is free software: you can redistribute it and/or modify

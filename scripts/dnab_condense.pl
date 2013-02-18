@@ -35,14 +35,14 @@ use warnings;
 use Bio::Seq;
 use Bio::SeqIO;
 
-print "    condense.pl  Copyright (c) 2013, Bryan White, bpcwhite\@gmail.com
+# print "    condense.pl  Copyright (c) 2013, Bryan White, bpcwhite\@gmail.com
 
-	Condenses a FASTA file to distinct haplotype and/or locale.
-	See Readme for instructions.
+	# Condenses a FASTA file to distinct haplotype and/or locale.
+	# See Readme for instructions.
 	
-    This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
-    This is free software, and you are welcome to redistribute it
-    under certain conditions; type `show c' for details.\n\n";
+    # This program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.
+    # This is free software, and you are welcome to redistribute it
+    # under certain conditions; type `show c' for details.\n\n";
 my $critical_value = 1.96; # Default
 my $alignment_length = 0;
 

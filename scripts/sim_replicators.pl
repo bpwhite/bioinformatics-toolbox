@@ -1,3 +1,7 @@
+# A simulation of pseudo-biological entities that can be selected
+# for certain parameters, including but no limited to: information,
+# structure, growth, and replication.
+
 # Copyright (c) 2013, Bryan White
 
 # This program is free software: you can redistribute it and/or modify

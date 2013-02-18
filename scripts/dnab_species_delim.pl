@@ -148,7 +148,7 @@ my $num_bootstrap_reps = $bootstrap_reps_hash{5}; # Minimum should be 25
 my $minimum_catch_distance = 0.05;
 my $num_examplars = 5;
 
-# 2-tailed crit values. Normali distribution
+# 2-tailed crit values. Normal distribution
 my $alpha_level = 0.05;
 my $critical_value = 1.96; # Default
 if($alpha_level == 0.01)		{

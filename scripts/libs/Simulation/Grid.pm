@@ -12,7 +12,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-package Grid;
+package Simulation::Grid;
 use strict;
 use warnings;
 
@@ -20,10 +20,10 @@ use Moose;
 use MooseX::ClassAttribute;
 use Params::Validate qw(:all);
 
-use SimulationObject;
-use Point;
+use Simulation::SimulationObject;
+use Simulation::Point;
 
-extends 'SimulationObject';
+extends 'Simulation::SimulationObject';
 ########################################################################
 # Class Attributes
 
@@ -68,11 +68,11 @@ has 'hopper_list' => (
 sub BUILD {
 # Creates array of Points according to the input dimensions.
     my $self = shift;	
-	SimulationObject->print_to_logfile("Building grid ".$self->xmax." x ".$self->ymax."...");
+	Simulation::SimulationObject->print_to_logfile("Building grid ".$self->xmax." x ".$self->ymax."...");
 	# print "Building grid ".$self->xmax." x ".$self->ymax."...\n";
 	for (my $x = 0; $x < $self->xmax; $x++) {
         for (my $y = 0; $y < $self->ymax; $y++) {
-			$self->point_array->[$x][$y] = Point->new(logger_prefix => $self->logger_prefix);
+			$self->point_array->[$x][$y] = Simulation::Point->new(logger_prefix => $self->logger_prefix);
 		}
 	}
 }

@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package Letter;
+package Simulation::Letter;
 use strict;
 use warnings;
 
@@ -22,14 +22,14 @@ use MooseX::ClassAttribute;
 
 use Math::Random qw(:all);
  
-use SimulationObject;
-use Point;
-use Grid;
-use Centroid;
+use Simulation::SimulationObject;
+use Simulation::Point;
+use Simulation::Grid;
+use Simulation::Centroid;
 
 use Params::Validate qw(:all);
 
-extends 'SimulationObject';
+extends 'Simulation::SimulationObject';
 
 ########################################################################
 # Class Attributes
@@ -84,7 +84,7 @@ sub _create_letter_std_dev_rate {
 
 has 'letter_grid' => (
 	is => 'rw',
-	isa => 'Grid',
+	isa => 'Simulation::Grid',
 );
 
 has 'letter_radius' => (
@@ -97,10 +97,10 @@ sub _create_letter_radius {
 	my $self = shift;
 	
 	my $letter_radius = 1;
-	if(Letter->letter_distribution eq 'gaussian') {
+	if(Simulation::Letter->letter_distribution eq 'gaussian') {
 		$letter_radius =	int random_normal(	1,
-							Letter->mean_letter_radius, 
-							Letter->mean_letter_radius*$self->letter_std_dev_rate);
+							Simulation::Letter->mean_letter_radius, 
+							Simulation::Letter->mean_letter_radius*$self->letter_std_dev_rate);
 		if ($letter_radius > 0) {
 			return $letter_radius;
 		} else {
@@ -120,10 +120,10 @@ sub _create_letter_num_centroids {
 	
 	my $max_centroids = $self->letter_radius*$self->letter_radius; # Grid area.
 	my $num_centroids = 1;
-	if(Letter->letter_distribution eq 'gaussian') {
+	if(Simulation::Letter->letter_distribution eq 'gaussian') {
 		$num_centroids = 	int random_normal(	1, 
-							Letter->mean_letter_num_centroids, 
-							Letter->mean_letter_num_centroids*$self->letter_std_dev_rate);
+							Simulation::Letter->mean_letter_num_centroids, 
+							Simulation::Letter->mean_letter_num_centroids*$self->letter_std_dev_rate);
 		if($num_centroids > $max_centroids) {
 			$num_centroids = $max_centroids;
 		}
@@ -137,13 +137,15 @@ sub _create_letter_num_centroids {
 has 'letter_centroid_list' => (
 	is => 'rw',
 	isa => 'ArrayRef[Centroid]',
-	
+);
+
 has 'letter_mass' => (
 	is => 'rw',
 	isa => 'Int',
 	lazy => 1,
 	builder => '_create_letter_mass',
 );
+
 sub _create_letter_mass {
 	my $self = shift;
 	
@@ -156,14 +158,14 @@ sub _create_letter_mass {
 sub BUILD {
 	my $self = shift;
 	$self->print_to_logfile("Building Letter...");
-	$self->letter_grid(Grid->new(xmax => $self->letter_radius, ymax => $self->letter_radius));
+	$self->letter_grid(Simulation::Grid->new(xmax => $self->letter_radius, ymax => $self->letter_radius));
 	$self->print_to_logfile("Centroids...".$self->letter_num_centroids);
 	$self->print_to_logfile("\n");
 	
 	
 	for (my $i = 0; $i <= $self->letter_num_centroids; $i++) {
 		my $random_point = $self->letter_grid->get_random_point;
-		$random_point->add_to_bucket(Centroid->new(max_centroid_radius => $self->letter_radius));
+		$random_point->add_to_bucket(Simulation::Centroid->new(max_centroid_radius => $self->letter_radius));
 	}
 	
 }

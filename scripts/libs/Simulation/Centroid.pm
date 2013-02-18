@@ -12,14 +12,14 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-package Centroid;
+package Simulation::Centroid;
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::ClassAttribute;
 
-extends 'SimulationObject';
+extends 'Simulation::SimulationObject';
 ########################################################################
 # Class Variables
 class_has 'centroid_distribution' => (
@@ -39,7 +39,7 @@ sub _create_centroid_std_dev_rate {
 # Steric
 class_has 'mean_steric_radius' => (
 	is      => 'rw',
-	isa     => 'Int',
+	isa     => 'Any',
 	lazy	=> 1,
 	builder => '_create_mean_steric_radius',
 	);
@@ -50,7 +50,7 @@ sub _create_mean_steric_radius {
 # Electrostatic
 class_has 'mean_electrostatic_radius' => (
 	is		=> 'rw',
-	isa		=> 'Int',
+	isa		=> 'Any',
 	lazy	=> 1,
 	builder => '_create_mean_electrostatic_radius',
 );
@@ -61,7 +61,7 @@ sub _create_mean_electrostatic_radius {
 # Hydrogen
 class_has 'mean_hydrogen_radius' => (
 	is		=> 'rw',
-	isa		=> 'Int',
+	isa		=> 'Any',
 	lazy	=> 1,
 	builder => '_create_mean_hydrogen_radius',
 );
@@ -72,7 +72,7 @@ sub _create_mean_hydrogen_radius {
 # Van der Waals
 class_has 'mean_vanderwaals_radius' => (
 	is		=> 'rw',
-	isa		=> 'Int',
+	isa		=> 'Any',
 	lazy	=> 1,
 	builder => '_create_mean_vanderwaals_radius',
 );
@@ -83,7 +83,7 @@ sub _create_mean_vanderwaals_radius {
 # Covalent
 class_has 'mean_covalent_radius' => (
 	is		=> 'rw',
-	isa		=> 'Int',
+	isa		=> 'Any',
 	lazy	=> 1,
 	builder => '_create_mean_covalent_radius',
 );

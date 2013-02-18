@@ -12,21 +12,21 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-package Simulation;
+package Simulation::SimulationInstance;
 use strict;
 use warnings;
 
 use Moose;
 use MooseX::ClassAttribute;
 
-use SimulationObject;
-use Point;
-use Grid;
-use Alphabet;
-use Letter;
+use Simulation::SimulationObject;
+use Simulation::Point;
+use Simulation::Grid;
+use Simulation::Alphabet;
+use Simulation::Letter;
 use Params::Validate qw(:all);
 
-extends 'SimulationObject';
+extends 'Simulation::SimulationObject';
 ########################################################################
 # Class Attributes
 

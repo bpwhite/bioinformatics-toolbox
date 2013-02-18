@@ -1,11 +1,11 @@
-package Force;
+package Simulation::Force;
 use strict;
 use warnings;
 
 use Moose;
-use SimulationObject;
+use Simulation::SimulationObject;
 
-extends 'SimulationObject';
+extends 'Simulation::SimulationObject';
 
 has 'strength' => (
 	is => 'rw',

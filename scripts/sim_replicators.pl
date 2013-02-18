@@ -16,37 +16,39 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use FindBin;
+use lib "$FindBin::Bin/libs"; 
 
-use SimulationObject;
-use Point;
-use Force;
-use Grid;
-use Simulation;
+use Simulation::SimulationObject;
+use Simulation::Point;
+use Simulation::Force;
+use Simulation::Grid;
+use Simulation::SimulationInstance;
 
 use strict;
 use warnings;
 
 
-SimulationObject->logger_prefix('simulation_log');
-SimulationObject->clear_log_file;
+Simulation::SimulationObject->logger_prefix('simulation_log');
+Simulation::SimulationObject->clear_log_file;
 
 # Alphabet parameters
-Alphabet->mean_alphabet_size(50);
+Simulation::Alphabet->mean_alphabet_size(50);
 
 # Letter parameters
-Letter->letter_distribution('gaussian');
-Letter->mean_letter_radius(25);
-Letter->mean_letter_num_centroids(5);
-Letter->letter_std_dev_rate(0.50);
+Simulation::Letter->letter_distribution('gaussian');
+Simulation::Letter->mean_letter_radius(25);
+Simulation::Letter->mean_letter_num_centroids(5);
+Simulation::Letter->letter_std_dev_rate(0.50);
 
 # Centroid parameters
-Centroid->centroid_distribution('gaussian');
-Centroid->centroid_std_dev_rate(0.05);
-Centroid->mean_steric_radius(0.25);
-Centroid->mean_electrostatic_radius(0.25);
-Centroid->mean_hydrogen_radius(0.25);
-Centroid->mean_vanderwaals_radius(0.25);
-Centroid->mean_covalent_radius(0.25);
+Simulation::Centroid->centroid_distribution('gaussian');
+Simulation::Centroid->centroid_std_dev_rate(0.05);
+Simulation::Centroid->mean_steric_radius(0.25);
+Simulation::Centroid->mean_electrostatic_radius(0.25);
+Simulation::Centroid->mean_hydrogen_radius(0.25);
+Simulation::Centroid->mean_vanderwaals_radius(0.25);
+Simulation::Centroid->mean_covalent_radius(0.25);
 
 
-my $simulation1 = Simulation->new( grid_xmax => 100, grid_ymax => 100);
+my $simulation1 = Simulation::SimulationInstance->new( grid_xmax => 100, grid_ymax => 100);

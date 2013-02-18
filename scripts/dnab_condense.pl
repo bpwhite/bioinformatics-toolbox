@@ -18,8 +18,10 @@
 
 use FindBin;
 
-# Must require these functions to work.
-require "$FindBin::Bin/libs/Sequence/Kimura_Distance_C.pl";
+# Import sequence libs
+use lib "$FindBin::Bin/libs/Sequence/";
+use Fasta;
+require 'Kimura_Distance_C.pl';
 
 # use Bioinformatics::General;
 use Bio::TreeIO;
@@ -85,40 +87,11 @@ my $counter_i = 1;
 my %unique_seqs1 = %unique_seqs;
 my %unique_seqs2 = %unique_seqs;
 print "Uniques: ".(keys %unique_seqs1)."\n";
-# for my $seq1 ( sort keys %unique_seqs1) {
+
+# Add sequences that differ by some genetic distance to a hash.
 foreach my $seq (@alignment) {
 	my $was_found = 0;
 	my $was_in_distincts = 0;
-	# print $seq1;
-	# for my $seq2 ( sort keys %unique_seqs2) {
-		# next if $unique_seqs1{$seq1} eq $unique_seqs2{$seq2};
-		# my ($transitions,	$transversions,		$bases_compared,
-			# $k2p_distance,	$variance,			$stderror,
-			# $mink2p,		$maxk2p,			$p_stderror,
-			# $p_min,			$p_max,				$p_dist
-			# ) = 0;
-		# my $search_type = 3;
-		# my $cutoff = 0.02;
-		# my $filtered_seq = $seq1;
-		# $filtered_seq =~ s/-/*/g;
-		# c_kimura_distance(	$filtered_seq,		$seq2,		$critical_value,
-							# $cutoff, 			$search_type, 		$alignment_length,
-							# $transitions,		$transversions,		$bases_compared,
-							# $k2p_distance,		$variance,			$stderror,
-							# $mink2p,			$maxk2p);
-		# if($k2p_distance <= 0) {
-			# if(exists($unique_seqs1{$seq1})) { delete $unique_seqs1{$seq1} };
-			# if(exists($unique_seqs2{$seq1})) { delete $unique_seqs2{$seq1} };
-			
-			# last;
-		# }
-		# if($k2p_distance <= 0) {
-			# print "A\n";
-			# $was_found = 1;
-		# }
-		# last if $matrix_count == $counter_i;
-		# $counter_i++;
-	# }
 	for my $distinct_seqs (sort keys %distinct_hash) {
 		my ($transitions,	$transversions,		$bases_compared,
 			$k2p_distance,	$variance,			$stderror,
@@ -139,24 +112,24 @@ foreach my $seq (@alignment) {
 		}
 	}
 	if($was_in_distincts == 0) {
-		# print "D\n";
 		$distinct_hash{$seq->seq} = 'a';
 	}
-	# print $was_found."\n";
-	# print $was_in_distincts."\n";
-	# print (keys %distinct_hash)."\n";
-	# last if $matrix_count == $counter_i;
 }
-# %distinct_hash = %unique_seqs1;
+
 print "Distincts: ".(keys %distinct_hash)."\n";
-# exit;
+
 my $test = 0;
 my $haplo_loc_counter = 1;
 my $haplo_abundance_counter = 0;
 my @condensed_sequences = ();
+# Loop through distincts and count how many sequences match each haplotype
+# 1. Loop through distinct hash
+# 2. For each distinct haplotype, find all the locations that haplotype is at
+# 3. Count the number of haplotypes for each location
+# 4. Print a copy of each haplotype for each sequence, it's haplotype number
+# and the abundance of that haplotype at a particular location
 for my $distinct_hap ( sort keys %distinct_hash ) {
 	my $current_haplotype_id = $orig_seq_hash{$distinct_hap}->primary_id;
-	# print "[".$haplo_loc_counter."] ".$current_haplotype_id."\n";
 	my @haplotype_members = ();
 	my @haplotype_locations = ();
 	foreach my $orig_seq ( @orig_alignment ) {
@@ -167,7 +140,7 @@ for my $distinct_hap ( sort keys %distinct_hash ) {
 			$mink2p,		$maxk2p,			$p_stderror,
 			$p_min,			$p_max,				$p_dist
 			) = 0;
-		my $search_type = 3;
+		my $search_type = 3; # don't drop out early.
 		my $cutoff = 0.02;
 		c_kimura_distance(	$filtered_orig_seq,	$distinct_hap,		$critical_value,
 							$cutoff, 			$search_type, 		$alignment_length,
@@ -185,7 +158,6 @@ for my $distinct_hap ( sort keys %distinct_hash ) {
 	my @unique_haplotype_locations = keys %unique_haplotype_locations;
 	foreach my $location (@unique_haplotype_locations) {
 		my @members = grep { $_->description eq $location } @haplotype_members;
-		# print "\t".$haplo_loc_counter."|".$current_haplotype_id."|".$location."|".scalar(@members)."\n";
 		print CONDENSED ">".$haplo_loc_counter."|".$current_haplotype_id."|".$location."|".scalar(@members)."\n";
 		print CONDENSED $distinct_hap."\n";
 		$haplo_abundance_counter += scalar(@members);
@@ -193,48 +165,8 @@ for my $distinct_hap ( sort keys %distinct_hash ) {
 	$haplo_loc_counter++;
 }
 
-# my %unique_condensed_sequences = map {$_->id,1} @condensed_sequences;
-# my @unique_condensed_sequences = keys %unique_condensed_sequences;
-# foreach my $unique_condensed (@unique_condensed_sequences) {
-	# my @sub_condensed = grep { $_->id eq $unique_condensed } @condensed_sequences;
-	# if(scalar(@sub_condensed) > 1) {
-		# print scalar(@sub_condensed)." ".$sub_condensed[0]->id."\n";
-	# }
-# }
-
 print "Original Sequences:\t".$num_seqs."\n";
 print "Condensed Sequences:\t".$haplo_abundance_counter."\n";
 print "Distinct haplo_locs:\t".(keys %distinct_hash)."\n";
 close(CONDENSED);
 
-sub fix_fasta {
-	my ( $f ) = shift;
-	open F, "< $f" or die "Can't open $f : $!";
-	my @fasta = <F>;
-	close F;
-	
-	for(my $i = 0; $i < 10; $i++) {
-		foreach my $line (@fasta) {
-			if($line =~ /^>/) {
-				$line =~ s/ /_/; # replace whitespace with _
-			}
-		}
-	}
-
-	unlink $f;
-	open (MYFILE, '>>'.$f);
-	foreach my $line(@fasta) {
-		print MYFILE $line;
-	}
-	close(MYFILE);
-}
-
-
-sub clean_file_name {
-	# Takes a filename and strips its extension off, and returns the file name
-	my ($file_name) = @_;
-	my @split_file_name = split(/\./,$file_name);
-	my $new_file_name = $split_file_name[0];
-
-	return $new_file_name;
-}

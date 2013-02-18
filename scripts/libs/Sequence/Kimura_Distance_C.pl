@@ -14,9 +14,6 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-# use AutoLoader;
-
 use Inline::Files;
 use Inline C;
 
@@ -27,7 +24,6 @@ use Exporter;
 
 our @ISA= qw( Exporter );
 our @EXPORT_OK = qw( c_kimura_distance );
-# 1;
 
 __C__
 

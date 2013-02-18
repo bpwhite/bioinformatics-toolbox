@@ -19,9 +19,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use FindBin;
-# Must require these functions to work.
-require "$FindBin::Bin/libs/Sequence/Kimura_Distance_C.pl";
+# Import sequence libs
+use lib "$FindBin::Bin/libs/Sequence/";
+use Fasta;
+require 'Kimura_Distance_C.pl';
 
+# BioPerl libs
 use Bio::TreeIO;
 use Bio::Tree::Tree;
 use Bio::Tree::TreeFunctionsI;

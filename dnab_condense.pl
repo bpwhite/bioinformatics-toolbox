@@ -19,7 +19,7 @@
 use FindBin;
 
 # Must require these functions to work.
-require "$FindBin::Bin/../../../libs/Sequence/Kimura_Distance_C.pl";
+require "$FindBin::Bin/../../../libs/Kimura_Distance_C.pl";
 
 # use Bioinformatics::General;
 use Bio::TreeIO;

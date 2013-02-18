@@ -140,6 +140,7 @@ has 'letter_centroid_list' => (
 );
 
 has 'letter_mass' => (
+# Letter mass should be the sum of the steric radii of its Centroids
 	is => 'rw',
 	isa => 'Int',
 	lazy => 1,
@@ -149,6 +150,7 @@ has 'letter_mass' => (
 sub _create_letter_mass {
 	my $self = shift;
 	
+	for each 
 	
 }
 	
@@ -158,20 +160,27 @@ sub _create_letter_mass {
 sub BUILD {
 	my $self = shift;
 	$self->print_to_logfile("Building Letter...");
+	# The letter grid is a square with a radius input at creation time.
 	$self->letter_grid(Simulation::Grid->new(xmax => $self->letter_radius, ymax => $self->letter_radius));
 	$self->print_to_logfile("Centroids...".$self->letter_num_centroids);
-	$self->print_to_logfile("\n");
+	# $self->print_to_logfile("\n");
 	
-	
+	# Building the Letter consists of adding Centroids, and assigning those
+	# Centroids properties from a selected distribution.
 	for (my $i = 0; $i <= $self->letter_num_centroids; $i++) {
 		my $random_point = $self->letter_grid->get_random_point;
 		$random_point->add_to_bucket(Simulation::Centroid->new(max_centroid_radius => $self->letter_radius));
+		
 	}
 	
 }
 ########################################################################
 
 
-
+sub find_centroids {
+	my $self = shift;
+	
+	
+}
 __PACKAGE__->meta->make_immutable;
 1;

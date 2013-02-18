@@ -72,14 +72,22 @@ sub build_alphabet {
 	}
 }
 
-# sub alphabet_length {
-	# my $self = shift;
-	# my $alphabet_length = 0;
-	# foreach my $letter ($self->letter_list) {
-		# $alphabet_length++;
-	# }
-	# return $alphabet_length;
-# }
+sub alphabet_stats {
+# Print some alphabet statistics
+	my $self = shift;
+	foreach my $letter ($self->letter_list) {
+		print $letter->letter_mass."\n";
+	}
 
+}
+
+sub alphabet_length {
+	my $self = shift;
+	my $alphabet_length = 0;
+	foreach my $letter ($self->letter_list) {
+		$alphabet_length++;
+	}
+	return $alphabet_length;
+}
 __PACKAGE__->meta->make_immutable;
 1;

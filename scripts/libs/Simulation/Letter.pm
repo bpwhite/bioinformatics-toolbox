@@ -148,10 +148,12 @@ has 'letter_mass' => (
 );
 
 sub _create_letter_mass {
+# Before calling letter_mass, make sure you've counted centroids, and
+# summed their radii.
+# Letter mass is defined as the sum of the radii of steric portion of
+# centroids.
 	my $self = shift;
-	
-	for each 
-	
+	$self->find_centroids;
 }
 	
 ########################################################################
@@ -163,14 +165,13 @@ sub BUILD {
 	# The letter grid is a square with a radius input at creation time.
 	$self->letter_grid(Simulation::Grid->new(xmax => $self->letter_radius, ymax => $self->letter_radius));
 	$self->print_to_logfile("Centroids...".$self->letter_num_centroids);
-	# $self->print_to_logfile("\n");
+	$self->print_to_logfile("\n");
 	
 	# Building the Letter consists of adding Centroids, and assigning those
 	# Centroids properties from a selected distribution.
 	for (my $i = 0; $i <= $self->letter_num_centroids; $i++) {
 		my $random_point = $self->letter_grid->get_random_point;
 		$random_point->add_to_bucket(Simulation::Centroid->new(max_centroid_radius => $self->letter_radius));
-		
 	}
 	
 }
@@ -178,9 +179,17 @@ sub BUILD {
 
 
 sub find_centroids {
+# Search through all the points on the letter grid
 	my $self = shift;
 	
-	
+	# Loop through each point and find centroids.
+	for (my $x = 0; $x < $self->letter_radius; $x++) {
+        for (my $y = 0; $y < $self->letter_radius; $y++) {
+			my $current_point = $self->letter_grid->get_point( x => $x, y => $y);
+			print ref $current_point."\n";
+			exit;
+		}
+	}
 }
 __PACKAGE__->meta->make_immutable;
 1;

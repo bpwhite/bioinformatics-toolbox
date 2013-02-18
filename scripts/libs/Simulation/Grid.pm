@@ -72,7 +72,7 @@ sub BUILD {
 	# print "Building grid ".$self->xmax." x ".$self->ymax."...\n";
 	for (my $x = 0; $x < $self->xmax; $x++) {
         for (my $y = 0; $y < $self->ymax; $y++) {
-			$self->point_array->[$x][$y] = Simulation::Point->new(logger_prefix => $self->logger_prefix);
+			$self->point_array->[$x][$y] = Simulation::Point->new();
 		}
 	}
 }

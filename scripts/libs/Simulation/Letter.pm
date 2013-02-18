@@ -88,12 +88,14 @@ has 'letter_grid' => (
 );
 
 has 'letter_radius' => (
+# Stores the letter radius
 	is => 'rw',
 	isa => 'Int',
 	lazy => 1,
 	builder => '_create_letter_radius',
 );
 sub _create_letter_radius {
+# Generates a random letter radius.
 	my $self = shift;
 	
 	my $letter_radius = 1;
@@ -110,12 +112,14 @@ sub _create_letter_radius {
 }
 
 has 'letter_num_centroids' => (
+# Stores the number of centroids
 	is => 'rw',
 	isa => 'Int',
 	lazy => 1,
 	builder => '_create_letter_num_centroids',
 );
 sub _create_letter_num_centroids {
+# Generates a random number of centroids based on the mean number of centroids.
 	my $self = shift;
 	
 	my $max_centroids = $self->letter_radius*$self->letter_radius; # Grid area.

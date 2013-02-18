@@ -19,6 +19,8 @@ use warnings;
 use Moose;
 use MooseX::ClassAttribute;
 
+use Math::Random qw(:all);
+
 extends 'Simulation::SimulationObject';
 ########################################################################
 # Class Variables
@@ -112,10 +114,10 @@ has 'centroid_steric_radius' => (
 sub _create_centroid_steric_radius {
 	my $self = shift;
 	my $steric_radius = 1;
-	if(Centroid->centroid_distribution eq 'gaussian') {
+	if(Simulation::Centroid->centroid_distribution eq 'gaussian') {
 		$steric_radius =	int random_normal(	1,
-							Centroid->mean_steric_radius*$self->max_centroid_radius, 
-							Centroid->mean_steric_radius*$self->centroid_std_dev_rate);
+							Simulation::Centroid->mean_steric_radius*$self->max_centroid_radius, 
+							Simulation::Centroid->mean_steric_radius*$self->centroid_std_dev_rate);
 	}
 }
 
@@ -129,10 +131,10 @@ has 'centroid_electrostatic_radius' => (
 sub _create_centroid_electrostatic_radius {
 	my $self = shift;
 	my $steric_radius = 1;
-	if(Centroid->centroid_distribution eq 'gaussian') {
+	if(Simulation::Centroid->centroid_distribution eq 'gaussian') {
 		$steric_radius =	int random_normal(	1,
-							Centroid->mean_electrostatic_radius*$self->max_centroid_radius, 
-							Centroid->mean_electrostatic_radius*$self->centroid_std_dev_rate);
+							Simulation::Centroid->mean_electrostatic_radius*$self->max_centroid_radius, 
+							Simulation::Centroid->mean_electrostatic_radius*$self->centroid_std_dev_rate);
 	}
 }
 
@@ -146,10 +148,10 @@ has 'centroid_hydrogen_radius' => (
 sub _create_centroid_hydrogen_radius {
 	my $self = shift;
 	my $steric_radius = 1;
-	if(Centroid->centroid_distribution eq 'gaussian') {
+	if(Simulation::Centroid->centroid_distribution eq 'gaussian') {
 		$steric_radius =	int random_normal(	1,
-							Centroid->mean_hydrogen_radius*$self->max_centroid_radius, 
-							Centroid->mean_hydrogen_radius*$self->centroid_std_dev_rate);
+							Simulation::Centroid->mean_hydrogen_radius*$self->max_centroid_radius, 
+							Simulation::Centroid->mean_hydrogen_radius*$self->centroid_std_dev_rate);
 	}
 }
 
@@ -163,10 +165,10 @@ has 'centroid_vanderwaals_radius' => (
 sub _create_centroid_vanderwaals_radius {
 	my $self = shift;
 	my $steric_radius = 1;
-	if(Centroid->centroid_distribution eq 'gaussian') {
+	if(Simulation::Centroid->centroid_distribution eq 'gaussian') {
 		$steric_radius =	int random_normal(	1,
-							Centroid->mean_vanderwaals_radius*$self->max_centroid_radius, 
-							Centroid->mean_vanderwaals_radius*$self->centroid_std_dev_rate);
+							Simulation::Centroid->mean_vanderwaals_radius*$self->max_centroid_radius, 
+							Simulation::Centroid->mean_vanderwaals_radius*$self->centroid_std_dev_rate);
 	}
 }
 
@@ -180,10 +182,10 @@ has 'centroid_covalent_radius' => (
 sub _create_centroid_covalent_radius {
 	my $self = shift;
 	my $steric_radius = 1;
-	if(Centroid->centroid_distribution eq 'gaussian') {
+	if(Simulation::Centroid->centroid_distribution eq 'gaussian') {
 		$steric_radius =	int random_normal(	1,
-							Centroid->mean_covalent_radius*$self->max_centroid_radius, 
-							Centroid->mean_covalent_radius*$self->centroid_std_dev_rate);
+							Simulation::Centroid->mean_covalent_radius*$self->max_centroid_radius, 
+							Simulation::Centroid->mean_covalent_radius*$self->centroid_std_dev_rate);
 	}
 }
 

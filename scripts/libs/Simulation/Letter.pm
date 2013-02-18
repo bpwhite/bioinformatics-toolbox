@@ -153,7 +153,11 @@ sub _create_letter_mass {
 # Letter mass is defined as the sum of the radii of steric portion of
 # centroids.
 	my $self = shift;
-	$self->find_centroids;
+	my $centroids_ref = $self->find_centroids;
+	# print $centroids_ref."\n";
+	
+	my $letter_mass = $self->calculate_letter_mass(centroid_ref => $self->find_centroids);
+	return $letter_mass;
 }
 	
 ########################################################################
@@ -181,15 +185,49 @@ sub BUILD {
 sub find_centroids {
 # Search through all the points on the letter grid
 	my $self = shift;
-	
+	my @centroids = ();
 	# Loop through each point and find centroids.
+	my $found_centroids = 0;
 	for (my $x = 0; $x < $self->letter_radius; $x++) {
         for (my $y = 0; $y < $self->letter_radius; $y++) {
+			# get the point at x,y position
 			my $current_point = $self->letter_grid->get_point( x => $x, y => $y);
-			print ref $current_point."\n";
-			exit;
+			# loop through and check the bucket for Centroids
+			foreach my $object ($current_point->bucket) {
+				if (ref $object eq 'Simulation::Centroid') {
+					push(@centroids, $object);
+					$found_centroids++;
+				}
+			}
+			last if $found_centroids == $self->letter_num_centroids;
 		}
+		last if $found_centroids == $self->letter_num_centroids;
 	}
+	# print ref \@centroids;
+	# print "\n";
+	# print ref @centroids;
+	# print "\n";
+	return \@centroids;
 }
+
+sub calculate_letter_mass {
+# Loops through all Centroids and calculates the mass of the letter
+	my $self = shift;
+	my %params = validate(
+		@_, {
+			centroid_ref => 1,
+		}
+	);
+	my $centroid_ref = $params{'centroid_ref'};
+	my @centroid_list = @$centroid_ref;
+	my $cumulative_centroid_mass = 0;
+	# loop through each centroid and sum its steric radius.
+	foreach my $centroid( @centroid_list) {
+		$cumulative_centroid_mass += $centroid->centroid_steric_radius;
+	}
+	return $cumulative_centroid_mass;
+}
+
+
 __PACKAGE__->meta->make_immutable;
 1;

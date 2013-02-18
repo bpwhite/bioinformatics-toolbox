@@ -70,6 +70,7 @@ sub build_alphabet {
 		my $new_letter = Simulation::Letter->new();
 		push($self->letter_list, $new_letter);
 	}
+	$self->alphabet_stats;
 }
 
 sub alphabet_stats {

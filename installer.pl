@@ -15,3 +15,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+print "Detecting operating system...$^O\n";
+
+if($^O =~ m/Win/) {
+	print "Installing BioPerl...\n";
+	print `ppm install BioPerl`;
+	print "Done.\n";
+	print "Installing other modules...\n";
+	print `ppm install Moose`;
+	print `ppm install MooseX::ClassAttribute`;
+	print `ppm install Params::Validate`;
+	print `ppm install FindBin`;
+	print `ppm install Statistics::Descriptive`;
+	print `ppm install Benchmark`;
+	print `ppm install POSIX`;
+	print `ppm install  File::Copy`;
+	print "Done.\n";
+	
+} elsif ($^O =~ m/linux/) {
+	print `apt-get install BioPerl`;
+}
+

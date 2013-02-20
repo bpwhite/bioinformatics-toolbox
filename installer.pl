@@ -36,6 +36,9 @@ if($^O =~ m/MSWin32/) {
 		print "Installing BioPerl...\n";
 		print `ppm install BioPerl`;
 		print "Done.\n";
+		print "Installing MinGW...\n";
+		print `ppm install mingw`;
+		print "Done.\n";
 		print "Installing other modules...\n";
 		print `ppm install Moose`;
 		print `ppm install MooseX::ClassAttribute`;

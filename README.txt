@@ -26,17 +26,21 @@ V. Sequence Manipulation
 	2. seq_order_specimens.pl - Orders FASTA sequences based on an input list.
 	3. seq_print_sequences.pl - Prints FASTA sequences with some info about each 
 		sequence.
-	4. seq_reading_frame.pl
-	5. seq_rename_fasta.pl
-	6. seq_rename_fasta_from_list.pl
+	4. seq_reading_frame.pl - Attempts to put a protein coding sequence into a 
+		reading frame that does not have any stop codons.
+	5. seq_rename_fasta.pl - Converts the ID's of a genbank FASTA file into a 
+		readable format.
+	6. seq_rename_fasta_from_list.pl - Renames the ID's of a Fasta file based on a 
+		list.
 VI. Simulations
-	1. sim_replicators.pl
+	1. sim_replicators.pl - Particle physics simulator of basic biomolecules
 
 I. Toolbox Overview
 	1. What is this toolbox?
 	
-	If BioPerl is the glue of bioinformatics, the Bioinformatics Toolbox (BTBox) 
-	is a series of already glued together programs.
+	If BioPerl is the glue of bioinformatics, then Bioinformatics Toolbox (BTBox) 
+	is a series of already glued together programs, with lots of additions on 
+	top of BioPerl.
 	
 	2. Installation Guide
 		2a. Windows
@@ -44,6 +48,57 @@ I. Toolbox Overview
 			1. Install the latest distribution of ActiveState or Strawberry Perl
 			2. Run the "windows_installer.pl" script inside this folder.
 		2b. Linux
-
-	
-	
+			Coming soon
+II. DNA Barcoding
+	1. dnab_condense.pl
+		
+		This script takes an input of aligned FASTSA sequences and outputs 
+		representative sequences of distinct haplotypes, and the number of 
+		those distinct haplotypes at each location. Input sequences must be formatted
+		in the following input format from the example.
+		
+		Example: 
+		
+		Input: SampleID|Name|Location
+		#####################################################
+		>10-SCCWRP-4787|Simulium|19354
+		ACTTTA.....
+		>10-SCCWRP-4788|Simulium|19354
+		ACTTTA.....
+		>10-SCCWRP-4789|Simulium|19354
+		ACTTTA.....
+		>10-SCCWRP-4790|Simulium|19354
+		ACTTTA.....
+		>10-SCCWRP-4791|Simulium|19355
+		ACTTTA.....
+		>10-SCCWRP-4792|Simulium|19351
+		ACTTTA.....
+		>10-SCCWRP-4793|Simulium|19349
+		ACTTTA.....
+		
+		Output: HaplotypeID|RepSeq|RepName|Location|Abundance
+		#####################################################
+		>27|10-SCCWRP-4787|Simulium|19354|4
+		ACTTTA.....
+		>27|10-SCCWRP-4787|Simulium|19355|1
+		ACTTTA.....
+		>27|10-SCCWRP-4787|Simulium|19351|1
+		ACTTTA.....
+		>27|10-SCCWRP-4787|Simulium|19349|1
+		ACTTTA.....
+		
+		This script implements out the following algorithm:
+			1. Reduce sequences to distinct haplotype. Distinct haplotypes are
+			those haplotyes that differ by nucleotide differences rather than 
+			by gaps, spaces, or extra/special/different characters. In other 
+			words, these are truly distinct haplotypes.
+			2. Iterates through those distinct haplotypes and determines how 
+			many locations that haplotype is found at.
+			3. Determines how many individuals share that haplotype at each 
+			location.
+			4. Outputs in FASTSA a haplotype identification number (HaplotypeID), a 
+			representative sequence from the haplotype (RepSeq), a representative
+			name from the haplotype (RepName), the location, and the abundance of
+			individuals sharing that haplotype at that location.
+		
+	2. dnab_species_delimitation.pl

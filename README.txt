@@ -96,9 +96,9 @@ II. DNA Barcoding
 			many locations that haplotype is found at.
 			3. Determines how many individuals share that haplotype at each 
 			location.
-			4. Outputs in FASTSA a haplotype identification number (HaplotypeID), a 
-			representative sequence from the haplotype (RepSeq), a representative
-			name from the haplotype (RepName), the location, and the abundance of
-			individuals sharing that haplotype at that location.
+			4. Outputs in FASTSA a haplotype identification number (HaplotypeID), 
+			a representative sequence from the haplotype (RepSeq), a 
+			representative name from the haplotype (RepName), the location, and 
+			the abundance of individuals sharing that haplotype at that location.
 		
 	2. dnab_species_delimitation.pl

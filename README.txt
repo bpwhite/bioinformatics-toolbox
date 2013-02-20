@@ -1,10 +1,14 @@
-Bioinformatics Toolbox
+Bioinformatics Toolbox (BTBox)
+A multi-purpose collection of bioinformatics tools written in Perl, R, and C.
+
 Authors: Bryan P. White (bpcwhite@gmail.com)
 
 Table of Contents
 I. Toolbox Overview
 	1. What is this toolbox?
 	2. Installation guide.
+		2a. Windows
+		2b. Linux
 II. DNA Barcoding
 	1. dnab_condense.pl - Condenses sequence data down to either unique haplotypes or locales.
 	2. dnab_species_delim.pl - For use in DNA barcode species delimitations
@@ -24,3 +28,19 @@ V. Sequence Manipulation
 	6. seq_rename_fasta_from_list.pl
 VI. Simulations
 	1. sim_replicators.pl
+
+I. Toolbox Overview
+	1. What is this toolbox?
+	
+	If BioPerl is the glue of bioinformatics, the Bioinformatics Toolbox (BTBox) is a series of
+	already glued together programs.
+	
+	2. Installation Guide
+		2a. Windows
+		If you are using programs from the BTBox on Windows, do the following:
+			1. Install the latest distribution of ActiveState or Strawberry Perl
+			2. Run the "windows_installer.pl" script inside this folder.
+		2b. Linux
+
+	
+	

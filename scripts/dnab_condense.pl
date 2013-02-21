@@ -22,11 +22,6 @@ use lib "$FindBin::Bin/libs/Sequence/";
 use Fasta;
 require 'Kimura_Distance_C.pl';
 
-# use Bioinformatics::General;
-use Bio::TreeIO;
-use Bio::Tree::Tree;
-use Bio::Tree::TreeFunctionsI;
-use Bio::Tree::Node;
 # Local modules
 
 

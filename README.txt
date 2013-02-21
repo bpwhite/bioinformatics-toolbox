@@ -46,7 +46,7 @@ I. Toolbox Overview
 		2a. Windows
 		If you are using programs from the BTBox on Windows, do the following:
 			1. Install the latest distribution of ActiveState or Strawberry Perl
-			2. Run the "windows_installer.pl" script inside this folder.
+			2. Run the "installer.pl" script inside this folder.
 		2b. Linux
 			Coming soon
 II. DNA Barcoding
@@ -102,3 +102,8 @@ II. DNA Barcoding
 			the abundance of individuals sharing that haplotype at that location.
 		
 	2. dnab_species_delimitation.pl
+	
+	This script inputs a FASTA file of aligned sequences and outputs species-level
+	putative delimitations (AKA. Molecular Operational Taxonomic Units MOTUs). The
+	input requirements are that the sequence ID's must follow a particular format
+	outlined below.

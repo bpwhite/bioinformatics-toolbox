@@ -32,34 +32,34 @@ extends 'Simulation::SimulationObject';
 
 ########################################################################
 # Class Attributes
-class_has 'letter_distribution' => (
+class_has 'distribution' => (
 	is      => 'rw',
 	isa     => 'Any',
-	builder => '_create_letter_distribution',
+	builder => '_create_distribution',
 );
-sub _create_letter_distribution {
+sub _create_distribution {
 	return 'gaussian';
 }
 
-class_has 'mean_letter_radius' => (
+class_has 'mean_radius' => (
 	is      => 'rw',
 	isa     => 'Int',
-	builder => '_create_mean_letter_radius',
+	builder => '_create_mean_radius',
 );
-sub _create_mean_letter_radius {
+sub _create_mean_radius {
 	return 25;
 }
 
-class_has 'letter_stdev' => (
+class_has 'stdev_rate' => (
 	is	=> 'rw',
-	isa	=> 'Int',
-	builder => '_create_letter_stdev',
+	isa	=> 'Any',
+	builder => '_create_stdev_rate',
 );
-sub _create_letter_stdev {
-	return 3;
+sub _create_stdev_rate {
+	return 0.05;
 }
 
-class_has 'mean_letter_num_centroids' => (
+class_has 'mean_num_centroids' => (
 	is => 'rw',
 	isa => 'Int',
 	builder => '_create_mean_num_centroids',
@@ -67,66 +67,57 @@ class_has 'mean_letter_num_centroids' => (
 sub _create_mean_num_centroids {
 	return 25;
 }
-
-class_has 'letter_std_dev_rate' => (
-	is	=> 'rw',
-	isa	=> 'Any',
-	builder => '_create_letter_std_dev_rate',
-);
-sub _create_letter_std_dev_rate {
-	return 0.05;
-}
 ########################################################################
 
 ########################################################################
 # Attributes
 
-has 'letter_grid' => (
+has 'grid' => (
 	is => 'rw',
 	isa => 'Simulation::Grid',
 );
 
-has 'letter_radius' => (
+has 'radius' => (
 # Stores the letter radius
 	is => 'rw',
 	isa => 'Int',
 	lazy => 1,
-	builder => '_create_letter_radius',
+	builder => '_create_radius',
 );
-sub _create_letter_radius {
+sub _create_radius {
 # Generates a random letter radius.
 	my $self = shift;
 	
-	my $letter_radius = 1;
-	if(Simulation::Letter->letter_distribution eq 'gaussian') {
-		$letter_radius =	int random_normal(	1,
-							Simulation::Letter->mean_letter_radius, 
-							Simulation::Letter->mean_letter_radius*$self->letter_std_dev_rate);
-		if ($letter_radius > 0) {
-			return $letter_radius;
+	my $radius = 1;
+	if(Simulation::Letter->distribution eq 'gaussian') {
+		$radius =	int random_normal(	1,
+							Simulation::Letter->mean_radius, 
+							Simulation::Letter->mean_radius*$self->stdev_rate);
+		if ($radius > 0) {
+			return $radius;
 		} else {
 			return 1;
 		}
 	}
 }
 
-has 'letter_num_centroids' => (
+has 'num_centroids' => (
 # Stores the number of centroids
 	is => 'rw',
 	isa => 'Int',
 	lazy => 1,
-	builder => '_create_letter_num_centroids',
+	builder => '_create_num_centroids',
 );
-sub _create_letter_num_centroids {
+sub _create_num_centroids {
 # Generates a random number of centroids based on the mean number of centroids.
 	my $self = shift;
 	
-	my $max_centroids = $self->letter_radius*$self->letter_radius; # Grid area.
+	my $max_centroids = $self->radius*$self->radius; # Grid area.
 	my $num_centroids = 1;
-	if(Simulation::Letter->letter_distribution eq 'gaussian') {
+	if(Simulation::Letter->distribution eq 'gaussian') {
 		$num_centroids = 	int random_normal(	1, 
-							Simulation::Letter->mean_letter_num_centroids, 
-							Simulation::Letter->mean_letter_num_centroids*$self->letter_std_dev_rate);
+							Simulation::Letter->mean_num_centroids, 
+							Simulation::Letter->mean_num_centroids*$self->stdev_rate);
 		if($num_centroids > $max_centroids) {
 			$num_centroids = $max_centroids;
 		}
@@ -137,21 +128,21 @@ sub _create_letter_num_centroids {
 	}
 }
 
-has 'letter_centroid_list' => (
+has 'centroid_list' => (
 	is => 'rw',
 	isa => 'ArrayRef[Centroid]',
 );
 
-has 'letter_mass' => (
+has 'mass' => (
 # Letter mass should be the sum of the steric radii of its Centroids
 	is => 'rw',
 	isa => 'Int',
 	lazy => 1,
-	builder => '_create_letter_mass',
+	builder => '_create_mass',
 );
 
-sub _create_letter_mass {
-# Before calling letter_mass, make sure you've counted centroids, and
+sub _create_mass {
+# Before calling mass, make sure you've counted centroids, and
 # summed their radii.
 # Letter mass is defined as the sum of the radii of steric portion of
 # centroids.
@@ -159,8 +150,8 @@ sub _create_letter_mass {
 	my $centroids_ref = $self->find_centroids;
 	# print $centroids_ref."\n";
 	
-	my $letter_mass = $self->calculate_letter_mass(centroid_ref => $self->find_centroids);
-	return $letter_mass;
+	my $mass = $self->calculate_mass(centroid_ref => $self->find_centroids);
+	return $mass;
 }
 	
 ########################################################################
@@ -170,30 +161,31 @@ sub BUILD {
 	my $self = shift;
 	$self->print_to_logfile("Building Letter...");
 	# The letter grid is a square with a radius input at creation time.
-	$self->letter_grid(Simulation::Grid->new(xmax => $self->letter_radius, ymax => $self->letter_radius));
-	$self->print_to_logfile("Centroids...".$self->letter_num_centroids);
+	$self->grid(Simulation::Grid->new(xmax => $self->radius, ymax => $self->radius));
+	$self->print_to_logfile("Centroids...".$self->num_centroids);
 	$self->print_to_logfile("\n");
 	
 	# Building the Letter consists of adding Centroids, and assigning those
 	# Centroids properties from a selected distribution.
-	for (my $i = 0; $i <= $self->letter_num_centroids; $i++) {
-		my $random_point = $self->letter_grid->get_random_point;
-		$random_point->add_to_bucket(Simulation::Centroid->new(max_radius => $self->letter_radius));
+	for (my $i = 0; $i <= $self->num_centroids; $i++) {
+		my $random_point = $self->grid->get_random_point;
+		$random_point->add_to_bucket(Simulation::Centroid->new(max_radius => $self->radius));
 	}
 }
 ########################################################################
 
 
 sub find_centroids {
-# Search through all the points on the letter grid
+# Search through all the points on the letter grid and return a ref array
+# of centroids
 	my $self = shift;
 	my @centroids = ();
 	# Loop through each point and find centroids.
 	my $found_centroids = 0;
-	for (my $x = 0; $x < $self->letter_radius; $x++) {
-        for (my $y = 0; $y < $self->letter_radius; $y++) {
+	for (my $x = 0; $x < $self->radius; $x++) {
+        for (my $y = 0; $y < $self->radius; $y++) {
 			# get the point at x,y position
-			my $current_point = $self->letter_grid->get_point( x => $x, y => $y);
+			my $current_point = $self->grid->get_point( x => $x, y => $y);
 			# loop through and check the bucket for Centroids
 			foreach my $object ($current_point->bucket) {
 				if (ref $object eq 'Simulation::Centroid') {
@@ -201,19 +193,22 @@ sub find_centroids {
 					$found_centroids++;
 				}
 			}
-			last if $found_centroids == $self->letter_num_centroids;
+			last if $found_centroids == $self->num_centroids;
 		}
-		last if $found_centroids == $self->letter_num_centroids;
+		last if $found_centroids == $self->num_centroids;
 	}
 	# print ref \@centroids;
 	# print "\n";
 	# print ref @centroids;
-	print "\n";
+	# print "\n";
 	return \@centroids;
 }
 
-sub calculate_letter_mass {
+sub calculate_mass {
 # Loops through all Centroids and calculates the mass of the letter
+# Mass of the Letter is the sum of all centroid steric radii
+# This is analagous to the sum of protons in an attom (atomic mass)
+# Or the molecular mass of a molecule (
 	my $self = shift;
 	my %params = validate(
 		@_, {

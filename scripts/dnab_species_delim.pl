@@ -20,7 +20,7 @@
 
 use FindBin;
 # Import sequence libs
-use lib "$FindBin::Bin/libs/Sequence/";
+use lib "$FindBin::Bin/libs/Sequence";
 use Fasta;
 require 'Kimura_Distance_C.pl';
 

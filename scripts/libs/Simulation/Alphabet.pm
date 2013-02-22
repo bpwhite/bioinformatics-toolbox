@@ -12,7 +12,6 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 package Simulation::Alphabet;
 use strict;
 use warnings;
@@ -77,7 +76,7 @@ sub alphabet_stats {
 # Print some alphabet statistics
 	my $self = shift;
 	foreach my $letter ($self->letter_list) {
-		print $letter->letter_mass."\n";
+		print $letter->letter_num_centroids." => ".$letter->letter_mass."\n";
 	}
 
 }

@@ -119,6 +119,8 @@ sub _create_centroid_steric_radius {
 							Simulation::Centroid->mean_steric_radius*$self->max_centroid_radius, 
 							Simulation::Centroid->mean_steric_radius*$self->centroid_std_dev_rate);
 	}
+	if($steric_radius < 1) { return 1 };
+	return $steric_radius;
 }
 
 # Electrostatic
@@ -130,12 +132,14 @@ has 'centroid_electrostatic_radius' => (
 	);
 sub _create_centroid_electrostatic_radius {
 	my $self = shift;
-	my $steric_radius = 1;
+	my $electrostatic_radius = 1;
 	if(Simulation::Centroid->centroid_distribution eq 'gaussian') {
-		$steric_radius =	int random_normal(	1,
+		$electrostatic_radius =	int random_normal(	1,
 							Simulation::Centroid->mean_electrostatic_radius*$self->max_centroid_radius, 
 							Simulation::Centroid->mean_electrostatic_radius*$self->centroid_std_dev_rate);
 	}
+	if($electrostatic_radius < 1) { return 1 };
+	return $electrostatic_radius;
 }
 
 # Hydrogen
@@ -147,12 +151,14 @@ has 'centroid_hydrogen_radius' => (
 	);
 sub _create_centroid_hydrogen_radius {
 	my $self = shift;
-	my $steric_radius = 1;
+	my $hydrogen_radius = 1;
 	if(Simulation::Centroid->centroid_distribution eq 'gaussian') {
-		$steric_radius =	int random_normal(	1,
+		$hydrogen_radius =	int random_normal(	1,
 							Simulation::Centroid->mean_hydrogen_radius*$self->max_centroid_radius, 
 							Simulation::Centroid->mean_hydrogen_radius*$self->centroid_std_dev_rate);
 	}
+	if($hydrogen_radius < 1) { return 1 };
+	return $hydrogen_radius;
 }
 
 # Van der Waals
@@ -164,12 +170,14 @@ has 'centroid_vanderwaals_radius' => (
 	);
 sub _create_centroid_vanderwaals_radius {
 	my $self = shift;
-	my $steric_radius = 1;
+	my $vanderwaals_radius = 1;
 	if(Simulation::Centroid->centroid_distribution eq 'gaussian') {
-		$steric_radius =	int random_normal(	1,
+		$vanderwaals_radius =	int random_normal(	1,
 							Simulation::Centroid->mean_vanderwaals_radius*$self->max_centroid_radius, 
 							Simulation::Centroid->mean_vanderwaals_radius*$self->centroid_std_dev_rate);
 	}
+	if($vanderwaals_radius < 1) { return 1 };
+	return $vanderwaals_radius;
 }
 
 # Covalent
@@ -181,12 +189,14 @@ has 'centroid_covalent_radius' => (
 	);
 sub _create_centroid_covalent_radius {
 	my $self = shift;
-	my $steric_radius = 1;
+	my $covalent_radius = 1;
 	if(Simulation::Centroid->centroid_distribution eq 'gaussian') {
-		$steric_radius =	int random_normal(	1,
+		$covalent_radius =	int random_normal(	1,
 							Simulation::Centroid->mean_covalent_radius*$self->max_centroid_radius, 
 							Simulation::Centroid->mean_covalent_radius*$self->centroid_std_dev_rate);
 	}
+	if($covalent_radius < 1) { return 1 };
+	return $covalent_radius;
 }
 
 

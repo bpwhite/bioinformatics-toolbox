@@ -11,11 +11,11 @@ I. Toolbox Overview
 		2b. Linux
 II. DNA Barcoding
 	1. dnab_condense.pl - Condenses sequence data down to either unique haplotypes or 
-		locales.
+	locales.
 	2. dnab_species_delim.pl - For use in DNA barcode species delimitations
 III. Genome Annotation
 	1. gen_concatenate_alignments.pl - Concatenates alignments to create a combined 
-		data set.
+	data set.
 	2. gen_concatenate_contigs.pl - Concatenates contigs to form a single contig.
 	3. gen_make_blast_db.pl - Creates a blast database.
 	4. gen_extract_genes.pl - Extracts target genes from a BLAST database 
@@ -25,13 +25,13 @@ V. Sequence Manipulation
 	1. seq_convert_fasta_nexus.pl - Converts a FASTA file toa  NEXUS file.
 	2. seq_order_specimens.pl - Orders FASTA sequences based on an input list.
 	3. seq_print_sequences.pl - Prints FASTA sequences with some info about each 
-		sequence.
+	sequence.
 	4. seq_reading_frame.pl - Attempts to put a protein coding sequence into a 
-		reading frame that does not have any stop codons.
+	reading frame that does not have any stop codons.
 	5. seq_rename_fasta.pl - Converts the ID's of a genbank FASTA file into a 
-		readable format.
+	readable format.
 	6. seq_rename_fasta_from_list.pl - Renames the ID's of a Fasta file based on a 
-		list.
+	list.
 VI. Simulations
 	1. sim_replicators.pl - Particle physics simulator of basic biomolecules
 

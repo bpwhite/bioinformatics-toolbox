@@ -12,7 +12,6 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 package Simulation::Letter;
 use strict;
 use warnings;
@@ -181,7 +180,6 @@ sub BUILD {
 		my $random_point = $self->letter_grid->get_random_point;
 		$random_point->add_to_bucket(Simulation::Centroid->new(max_centroid_radius => $self->letter_radius));
 	}
-	
 }
 ########################################################################
 
@@ -228,6 +226,7 @@ sub calculate_letter_mass {
 	# loop through each centroid and sum its steric radius.
 	foreach my $centroid( @centroid_list) {
 		$cumulative_centroid_mass += $centroid->centroid_steric_radius;
+		if($centroid->centroid_steric_radius == 0) { exit };
 	}
 	return $cumulative_centroid_mass;
 }

@@ -226,7 +226,7 @@ sub calculate_letter_mass {
 	# loop through each centroid and sum its steric radius.
 	foreach my $centroid( @centroid_list) {
 		$cumulative_centroid_mass += $centroid->steric_radius;
-		if($centroid->steric_radius == 0) { exit };
+		if($centroid->steric_radius  == 0) { exit };
 	}
 	return $cumulative_centroid_mass;
 }

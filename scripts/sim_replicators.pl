@@ -42,8 +42,8 @@ Simulation::Letter->mean_letter_num_centroids(5);
 Simulation::Letter->letter_std_dev_rate(0.50);
 
 # Centroid parameters
-Simulation::Centroid->centroid_distribution('gaussian');
-Simulation::Centroid->centroid_std_dev_rate(0.05);
+Simulation::Centroid->distribution('gaussian');
+Simulation::Centroid->std_dev_rate(0.05);
 Simulation::Centroid->mean_steric_radius(0.25);
 Simulation::Centroid->mean_electrostatic_radius(0.25);
 Simulation::Centroid->mean_hydrogen_radius(0.25);

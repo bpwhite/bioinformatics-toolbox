@@ -178,7 +178,7 @@ sub BUILD {
 	# Centroids properties from a selected distribution.
 	for (my $i = 0; $i <= $self->letter_num_centroids; $i++) {
 		my $random_point = $self->letter_grid->get_random_point;
-		$random_point->add_to_bucket(Simulation::Centroid->new(max_centroid_radius => $self->letter_radius));
+		$random_point->add_to_bucket(Simulation::Centroid->new(max_radius => $self->letter_radius));
 	}
 }
 ########################################################################
@@ -225,8 +225,8 @@ sub calculate_letter_mass {
 	my $cumulative_centroid_mass = 0;
 	# loop through each centroid and sum its steric radius.
 	foreach my $centroid( @centroid_list) {
-		$cumulative_centroid_mass += $centroid->centroid_steric_radius;
-		if($centroid->centroid_steric_radius == 0) { exit };
+		$cumulative_centroid_mass += $centroid->steric_radius;
+		if($centroid->steric_radius == 0) { exit };
 	}
 	return $cumulative_centroid_mass;
 }

@@ -28,7 +28,6 @@ use Simulation::SimulationInstance;
 use strict;
 use warnings;
 
-
 Simulation::SimulationObject->logger_prefix('simulation_log');
 Simulation::SimulationObject->clear_log_file;
 
@@ -36,14 +35,14 @@ Simulation::SimulationObject->clear_log_file;
 Simulation::Alphabet->mean_alphabet_size(50);
 
 # Letter parameters
-Simulation::Letter->letter_distribution('gaussian');
-Simulation::Letter->mean_letter_radius(25);
-Simulation::Letter->mean_letter_num_centroids(5);
-Simulation::Letter->letter_std_dev_rate(0.50);
+Simulation::Letter->distribution('gaussian');
+Simulation::Letter->mean_radius(25);
+Simulation::Letter->mean_num_centroids(5);
+Simulation::Letter->stdev_rate(0.50);
 
 # Centroid parameters
 Simulation::Centroid->distribution('gaussian');
-Simulation::Centroid->std_dev_rate(0.05);
+Simulation::Centroid->stdev_rate(0.05);
 Simulation::Centroid->mean_steric_radius(0.25);
 Simulation::Centroid->mean_electrostatic_radius(0.25);
 Simulation::Centroid->mean_hydrogen_radius(0.25);

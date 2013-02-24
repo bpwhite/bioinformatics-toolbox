@@ -76,7 +76,7 @@ sub alphabet_stats {
 # Print some alphabet statistics
 	my $self = shift;
 	foreach my $letter ($self->letter_list) {
-		print $letter->letter_num_centroids." => ".$letter->letter_mass."\n";
+		print $letter->num_centroids." => ".$letter->mass."\n";
 	}
 
 }

@@ -46,32 +46,24 @@ has 'letter_list' => (
 	builder => '_create_letter_list',
 	auto_deref => 1,
 );
+sub _create_letter_list {
+	return [];
+}
 ########################################################################
 
 ########################################################################
 sub BUILD {
-	my $self = shift;
-	$self->build_alphabet();
-}
-########################################################################
-
-########################################################################
-sub _create_letter_list {
-	return [];
-}
-
-
-sub build_alphabet {
-# Create an alphabet at size
 	my $self = shift;
 	
 	for (my $i = 0; $i < $self->mean_alphabet_size; $i++) {
 		my $new_letter = Simulation::Letter->new();
 		push($self->letter_list, $new_letter);
 	}
-	$self->alphabet_stats;
+	# $self->alphabet_stats;
 }
+########################################################################
 
+########################################################################
 sub alphabet_stats {
 # Print some alphabet statistics
 	my $self = shift;
@@ -89,5 +81,7 @@ sub alphabet_length {
 	}
 	return $alphabet_length;
 }
+########################################################################
+
 __PACKAGE__->meta->make_immutable;
 1;

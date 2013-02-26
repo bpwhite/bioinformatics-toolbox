@@ -64,18 +64,27 @@ has 'alphabet_states' => (
 ########################################################################
 sub BUILD {
 	my $self = shift;
-
+	
+	####################################################################
 	# Build the primary grid for the simulation.
 	$self->primary_grid(Simulation::Grid->new(	xmax => $self->grid_xmax, 
 												ymax => $self->grid_ymax)
 												);
 
 	$self->print_to_logfile("\n");								
+	#####################################################################
 	
+	#####################################################################
 	# Build an alphabet for this simulation, or import an already built one.
 	if (!defined($self->current_alphabet)) {
 		$self->current_alphabet(Simulation::Alphabet->new());
 	}
+	#####################################################################
+	
+	#####################################################################
+	# Sample the Alphabet and place Letters on the Simulation Grid.
+	# 
+	#####################################################################
 }
 ########################################################################
 

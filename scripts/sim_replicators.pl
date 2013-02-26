@@ -32,7 +32,7 @@ Simulation::SimulationObject->logger_prefix('simulation_log');
 Simulation::SimulationObject->clear_log_file;
 
 # Alphabet parameters
-Simulation::Alphabet->mean_alphabet_size(50);
+Simulation::Alphabet->mean_alphabet_size(5);
 
 # Letter parameters
 Simulation::Letter->distribution('gaussian');

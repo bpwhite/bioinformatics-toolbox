@@ -159,22 +159,29 @@ sub _create_mass {
 ########################################################################
 sub BUILD {
 	my $self = shift;
+	####################################################################
+	# Create a Grid for the letter that will hold Centroids
 	$self->print_to_logfile("Building Letter...");
-	# The letter grid is a square with a radius input at creation time.
-	$self->grid(Simulation::Grid->new(xmax => $self->radius, ymax => $self->radius));
+	$self->grid(Simulation::Grid->new(	xmax => $self->radius, 
+										ymax => $self->radius));
 	$self->print_to_logfile("Centroids...".$self->num_centroids);
 	$self->print_to_logfile("\n");
+	####################################################################
 	
+	####################################################################
 	# Building the Letter consists of adding Centroids, and assigning those
 	# Centroids properties from a selected distribution.
 	for (my $i = 0; $i <= $self->num_centroids; $i++) {
 		my $random_point = $self->grid->get_random_point;
-		$random_point->add_to_bucket(Simulation::Centroid->new(max_radius => $self->radius));
+		$self->get_random_point_bounds;
+		$random_point->add_to_bucket(Simulation::Centroid->new(
+											max_radius => $self->radius));
 	}
+	####################################################################
 }
 ########################################################################
 
-
+########################################################################
 sub find_centroids {
 # Search through all the points on the letter grid and return a ref array
 # of centroids
@@ -197,10 +204,6 @@ sub find_centroids {
 		}
 		last if $found_centroids == $self->num_centroids;
 	}
-	# print ref \@centroids;
-	# print "\n";
-	# print ref @centroids;
-	# print "\n";
 	return \@centroids;
 }
 
@@ -227,5 +230,18 @@ sub calculate_mass {
 }
 
 
+sub get_random_point_bounds {
+# Returns a random point within the bounds of another point.
+# Typically the bounds should be the steric raidius of another
+# Centroid.
+	my $self = shift;
+	
+	print $self->grid->xmax."\n";
+	print $self->grid->ymax."\n";
+	
+
+}
+
+########################################################################
 __PACKAGE__->meta->make_immutable;
 1;

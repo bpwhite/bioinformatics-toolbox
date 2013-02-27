@@ -19,18 +19,23 @@ use warnings;
 
 use Moose;
 use MooseX::ClassAttribute;
+use Params::Validate qw(:all);
 
 extends 'Simulation::SimulationObject';
 ########################################################################
 # Class Variables
-class_has 'point_id' =>(
-	is      => 'rw',
-	isa     => 'Int',
-	default => 0,
-	);
+
 
 ########################################################################
 # Attributes
+has 'x' => (
+	is => 'rw',
+	isa => 'Int',
+	);
+has 'y' => (
+	is => 'rw',
+	isa => 'Int',
+	);
 has 'bucket' => (
 	is => 'rw',
 	isa => 'ArrayRef[Any]',
@@ -38,6 +43,9 @@ has 'bucket' => (
 	required => 0,
 	auto_deref => 1,
 	);
+sub _create_bucket {
+	return [];
+}
 
 has 'hopper' => (
 	is => 'rw',
@@ -46,29 +54,18 @@ has 'hopper' => (
 	required => 0,
 	auto_deref => 1,
 	);
+sub _create_hopper {
+	return [];
+}
 ########################################################################
 
 ########################################################################
 sub BUILD {
 	my $self = shift;
-	$self->point_id($self->point_id + 1);
 }
 ########################################################################
 
 ########################################################################
-sub _create_bucket {
-	return [];
-}
-
-sub _create_hopper {
-	return [];
-}
-
-sub _create_point_id {
-	my $self = shift;
-	
-}
-
 sub add_to_bucket {
 	my $self = shift;
 	my @additions = @_;
@@ -93,5 +90,17 @@ sub dump_hopper {
 	$self->hopper(@flush);
 }
 
+sub euclidean_distance {
+	my $self = shift;
+	my %params = validate(
+		@_, {
+			x2 => 1,
+			y2 => 1,
+		}
+	);
+	my $distance = sqrt(($self->x - $params{'x2'})^2 + ($self->y - $params{'y2'})^2);
+	
+	return $distance;
+}
 __PACKAGE__->meta->make_immutable;
 1;

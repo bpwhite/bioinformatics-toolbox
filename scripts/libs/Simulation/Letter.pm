@@ -171,11 +171,43 @@ sub BUILD {
 	####################################################################
 	# Building the Letter consists of adding Centroids, and assigning those
 	# Centroids properties from a selected distribution.
+	my $previous_point = '';
+	my $previous_radius = '';
 	for (my $i = 0; $i <= $self->num_centroids; $i++) {
-		my $random_point = $self->grid->get_random_point;
-		$self->get_random_point_bounds;
-		$random_point->add_to_bucket(Simulation::Centroid->new(
-											max_radius => $self->radius));
+		# my $random_point = $self->grid->get_random_point;
+
+		if($i == 0) {
+			# Place the first Centroid randomly
+			my $first_point = $self->grid->get_random_point;
+			my $new_centroid = Simulation::Centroid->new(max_radius => $self->radius);
+			$previous_radius = $new_centroid->steric_radius;
+			$first_point->add_to_bucket($new_centroid);
+			$previous_point = $first_point;
+			print $first_point->x." ".$first_point->y."\n";
+			
+		} else {
+			# Place the remaining Centroids 
+			for (my $j = 0; $j < 10000; $j++) {
+				my @new_centroid_coords = $self->grid->get_random_coords;
+				my $x = $new_centroid_coords[0];
+				my $y = $new_centroid_coords[1];
+				print $x." ".$y."\n";
+				print ref $previous_point;
+				my $distance = $previous_point->euclidean_distance(	x2 => $x,
+																	y2 => $y);
+				if($distance < $previous_radius) {
+					my $new_centroid = Simulation::Centroid->new(max_radius => $self->radius);
+					$previous_radius = $new_centroid->steric_radius;
+					my $new_point = $self->grid->get_point(x => $x, y => $y);
+					$new_point->add_to_bucket($new_centroid);
+					goto placed_centroid;
+				}
+			}
+			print "Could not place new Centroid.\n";
+			exit;
+		}
+		placed_centroid: # Place the next Centroid.
+
 	}
 	####################################################################
 }
@@ -187,7 +219,7 @@ sub find_centroids {
 # of centroids
 	my $self = shift;
 	my @centroids = ();
-	# Loop through each point and find centroids.
+	# Loop through each point and find Centroids.
 	my $found_centroids = 0;
 	for (my $x = 0; $x < $self->radius; $x++) {
         for (my $y = 0; $y < $self->radius; $y++) {
@@ -230,16 +262,26 @@ sub calculate_mass {
 }
 
 
-sub get_random_point_bounds {
+sub rd_pt_within_bounds {
 # Returns a random point within the bounds of another point.
 # Typically the bounds should be the steric raidius of another
 # Centroid.
 	my $self = shift;
+	my %params = validate(
+		@_, {
+			xmax => 1,
+			ymax => 1,
+			current_pt => 1,
+		}
+	);
+	while(my $pt_in_range == 1) {
+		my $new_point = $self->grid->get_random_point;
+	}
+	print $self->xmax."\n";
+	print $self->ymax."\n";
 	
-	print $self->grid->xmax."\n";
-	print $self->grid->ymax."\n";
 	
-
+	return 1;
 }
 
 ########################################################################

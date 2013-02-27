@@ -72,7 +72,7 @@ sub BUILD {
 	# print "Building grid ".$self->xmax." x ".$self->ymax."...\n";
 	for (my $x = 0; $x < $self->xmax; $x++) {
         for (my $y = 0; $y < $self->ymax; $y++) {
-			$self->point_array->[$x][$y] = Simulation::Point->new();
+			$self->point_array->[$x][$y] = Simulation::Point->new(x => $x, y => $y);
 		}
 	}
 }
@@ -111,12 +111,19 @@ sub add_to_hopper_list {
 sub get_random_point {
 # Returns a random Point object.
 	my $self = shift;
-	my $rand_x = rand ($self->xmax);
-	my $rand_y = rand ($self->ymax);
+	my $rand_x = rand int ($self->xmax);
+	my $rand_y = rand int ($self->ymax);
 	my $current_object = $self->point_array->[$rand_x][$rand_y];
 	return $current_object;
 }
 
+sub get_random_coords {
+# Returns a random coordinate pair
+	my $self = shift;
+	my $rand_x = int rand ($self->xmax);
+	my $rand_y = int rand ($self->ymax);
+	return ($rand_x,$rand_y);
+}
 sub get_point {
 # Returns a single point object given a coordinate pair
 	my $self = shift;

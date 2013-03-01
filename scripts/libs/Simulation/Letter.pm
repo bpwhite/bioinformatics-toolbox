@@ -67,6 +67,11 @@ class_has 'mean_num_centroids' => (
 sub _create_mean_num_centroids {
 	return 25;
 }
+
+class_has 'centroid_density' => (
+	is => 'rw',
+	isa => 'Int',
+	
 ########################################################################
 
 ########################################################################
@@ -174,39 +179,31 @@ sub BUILD {
 	my $previous_point = '';
 	my $previous_radius = '';
 	for (my $i = 0; $i <= $self->num_centroids; $i++) {
-		# my $random_point = $self->grid->get_random_point;
-
 		if($i == 0) {
 			# Place the first Centroid randomly
 			my $first_point = $self->grid->get_random_point;
 			my $new_centroid = Simulation::Centroid->new(max_radius => $self->radius);
 			$previous_radius = $new_centroid->steric_radius;
 			$first_point->add_to_bucket($new_centroid);
-			$previous_point = $first_point;
-			print $first_point->x." ".$first_point->y."\n";
-			
+			$previous_point = $first_point;			
 		} else {
 			# Place the remaining Centroids 
-			for (my $j = 0; $j < 10000; $j++) {
+			for (my $j = 0; $j < 9999999; $j++) {
 				my @new_centroid_coords = $self->grid->get_random_coords;
 				my $x = $new_centroid_coords[0];
 				my $y = $new_centroid_coords[1];
-				print $x." ".$y."\n";
-				print ref $previous_point;
-				my $distance = $previous_point->euclidean_distance(	x2 => $x,
-																	y2 => $y);
+				my $distance = $previous_point->euclidean_distance(	x2 => $x, y2 => $y);
 				if($distance < $previous_radius) {
 					my $new_centroid = Simulation::Centroid->new(max_radius => $self->radius);
 					$previous_radius = $new_centroid->steric_radius;
 					my $new_point = $self->grid->get_point(x => $x, y => $y);
 					$new_point->add_to_bucket($new_centroid);
-					goto placed_centroid;
+					goto placed_centroid; # Place the next Centroid.
 				}
 			}
-			print "Could not place new Centroid.\n";
-			exit;
+			die "Could not place new Centroid.\n";
 		}
-		placed_centroid: # Place the next Centroid.
+		placed_centroid:
 
 	}
 	####################################################################

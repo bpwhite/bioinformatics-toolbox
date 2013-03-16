@@ -37,14 +37,16 @@ use Class::Inspector;
 use Data::Dumper;
 
 my $target_taxon = 'Ostreidae';
-my $search_options = 'AND COI[gene]';
+# my $target_taxon = 'Crassostrea angulata';
+my $search_options = 'AND 18S';
 my $taxon_limit = 1;
 my $sequence_limit = 1000;
 my $user_email = 'bpcwhite@gmail.com';
 my $dlm = ',';
 my $endl = "\n";
-my $output_file = $target_taxon."_output.csv";
-my $sleep_time = 1000000; # microsends, pause between seconds
+my $output_file = $target_taxon."_18S_output.csv";
+my $sleep_time = 1000; # microsends, pause between seconds
+my $max_num_tries = 10;
 
 ##############################################################################
 # Retrieve taxon ID
@@ -88,12 +90,63 @@ print "Sequences downloaded to genbank format.\n";
 ##############################################################################
 # Open genbank file into needed locations.
 open (GENBANK, '<'.$sequence_file);
-my @genbank = <GENBANK>;
-
+my @genbank 						= <GENBANK>;
+my %binomial_name_hash				= ();
+my %taxonomy_hierarchy_hash 		= ();
+my $current_accession 				= 'NA';
+my @current_hierarchical_taxonomy 	= ();
+my $current_binomial_name 			= 'NA';
+my $found_organism_line 			= 0;
+my $found_accession 				= 0;
+my $organism_line_i 				= 0;
+foreach my $genbank_line (@genbank) {
+	if ($genbank_line =~ m/REFERENCE/ && $found_organism_line == 1) {
+		$binomial_name_hash{$current_accession} 				= $current_binomial_name;
+		push(@{$taxonomy_hierarchy_hash{$current_accession}}, @current_hierarchical_taxonomy);
+		# $taxonomy_hierarchy_hash{$current_accession} 	= \@current_hierarchical_taxonomy;
+		# Reset all variables.
+		$current_accession = 'NA';
+		@current_hierarchical_taxonomy = ();
+		$current_binomial_name = 'NA';
+		$found_organism_line = 0;
+		$found_accession = 0;
+		$organism_line_i = 0;
+	}
+	if($genbank_line =~ m/ACCESSION/) { 
+		$found_accession = 1;
+		$current_accession = $genbank_line;
+		$current_accession =~ s/ACCESSION//g; # Parse off the ORGANISM tag
+		$current_accession =~ s/^\s+//; # remove leading spaces
+		$current_accession =~ s/\s+$//; # remove trailing spaces
+		$current_accession =~ s/ /_/g; 	# replace inner whitespace
+	}
+	if($genbank_line =~ m/ORGANISM/ && $found_accession == 1) { $found_organism_line = 1 };
+	if($found_organism_line == 1) {
+		# Parse the first line, which is the binomial name
+		if($organism_line_i == 0) {
+			$current_binomial_name = $genbank_line;
+			$current_binomial_name =~ s/ORGANISM//g; # Parse off the ORGANISM tag
+			$current_binomial_name =~ s/^\s+//; # remove leading spaces
+			$current_binomial_name =~ s/\s+$//; # remove trailing spaces
+			$current_binomial_name =~ s/ /_/g; 	# replace inner whitespace
+		} else {
+		# Parse the remaining lines which contain the hierarchical taxonomy
+			my $hierarchical_taxa_string = $genbank_line;
+			$hierarchical_taxa_string =~ s/^\s+//;	# remove leading spaces
+			$hierarchical_taxa_string =~ s/\s+$//;	# remove trailing spaces
+			$hierarchical_taxa_string =~ s/ //g; 	# replace inner whitespace
+			$hierarchical_taxa_string =~ s/\.//g; 	# delete periods
+			my @hierarchical_taxa_list = split(/;/,$hierarchical_taxa_string);
+			push(@current_hierarchical_taxonomy,@hierarchical_taxa_list);
+		}
+		$organism_line_i++;
+	}
+}
+##############################################################################
 my $seqin = Bio::SeqIO->new(-file   => $sequence_file,
                             -format => 'genbank');
 ##############################################################################
-
+# Output file headers.
 my @output_lines = ();
 push(@output_lines,
 	'taxon_id',$dlm,
@@ -125,7 +178,6 @@ push(@output_lines,
 	'location',$dlm,
 	'lat_lon',$dlm,
 	$endl);
-
 ##############################################################################
 # Loop through the downloaded genbank files and parse all the data
 my $seq_counter = 0;
@@ -172,10 +224,11 @@ while (my $seq = $seqin->next_seq) {
 	$long_name 			= $seq->description if defined $seq->description;
 	$accession_number 	= $seq->accession_number if defined $seq->accession_number;
 	$nucleotide_seq		= $seq->seq if defined $seq->seq;
-	
+	$binomial_name		= $binomial_name_hash{$accession_number};
 	##############################################################################
 	# Obtain sequence feature information.
 	print "\tRetrieving sequence features...\n";
+	print "\t".$long_name."\n";
 	for my $feat_object ($seq->get_SeqFeatures) {
 		for my $tag ($feat_object->get_all_tags) {             			
 			for my $value ($feat_object->get_tag_values($tag)) {
@@ -220,34 +273,6 @@ while (my $seq = $seqin->next_seq) {
 	
 	##############################################################################
 	# Get concise taxonomy information.
-	my $found_organism_line = 0;
-	my $found_accession = 0;
-	my $organism_line_i = 0;
-	foreach my $genbank_line (@genbank) {
-		last if $genbank_line =~ m/REFERENCE/ && $found_organism_line == 1;
-		if($genbank_line =~ m/$accession_number/) { $found_accession = 1 };
-		if($genbank_line =~ m/ORGANISM/ && $found_accession == 1) { $found_organism_line = 1 };
-		if($found_organism_line == 1) {
-			# Parse the first line, which is the binomial name
-			if($organism_line_i == 0) {
-				$binomial_name = $genbank_line;
-				$binomial_name =~ s/ORGANISM//g; # Parse off the ORGANISM tag
-				$binomial_name =~ s/^\s+//; # remove leading spaces
-				$binomial_name =~ s/\s+$//; # remove trailing spaces
-				$binomial_name =~ s/ /_/g; 	# replace inner whitespace
-			} else {
-			# Parse the remaining lines which contain the hierarchical taxonomy
-				my $hierarchical_taxa_string = $genbank_line;
-				$hierarchical_taxa_string =~ s/^\s+//;	# remove leading spaces
-				$hierarchical_taxa_string =~ s/\s+$//;	# remove trailing spaces
-				$hierarchical_taxa_string =~ s/ //g; 	# replace inner whitespace
-				$hierarchical_taxa_string =~ s/\.//g; 	# delete periods
-				my @hierarchical_taxa_list = split(/;/,$hierarchical_taxa_string);
-				push(@hierarchical_taxonomy,@hierarchical_taxa_list);
-			}
-			$organism_line_i++;
-		}
-	}
 	##############################################################################
 	
 	##############################################################################
@@ -256,14 +281,20 @@ while (my $seq = $seqin->next_seq) {
 	# Extract the abstract text from the pubmed file.
 	my $cleaned_title = $publication_title;
 	$cleaned_title =~ s/://g; # Remove colons
+	my $pubmed_esearch_tries = 0;
+	retry_pubmed_esearch:
+	print $pubmed_esearch_tries."\n" if $pubmed_esearch_tries > 0;
+	next if $pubmed_esearch_tries >= $max_num_tries;
+	$pubmed_esearch_tries++;
 	my $seq_pubmed = Bio::DB::EUtilities->new(   	-eutil    	=> 'esearch',
 												   -db      	=> 'pubmed',
 												   -retmax  	=> 1,
 												   -email   	=> $user_email,
 												   -term    	=> $cleaned_title,
-												   -verbose		=> -1);
+												   -verbose		=> -1)
+												   or goto retry_pubmed_esearch;
 
-	my @pubmed_ids = $seq_pubmed->get_ids;
+	my @pubmed_ids = $seq_pubmed->get_ids or goto skip_pubmed;
 	my $seq_pubmed_summary = Bio::DB::EUtilities->new(   -eutil    	=> 'esummary',
 														-db      	=> 'pubmed',
 														-retmax  	=> 1,
@@ -276,13 +307,13 @@ while (my $seq = $seqin->next_seq) {
 	my $ds_pubmed = $seq_pubmed_summary->next_DocSum;
 	while (my $item = $ds_pubmed->next_Item('flattened'))  {
 		next if !defined($item->get_content);
-		$journal_name = $item->get_content if $item->get_name =~ m/FullJournalName/;
-		$journal_DOI = $item->get_content if $item->get_name =~ m/DOI/;
-		$journal_SO = $item->get_content if $item->get_name =~ m/SO/;
-		$journal_volume = $item->get_content if $item->get_name =~ m/Volume/;
-		$journal_issue = $item->get_content if $item->get_name =~ m/Issue/;
-		$journal_pages = $item->get_content if $item->get_name =~ m/Pages/;
-		$journal_pubdate = $item->get_content if $item->get_name =~ m/PubDate/;
+		$journal_name 		= $item->get_content if $item->get_name =~ m/FullJournalName/;
+		$journal_DOI 		= $item->get_content if $item->get_name =~ m/DOI/;
+		$journal_SO 		= $item->get_content if $item->get_name =~ m/SO/;
+		$journal_volume 	= $item->get_content if $item->get_name =~ m/Volume/;
+		$journal_issue 		= $item->get_content if $item->get_name =~ m/Issue/;
+		$journal_pages 		= $item->get_content if $item->get_name =~ m/Pages/;
+		$journal_pubdate 	= $item->get_content if $item->get_name =~ m/PubDate/;
     }
 	my $pubmed_fetch = Bio::DB::EUtilities->new( -eutil   => 'efetch',
 												   -db      => 'pubmed',
@@ -315,9 +346,10 @@ while (my $seq = $seqin->next_seq) {
 	# print "Product name: ".$product_name."\n"; 			# Genbank product name (e.g. cytochrome oxidase I)
 	# print "Binomial name: ".$binomial_name."\n";	
 	# print "Full taxonomy: ";
-	foreach my $taxa_i (0 .. $#hierarchical_taxonomy) { # Print hierarchical taxonomy list
+	my @current_tax_array = @{$taxonomy_hierarchy_hash{$accession_number}};
+	foreach my $taxa_i (0 .. $#current_tax_array) { # Print hierarchical taxonomy list
 		$taxonomy_print_string = '' if ($taxa_i == 0);
-		$taxonomy_print_string .= $hierarchical_taxonomy[$taxa_i].';' if ($taxa_i > 0);
+		$taxonomy_print_string .= $current_tax_array[$taxa_i].';' if ($taxa_i > 0);
 		# print $hierarchical_taxonomy[$taxa_i].';' if($taxa_i > 0);
 	}
 	# print "\n";
@@ -352,36 +384,40 @@ while (my $seq = $seqin->next_seq) {
 	# print "Location: ".$country."\n"; 					# 
 	# print "Lat\\Lon: ".$lat_lon."\n"; 					# 
 	#############################################################################
-	push(@output_lines,
-		$taxon_id,$dlm,
-		$accession_number,$dlm,
-		$long_name,$dlm,
-		$gene_name,$dlm,
-		$product_name,$dlm,
-		$binomial_name,$dlm,
-		$taxonomy_print_string,$dlm,
-		$publication_title,$dlm,
-		$publication_authors,$dlm,
-		$abstract_text,$dlm,
-		$journal_name,$dlm,
-		$journal_DOI,$dlm,	
-		$journal_SO,$dlm,
-		$journal_volume,$dlm,
-		$journal_issue,$dlm,
-		$journal_pages,$dlm,
-		$journal_pubdate,$dlm,
-		$nucleotide_seq,$dlm,
-		$amino_acid_seq,$dlm,
-		$pcr_primer_print_string,$dlm,
-		$codon_start,$dlm,
-		$collection_date,$dlm,
-		$voucher_id,$dlm,
-		$collected_by,$dlm,
-		$identified_by,$dlm,
-		$organelle,$dlm,
-		$country,$dlm,
-		$lat_lon,$dlm,
-		$endl);
+	my @current_output = (	$taxon_id,$dlm,
+							$accession_number,$dlm,
+							$long_name,$dlm,
+							$gene_name,$dlm,
+							$product_name,$dlm,
+							$binomial_name,$dlm,
+							$taxonomy_print_string,$dlm,
+							$publication_title,$dlm,
+							$publication_authors,$dlm,
+							$abstract_text,$dlm,
+							$journal_name,$dlm,
+							$journal_DOI,$dlm,	
+							$journal_SO,$dlm,
+							$journal_volume,$dlm,
+							$journal_issue,$dlm,
+							$journal_pages,$dlm,
+							$journal_pubdate,$dlm,
+							$nucleotide_seq,$dlm,
+							$amino_acid_seq,$dlm,
+							$pcr_primer_print_string,$dlm,
+							$codon_start,$dlm,
+							$collection_date,$dlm,
+							$voucher_id,$dlm,
+							$collected_by,$dlm,
+							$identified_by,$dlm,
+							$organelle,$dlm,
+							$country,$dlm,
+							$lat_lon,$dlm);
+	my @cleaned_output = ();
+	foreach my $current_output (@current_output) {
+		$current_output =~ s/\n//g; # Clear newlines.
+		push(@cleaned_output, $current_output);
+	}	
+	push(@output_lines,@cleaned_output,$endl);
 	# print "\nTaxonomy\n";
 	# print $binomial_name."\n";
 	# foreach my $taxa_i (0 .. $#hierarchical_taxonomy) {

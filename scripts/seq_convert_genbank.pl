@@ -35,24 +35,41 @@ use Class::Inspector;
 
 use Data::Dumper;
 
+my %arguements = ();
+$arguments{'list'} = '';
+$argu
+foreach my $argument (@ARGV) {
+	print $argument."\n";
+}
 
-my $taxa_file = 'tax_list.txt';
+exit;
+my $taxa_file = 'doug_list.txt';
 
 open (TAXALIST, '<'.$taxa_file);
 my @taxa_list = <TAXALIST>;
 
+##############################################################################
 my @overall_results = ();
+my @overall_taxa_failures = ();
+my @overall_seq_failures = ();
 my $taxa_counter = 0;
 my $overall_output_file = 'overall_output.csv';
+my $overall_taxa_failures_file = 'overall_taxa_failures.csv';
+my $overall_seq_failures_file = 'overall_seq_failures.csv';
 my $endl = "\n";
-
+my $suppress_output = 'yes';
 foreach my $taxa (@taxa_list) {
 	$taxa =~ s/\n//g; # replace newlines
-	my $results = download_target_taxa($taxa,$taxa_counter);
+	my ($results, $taxa_failures, $seq_failures) = download_target_taxa($taxa,$taxa_counter,$suppress_output);
 	push(@overall_results, @$results);
+	push(@overall_taxa_failures, $taxa_failures,$endl);
+	push(@overall_seq_failures, $seq_failures,$endl);
 	$taxa_counter++;
 }
+##############################################################################
 
+##############################################################################
+# Print successful output
 unlink $overall_output_file;
 open (OVEROUTPUT, '>>'.$overall_output_file);
 foreach my $output_line (@overall_results) {
@@ -60,31 +77,65 @@ foreach my $output_line (@overall_results) {
 	print OVEROUTPUT 		$output_line if $output_line eq $endl;
 }
 close(OVEROUTPUT);
+##############################################################################
+
+##############################################################################
+# Print things that failed taxonomic lookup
+unlink $overall_taxa_failures_file;
+open (OVERTAXAFAILS, '>>'.$overall_taxa_failures_file);
+foreach my $output_line (@overall_taxa_failures) {
+	print OVERTAXAFAILS "\"".	$output_line if $output_line ne $endl;
+	print OVERTAXAFAILS 		$output_line if $output_line eq $endl;
+}
+close(OVERTAXAFAILS);
+##############################################################################
+
+##############################################################################
+# Print things that lacked sequence data
+unlink $overall_seq_failures_file;
+open (OVERSEQFAILS, '>>'.$overall_seq_failures_file);
+foreach my $output_line (@overall_seq_failures) {
+	print OVERSEQFAILS "\"".	$output_line if $output_line ne $endl;
+	print OVERSEQFAILS 		$output_line if $output_line eq $endl;
+}
+close(OVERSEQFAILS);
+##############################################################################
 
 sub download_target_taxa {
+	##############################################################################
 	# Subroutine parameters
 	my $target_taxon = shift;
 	my $taxa_counter = shift;
+	my $suppress_output = shift;
+	##############################################################################
 	
+	##############################################################################
+	# my $skip_pubmed_search = 0;
+	my $skip_pubmed_search = 1;
+	my $number_seqs_found = 'NA';
 	# my $target_taxon = 'Crassostrea angulata';
-	# my $search_options = 'AND COI[gene]';
-	my $taxa_failed = '';
-	my $search_options = '';
+	my $search_options = 'AND COI[gene]';
+	my $taxa_failed = 0; # Flag for if the taxa lookup fails
+	my $failed_taxa = 'NA';
+	my $sequence_failed = 0; # Flag for if the sequence lookup fails
+	my $failed_sequence = 'NA';
+	# my $search_options = '';
 	my $taxon_limit = 1;
-	my $sequence_limit = 1;
+	my $sequence_limit = 10000;
 	my $user_email = 'bpcwhite@gmail.com';
 	my $dlm = ',';
 	my $endl = "\n";
 	my $output_file = $target_taxon."_output.csv";
 	my $sleep_time = 1000; # microsends, pause between seconds
 	my $max_num_tries = 15;
-	my $max_pubmed_tries = 3;
+	my $max_pubmed_tries = 1;
+	##############################################################################
 	
 	##############################################################################
 	# Retrieve taxon ID
 	my $taxonomy_eutil_tries = 0;
 	taxonomy_eutil:
-	print "Searching for $target_taxon\n";
+	print "[".$taxa_counter."] Searching for $target_taxon\n";
 	my $taxonomy_eutil = Bio::DB::EUtilities->new(-eutil    => 'esearch',
 												   -db      => 'taxonomy',
 												   -retmax  => $taxon_limit,
@@ -95,22 +146,23 @@ sub download_target_taxa {
 	my @taxon_ids = ();
 	eval { @taxon_ids = $taxonomy_eutil->get_ids(); };
 	if ($@) {
-		print "Problem in taxonomy_eutil. Retrying...\n";
+		print "\tProblem in taxonomy_eutil. Retrying...\n";
 		$taxonomy_eutil_tries++;
 		$taxa_failed = 1 if $taxonomy_eutil_tries == $max_num_tries;
 		goto taxa_failed if $taxonomy_eutil_tries == $max_num_tries;
 		goto taxonomy_eutil;
 	}
-	
+	$taxa_failed = 1 if scalar @taxon_ids == 0;
+	goto taxa_failed if scalar @taxon_ids == 0;
 	my $taxon_id = $taxon_ids[0];
-	print "Found taxon ID: $taxon_id\n";
+	print "\tFound taxon ID: $taxon_id\n";
 	##############################################################################
 
 	##############################################################################
 	# Retrieve nucleotide sequences
 	my $sequence_search_tries = 0;
 	sequence_search:
-	print "Retrieving sequences...\n";
+	print "\tRetrieving sequences...\n";
 	my $sequence_term = 'txid'.$taxon_id.'[Organism:exp]';
 	my $sequence_search = Bio::DB::EUtilities->new(-eutil    => 'esearch',
 												   -db      => 'nucleotide',
@@ -121,22 +173,22 @@ sub download_target_taxa {
 	my @sequence_ids = ();
 	eval { @sequence_ids = $sequence_search->get_ids(); };
 	if ($@) {
-		print "Problem in sequence_search. Retrying...\n";
+		print "\tProblem in sequence_search. Retrying...\n";
 		$sequence_search_tries++;
-		$taxa_failed = 1 if $sequence_search_tries == $max_num_tries;
-		goto taxa_failed if $sequence_search_tries == $max_num_tries;
+		$sequence_failed = 1 if $sequence_search_tries == $max_num_tries;
+		goto sequence_failed if $sequence_search_tries == $max_num_tries;
 		goto sequence_search;
 	}
-	print "Found ".scalar(@sequence_ids)." sequences to download.\n";
-	
+	print "\tFound ".scalar(@sequence_ids)." sequences to download.\n";
+	goto sequence_failed if scalar(@sequence_ids) == 0;
 	my $sequence_file = 'seqs_'.$taxon_id.'.gb';
-	if(-e $sequence_file) {
-		goto skip_genbank_download;
-	}
+	# if(-e $sequence_file) {
+		# goto skip_genbank_download;
+	# }
 	
 	my $sequence_download_tries = 0;
 	sequence_download:
-	print "Downloading sequences...\n";
+	print "\tDownloading sequences...\n";
 	my $sequence_fetch = Bio::DB::EUtilities->new( -eutil   => 'efetch',
 												   -db      => 'nucleotide',
 												   -rettype => 'gb',
@@ -145,13 +197,13 @@ sub download_target_taxa {
 
 	eval { $sequence_fetch->get_Response(-file => $sequence_file); };
 	if($@) {
-		print "\nProblem in sequence download. Retrying...\n";
+		print "\tProblem in sequence download. Retrying...\n";
 		$sequence_download_tries++;
-		$taxa_failed = 1 if $sequence_download_tries == $max_num_tries;
-		goto taxa_failed if $sequence_download_tries == $max_num_tries;
+		$sequence_failed = 1 if $sequence_download_tries == $max_num_tries;
+		goto sequence_failed if $sequence_download_tries == $max_num_tries;
 		goto sequence_download;
 	}
-	print "Sequences downloaded to genbank format.\n";
+	print "\tSequences downloaded to genbank format.\n";
 	##############################################################################
 
 	##############################################################################
@@ -171,7 +223,6 @@ sub download_target_taxa {
 		if ($genbank_line =~ m/REFERENCE/ && $found_organism_line == 1) {
 			$binomial_name_hash{$current_accession} 				= $current_binomial_name;
 			push(@{$taxonomy_hierarchy_hash{$current_accession}}, @current_hierarchical_taxonomy);
-			# $taxonomy_hierarchy_hash{$current_accession} 	= \@current_hierarchical_taxonomy;
 			# Reset all variables.
 			$current_accession = 'NA';
 			@current_hierarchical_taxonomy = ();
@@ -185,6 +236,8 @@ sub download_target_taxa {
 			$current_accession = $genbank_line;
 			$current_accession =~ s/ACCESSION//g; # Parse off the ORGANISM tag
 			$current_accession =~ s/^\s+//; # remove leading spaces
+			my @accession_split = split(/ +/,$current_accession);
+			$current_accession = $accession_split[0];			
 			$current_accession =~ s/\s+$//; # remove trailing spaces
 			$current_accession =~ s/ /_/g; 	# replace inner whitespace
 		}
@@ -205,6 +258,7 @@ sub download_target_taxa {
 				$hierarchical_taxa_string =~ s/ //g; 	# replace inner whitespace
 				$hierarchical_taxa_string =~ s/\.//g; 	# delete periods
 				my @hierarchical_taxa_list = split(/;/,$hierarchical_taxa_string);
+				# print $hierarchical_taxa_string."\n";
 				push(@current_hierarchical_taxonomy,@hierarchical_taxa_list);
 			}
 			$organism_line_i++;
@@ -218,6 +272,7 @@ sub download_target_taxa {
 	my @output_lines = ();
 	my @return_output_lines = ();
 	push(@output_lines,
+		'taxon_query',$dlm,
 		'taxon_id',$dlm,
 		'accession',$dlm,
 		'description',$dlm,
@@ -252,7 +307,7 @@ sub download_target_taxa {
 	# Loop through the downloaded genbank files and parse all the data
 	my $seq_counter = 0;
 	while (my $seq = $seqin->next_seq) {
-		print "Seq #: ".$seq_counter."\n";
+		print "\tSeq #: ".$seq_counter."\n";
 		usleep($sleep_time); 	# Sleep so you don't overload NCBI's servers.
 		# Pull these values as you go along and parse the genbank file.
 		# NCBI/Taxonomy Variables
@@ -290,11 +345,16 @@ sub download_target_taxa {
 		my $organelle				= 'NA'; # 
 		my $country					= 'NA'; # 
 		my $lat_lon					= 'NA'; # 
-
+		
+		
+		##############################################################################
+		# Grab some easy variables.
 		$long_name 			= $seq->description if defined $seq->description;
 		$accession_number 	= $seq->accession_number if defined $seq->accession_number;
 		$nucleotide_seq		= $seq->seq if defined $seq->seq;
 		$binomial_name		= $binomial_name_hash{$accession_number};
+		##############################################################################
+		
 		##############################################################################
 		# Obtain sequence feature information.
 		print "\tRetrieving sequence features...\n";
@@ -342,10 +402,6 @@ sub download_target_taxa {
 		##############################################################################
 		
 		##############################################################################
-		# Get concise taxonomy information.
-		##############################################################################
-		
-		##############################################################################
 		# Search for the pubmed article, get its ID, download the pubmed file.
 		# Use the pubmed summary to get
 		# Extract the abstract text from the pubmed file.
@@ -353,6 +409,7 @@ sub download_target_taxa {
 		$cleaned_title =~ s/://g; # Remove colons
 		my $pubmed_esearch_tries = 0;
 		my @pubmed_ids = ();
+		goto skip_pubmed if $skip_pubmed_search == 1;
 		pubmed_search:
 		my $seq_pubmed = Bio::DB::EUtilities->new(   	-eutil    	=> 'esearch',
 													   -db      	=> 'pubmed',
@@ -363,7 +420,7 @@ sub download_target_taxa {
 
 		eval {@pubmed_ids = $seq_pubmed->get_ids; };
 		if($@) {
-			print "\nProblem in pubmed search. Retrying...\n";
+			print "\tProblem in pubmed search. Retrying...\n";
 			$pubmed_esearch_tries++;
 			goto skip_pubmed if $pubmed_esearch_tries == $max_pubmed_tries;
 			goto pubmed_search;
@@ -381,7 +438,7 @@ sub download_target_taxa {
 		# Did find pubmed articles, get the summary
 		eval { $ds_pubmed = $seq_pubmed_summary->next_DocSum; };
 		if($@) {
-			print "\nProblem in sequence download. Retrying...\n";
+			print "\tProblem in pubmed summary. Retrying...\n";
 			$pubmed_summary_tries++;
 			goto skip_pubmed if $pubmed_summary_tries == $max_pubmed_tries;
 			goto pubmed_summary;
@@ -397,21 +454,31 @@ sub download_target_taxa {
 			$journal_pages 		= $item->get_content if $item->get_name =~ m/Pages/;
 			$journal_pubdate 	= $item->get_content if $item->get_name =~ m/PubDate/;
 		}
+		
+		my $pubmed_fetch_tries = 0;
+		pubmed_fetch:
 		my $pubmed_fetch = Bio::DB::EUtilities->new( -eutil   => 'efetch',
 													   -db      => 'pubmed',
 													   -email   => $user_email,
 													   -id      => $pubmed_ids[0]);
 		my $pubmed_file = 'pubmed_'.$taxon_id.'.txt';
-		$pubmed_fetch->get_Response(-file => $pubmed_file);
-		
+		eval { $pubmed_fetch->get_Response(-file => $pubmed_file); };
+		if($@) {
+			print "\tProblem in pubmed fetch. Retrying...\n";
+			$pubmed_fetch_tries++;
+			goto skip_pubmed if $pubmed_fetch_tries == $max_pubmed_tries;
+			goto pubmed_fetch;
+		}
+		$abstract_text = ''; # If you got this far, clear the NA from abstract text.
 		open (PUBMED, '<'.$pubmed_file);
 		my @pubmed_xml_file = <PUBMED>;
 		foreach my $line (@pubmed_xml_file) {
 			if($line =~ m/AbstractText/) {
-				$abstract_text = $line;
+				$abstract_text .= $line;
 				# Clear XML tags.
 				$abstract_text =~ s/\<AbstractText\>//g;
 				$abstract_text =~ s/\<\/AbstractText\>//g;
+				$abstract_text =~ s/\<.*\>//g; # Remove all XML tags for sure.
 				$abstract_text =~ s/^\s+//; # Remove leading space.
 			}
 		}
@@ -421,52 +488,24 @@ sub download_target_taxa {
 		##############################################################################
 		
 		#############################################################################
-		# print "Taxon id: ".$taxon_id."\n"; 					# Taxon ID for NCBI
-		# print "Accession #: ".$accession_number."\n"; 		# NCBI accession number
-		# print "Description: ".$long_name."\n"; 				# Long description name for the sequence
-		# print "Gene name: ".$gene_name."\n"; 				# Genbank gene name (e.g. COI)
-		# print "Product name: ".$product_name."\n"; 			# Genbank product name (e.g. cytochrome oxidase I)
-		# print "Binomial name: ".$binomial_name."\n";	
-		# print "Full taxonomy: ";
-		my @current_tax_array = @{$taxonomy_hierarchy_hash{$accession_number}};
-		foreach my $taxa_i (0 .. $#current_tax_array) { # Print hierarchical taxonomy list
-			$taxonomy_print_string = '' if ($taxa_i == 0);
-			$taxonomy_print_string .= $current_tax_array[$taxa_i].';' if ($taxa_i > 0);
-			# print $hierarchical_taxonomy[$taxa_i].';' if($taxa_i > 0);
+		# Concatenate list data like taxonomy hierarchy and primer list.
+		if (exists $taxonomy_hierarchy_hash{$accession_number}) {
+			my @current_tax_array = @{$taxonomy_hierarchy_hash{$accession_number}};
+			foreach my $taxa_i (0 .. $#current_tax_array) { # Print hierarchical taxonomy list
+				$taxonomy_print_string = '' if ($taxa_i == 0);
+				$taxonomy_print_string .= $current_tax_array[$taxa_i].';' if ($taxa_i > 0);
+			}
 		}
-		# print "\n";
-		# Reference Variables
-		# print "Pub title: ".$publication_title."\n";   		# Most recent publication title
-		# print "Pub authors: ".$publication_authors."\n"; 	# Pub authors
-		# print "Abstract text: ".$abstract_text."\n"; 		# Abstract from pubmed article
-		# print "Journal name: ".$journal_name."\n";			# Reference journal name
-		# print "Journal DOI: ".$journal_DOI."\n";			# Online DOI access
-		# print "Journal SO: ".$journal_SO."\n";				# Journal SO (pub info)
-		# print "Journal volume: ".$journal_volume."\n";		# Journal volume #
-		# print "Journal issue: ".$journal_issue."\n";		# Journal issue #
-		# print "Journal pages: ".$journal_pages."\n";		# Journal page #'s
-		# print "Journal pubdate: ".$journal_pubdate."\n";	# Journal pubdate
-		# Sequence Variables
-		# print "Sequence: ".$nucleotide_seq."\n"; 			# Nucleotide sequence
-		# print "Protein: ".$amino_acid_seq."\n"; 			# Amino acid/protein sequence
-		# print "Primer list: ";
 		foreach my $primer_i (0 .. $#pcr_primers) { 		# PCR primer list
 			$pcr_primer_print_string = '' if ($primer_i == 0);
 			$pcr_primer_print_string .= $pcr_primers[$primer_i].';' if ($primer_i > 0);
-			# print "Set #$primer_i: ".$pcr_primers[$primer_i].';' if($primer_i > 0);
 		}
-		# print "\n";
-		# print "Codon start: ".$codon_start."\n";
-		# Sample Information
-		# print "Collection date: ".$collection_date."\n"; 	# 
-		# print "Voucher ID: ".$voucher_id."\n"; 				# 
-		# print "Collected by: ".$collected_by."\n"; 			# 
-		# print "Identified by: ".$identified_by."\n"; 		# 
-		# print "Organelle: ".$organelle."\n"; 				# 
-		# print "Location: ".$country."\n"; 					# 
-		# print "Lat\\Lon: ".$lat_lon."\n"; 					# 
 		#############################################################################
-		my @current_output = (	$taxon_id,$dlm,
+		
+		#############################################################################
+		# Prepare output strings
+		my @current_output = (	$target_taxon,$dlm,
+								$taxon_id,$dlm,
 								$accession_number,$dlm,
 								$long_name,$dlm,
 								$gene_name,$dlm,
@@ -498,42 +537,37 @@ sub download_target_taxa {
 		foreach my $current_output (@current_output) {
 			$current_output =~ s/\n//g; # Clear newlines.
 			push(@cleaned_output, $current_output);
-		}	
+		}
+		# This will be for the individual output file.
 		push(@output_lines,@cleaned_output,$endl);
+		# This will be returned at the end of the subroutine.
 		push(@return_output_lines,@cleaned_output,$endl);
-		# print "\nTaxonomy\n";
-		# print $binomial_name."\n";
-		# foreach my $taxa_i (0 .. $#hierarchical_taxonomy) {
-			# print $hierarchical_taxonomy[$taxa_i].';' if($taxa_i > 0);
-		# }
-		# print "\n";
-		# print "\nSequence\n\n";
-		# print ">$binomial_name\n";
-		# print $seq->seq."\n";
-		
-		# print "\nAbstract\n\n";
-		# print $abstract_text."\n";
 		##############################################################################
 		$seq_counter++;
 	}
+	
+	# Print to file if output is not suppressed.
+	if($suppress_output ne 'yes') {
+		unlink $output_file;
+		# open (OUTPUT, '>>'.$output_file);
+		open(OUTPUT, '>>'.$output_file) or die "Couldn't open: $!";
 
-	unlink $output_file;
-	# open (OUTPUT, '>>'.$output_file);
-	open(OUTPUT, '>>'.$output_file) or die "Couldn't open: $!";
-
-	foreach my $output_line (@output_lines) {
-		print OUTPUT "\"".	$output_line if $output_line ne $endl;
-		print OUTPUT 		$output_line if $output_line eq $endl;
-
+		foreach my $output_line (@output_lines) {
+			print OUTPUT "\"".	$output_line if $output_line ne $endl;
+			print OUTPUT 		$output_line if $output_line eq $endl;
+		}
+		close(OUTPUT);
 	}
-	close(OUTPUT);
 	##############################################################################
 	
 	taxa_failed:
-	push (@failed_taxa, $target_taxon) if $taxa_failed == 1;
+	$failed_taxa = $target_taxon if $taxa_failed == 1;
+	sequence_failed:
+	$failed_sequence = $target_taxon if $sequence_failed == 1;
 	$taxa_counter++;
-	return \@return_output_lines;
 	
+	unlink($sequence_file) if defined $sequence_file; # Delete the genbank file.
+	return \@return_output_lines,$failed_taxa,$failed_sequence;
 }
 
 # Available database:

@@ -36,9 +36,11 @@ use Class::Inspector;
 use Data::Dumper;
 
 my %arguements = ();
-$arguments{'list'} = '';
-$argu
-foreach my $argument (@ARGV) {
+$arguments{'list_name'} = '';
+for (my $i = 0; $i <= scalar(@ARGV); $i+=2) {
+	my $argument = $ARGV[$i];
+	my $parameter = $ARGV[$i+1];
+	$arguments{$argument} = $parameter;
 	print $argument."\n";
 }
 

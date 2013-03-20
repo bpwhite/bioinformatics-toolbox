@@ -35,17 +35,27 @@ use Class::Inspector;
 
 use Data::Dumper;
 
-my %arguements = ();
-$arguments{'list_name'} = '';
-for (my $i = 0; $i <= scalar(@ARGV); $i+=2) {
+my %arguments = ();
+$arguments{'-list'} = ''; # List file name 
+$arguments{'-slim'} = '1'; # Sequence limit
+$arguments{'-tlim'} = '1'; # Taxa limit
+$arguments{'-user_email'} = 'blah@blah.com';
+
+# Loop through arguments
+for (my $i = 0; $i <= scalar(@ARGV)/2; $i+=2) {
 	my $argument = $ARGV[$i];
 	my $parameter = $ARGV[$i+1];
 	$arguments{$argument} = $parameter;
-	print $argument."\n";
+	print $argument." => ".$parameter."\n";
+}
+
+# Print parameters
+print "Parameters:\n";
+while ( my ($key, $value) = each(%arguments) ) {
+        print "$key => $value\n";
 }
 
 exit;
-my $taxa_file = 'doug_list.txt';
 
 open (TAXALIST, '<'.$taxa_file);
 my @taxa_list = <TAXALIST>;

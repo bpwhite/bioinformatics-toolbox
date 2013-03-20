@@ -31,31 +31,57 @@ use strict;
 use warnings;
 use Bio::DB::EUtilities;
 use Bio::SeqIO;
-use Class::Inspector;
 
+use Hash::Util qw(
+                     hash_seed all_keys
+                     lock_keys unlock_keys
+                     lock_value unlock_value
+                     lock_hash unlock_hash
+                     lock_keys_plus hash_locked
+                     hidden_keys legal_keys
+                   );
+				   
 use Data::Dumper;
 
+# Check for proper number of parameters
+die "Odd number of parameters.\n" if scalar @ARGV %2;
+
+# Initiate parameters
 my %arguments = ();
 $arguments{'-list'} = ''; # List file name 
 $arguments{'-slim'} = '1'; # Sequence limit
 $arguments{'-tlim'} = '1'; # Taxa limit
-$arguments{'-user_email'} = 'blah@blah.com';
+$arguments{'-user_email'} = 'blah@blah.com'; # Default email address
+$arguments{'-out'} = 'output'; # Output prefix
+lock_keys(%arguments);
 
 # Loop through arguments
-for (my $i = 0; $i <= scalar(@ARGV)/2; $i+=2) {
-	my $argument = $ARGV[$i];
-	my $parameter = $ARGV[$i+1];
-	$arguments{$argument} = $parameter;
-	print $argument." => ".$parameter."\n";
+eval { 
+	for (my $i = 0; $i <= scalar(@ARGV)/2; $i+=2) {
+		my $argument = $ARGV[$i];
+		my $parameter = $ARGV[$i+1];
+		
+		$arguments{$argument} = $parameter;
+		# print $arguments{$argument};
+	}
+};
+if ($@) {
+	my @parameter_error_split = split(/ /,$@);
+	my @parameter_error = grep $_ =~ /'/, @parameter_error_split;
+	print "*************************\n";
+	print "Incorrect parameter used: $parameter_error[0].\n";
+	print "*************************\n\n\n";
+	# print $@."\n";
+	die;
 }
 
+# Rename parameters to better variable names.
+my $taxa_file = $arguments{'-list'};
 # Print parameters
 print "Parameters:\n";
 while ( my ($key, $value) = each(%arguments) ) {
-        print "$key => $value\n";
+        print "\t$key => $value\n";
 }
-
-exit;
 
 open (TAXALIST, '<'.$taxa_file);
 my @taxa_list = <TAXALIST>;
@@ -66,16 +92,12 @@ my @overall_taxa_failures = ();
 my @overall_seq_failures = ();
 my $taxa_counter = 0;
 my $overall_output_file = 'overall_output.csv';
-my $overall_taxa_failures_file = 'overall_taxa_failures.csv';
-my $overall_seq_failures_file = 'overall_seq_failures.csv';
 my $endl = "\n";
 my $suppress_output = 'yes';
 foreach my $taxa (@taxa_list) {
 	$taxa =~ s/\n//g; # replace newlines
-	my ($results, $taxa_failures, $seq_failures) = download_target_taxa($taxa,$taxa_counter,$suppress_output);
+	my ($results) = download_target_taxa($taxa,$taxa_counter,$suppress_output);
 	push(@overall_results, @$results);
-	push(@overall_taxa_failures, $taxa_failures,$endl);
-	push(@overall_seq_failures, $seq_failures,$endl);
 	$taxa_counter++;
 }
 ##############################################################################
@@ -85,32 +107,17 @@ foreach my $taxa (@taxa_list) {
 unlink $overall_output_file;
 open (OVEROUTPUT, '>>'.$overall_output_file);
 foreach my $output_line (@overall_results) {
+	# if (!defined($output_line)) {
+		# foreach my $output_line2 (@overall_results) {
+			# print $output_line2."\n";
+			# print "Died here.\n";
+		# }
+
+	# }
 	print OVEROUTPUT "\"".	$output_line if $output_line ne $endl;
 	print OVEROUTPUT 		$output_line if $output_line eq $endl;
 }
 close(OVEROUTPUT);
-##############################################################################
-
-##############################################################################
-# Print things that failed taxonomic lookup
-unlink $overall_taxa_failures_file;
-open (OVERTAXAFAILS, '>>'.$overall_taxa_failures_file);
-foreach my $output_line (@overall_taxa_failures) {
-	print OVERTAXAFAILS "\"".	$output_line if $output_line ne $endl;
-	print OVERTAXAFAILS 		$output_line if $output_line eq $endl;
-}
-close(OVERTAXAFAILS);
-##############################################################################
-
-##############################################################################
-# Print things that lacked sequence data
-unlink $overall_seq_failures_file;
-open (OVERSEQFAILS, '>>'.$overall_seq_failures_file);
-foreach my $output_line (@overall_seq_failures) {
-	print OVERSEQFAILS "\"".	$output_line if $output_line ne $endl;
-	print OVERSEQFAILS 		$output_line if $output_line eq $endl;
-}
-close(OVERSEQFAILS);
 ##############################################################################
 
 sub download_target_taxa {
@@ -122,8 +129,8 @@ sub download_target_taxa {
 	##############################################################################
 	
 	##############################################################################
-	# my $skip_pubmed_search = 0;
-	my $skip_pubmed_search = 1;
+	my $skip_pubmed_search = 0;
+	# my $skip_pubmed_search = 1;
 	my $number_seqs_found = 'NA';
 	# my $target_taxon = 'Crassostrea angulata';
 	my $search_options = 'AND COI[gene]';
@@ -134,18 +141,62 @@ sub download_target_taxa {
 	# my $search_options = '';
 	my $taxon_limit = 1;
 	my $sequence_limit = 10000;
-	my $user_email = 'bpcwhite@gmail.com';
+	my $user_email = 'blah@blah.com';
 	my $dlm = ',';
 	my $endl = "\n";
 	my $output_file = $target_taxon."_output.csv";
 	my $sleep_time = 1000; # microsends, pause between seconds
-	my $max_num_tries = 15;
-	my $max_pubmed_tries = 1;
+	my $max_num_tries = 2;
+	my $max_pubmed_tries = 2;
+	
+	##############################################################################
+	# Optimization hashes. Swap memory for speed.
+	# Stores the info for a given pubmed article to save download time.
+	my %pubmed_hash = ();
+	my $pubmed_hash_ref = \%pubmed_hash;
+	# Stores the failed sequence searches
+	my %failed_sequence_hash = ();
+	my $failed_sequence_hash_ref = \%failed_sequence_hash;
+	# Stores the failed taxa searches.
+	my %failed_search_hash = ();
+	my $failed_search_hash_ref = \%failed_search_hash;
 	##############################################################################
 	
 	##############################################################################
+	my @output_header = ('taxon_query',$dlm,
+		'taxon_id',$dlm,
+		'accession',$dlm,
+		'description',$dlm,
+		'gene',$dlm,
+		'product',$dlm,
+		'binom',$dlm,
+		'tax_hierarchy',$dlm,
+		'pub_title',$dlm,
+		'pub_authors',$dlm,
+		'pub_abstract_text',$dlm,
+		'jrn_name',$dlm,
+		'jrn_doi',$dlm,	
+		'jrn_so',$dlm,
+		'jrn_volume',$dlm,
+		'jrn_issue',$dlm,
+		'jrn_pages',$dlm,
+		'jrn_pubdate',$dlm,
+		'nuc_seq',$dlm,
+		'prot_seq',$dlm,
+		'primers',$dlm,
+		'codon_start',$dlm,
+		'collection_date',$dlm,
+		'voucher_id',$dlm,
+		'collected_by',$dlm,
+		'identified_by',$dlm,
+		'organelle',$dlm,
+		'location',$dlm,
+		'lat_lon',$dlm,
+		$endl);
+		
+	##############################################################################
 	# Retrieve taxon ID
-	my $taxonomy_eutil_tries = 0;
+	my $taxonomy_eutil_tries = 1;
 	taxonomy_eutil:
 	print "[".$taxa_counter."] Searching for $target_taxon\n";
 	my $taxonomy_eutil = Bio::DB::EUtilities->new(-eutil    => 'esearch',
@@ -157,22 +208,24 @@ sub download_target_taxa {
 										   
 	my @taxon_ids = ();
 	eval { @taxon_ids = $taxonomy_eutil->get_ids(); };
-	if ($@) {
-		print "\tProblem in taxonomy_eutil. Retrying...\n";
+	if ($@ || (scalar(@taxon_ids) == 0)) {
+		print "\tProblem in taxonomy_eutil. Retrying...$taxonomy_eutil_tries\n";
+		if ($taxonomy_eutil_tries == $max_num_tries) {
+			print "***********\n";
+			$failed_search_hash_ref->{$target_taxon}->{'taxa_id'} = 'NA';
+			print "***********\n";
+			goto taxa_failed;
+		}
 		$taxonomy_eutil_tries++;
-		$taxa_failed = 1 if $taxonomy_eutil_tries == $max_num_tries;
-		goto taxa_failed if $taxonomy_eutil_tries == $max_num_tries;
 		goto taxonomy_eutil;
 	}
-	$taxa_failed = 1 if scalar @taxon_ids == 0;
-	goto taxa_failed if scalar @taxon_ids == 0;
 	my $taxon_id = $taxon_ids[0];
 	print "\tFound taxon ID: $taxon_id\n";
 	##############################################################################
 
 	##############################################################################
 	# Retrieve nucleotide sequences
-	my $sequence_search_tries = 0;
+	my $sequence_search_tries = 1;
 	sequence_search:
 	print "\tRetrieving sequences...\n";
 	my $sequence_term = 'txid'.$taxon_id.'[Organism:exp]';
@@ -184,21 +237,20 @@ sub download_target_taxa {
 												   -term    => $sequence_term.' '.$search_options);
 	my @sequence_ids = ();
 	eval { @sequence_ids = $sequence_search->get_ids(); };
-	if ($@) {
+	if ($@ || (scalar(@sequence_ids) == 0)) {
 		print "\tProblem in sequence_search. Retrying...\n";
+		if ($sequence_search_tries == $max_num_tries) {
+			$failed_search_hash_ref->{$target_taxon}->{'taxa_id'} = $taxon_id;
+			goto sequence_failed;
+		}
 		$sequence_search_tries++;
-		$sequence_failed = 1 if $sequence_search_tries == $max_num_tries;
-		goto sequence_failed if $sequence_search_tries == $max_num_tries;
 		goto sequence_search;
 	}
 	print "\tFound ".scalar(@sequence_ids)." sequences to download.\n";
-	goto sequence_failed if scalar(@sequence_ids) == 0;
 	my $sequence_file = 'seqs_'.$taxon_id.'.gb';
-	# if(-e $sequence_file) {
-		# goto skip_genbank_download;
-	# }
+
 	
-	my $sequence_download_tries = 0;
+	my $sequence_download_tries = 1;
 	sequence_download:
 	print "\tDownloading sequences...\n";
 	my $sequence_fetch = Bio::DB::EUtilities->new( -eutil   => 'efetch',
@@ -209,10 +261,12 @@ sub download_target_taxa {
 
 	eval { $sequence_fetch->get_Response(-file => $sequence_file); };
 	if($@) {
-		print "\tProblem in sequence download. Retrying...\n";
+		print "\tProblem in sequence download. Retrying...\n";	
+		if ($sequence_download_tries == $max_num_tries) {
+			$failed_search_hash_ref->{$target_taxon}->{'taxa_id'} = $taxon_id;
+			goto sequence_failed;
+		}
 		$sequence_download_tries++;
-		$sequence_failed = 1 if $sequence_download_tries == $max_num_tries;
-		goto sequence_failed if $sequence_download_tries == $max_num_tries;
 		goto sequence_download;
 	}
 	print "\tSequences downloaded to genbank format.\n";
@@ -283,38 +337,8 @@ sub download_target_taxa {
 	# Output file headers.
 	my @output_lines = ();
 	my @return_output_lines = ();
-	push(@output_lines,
-		'taxon_query',$dlm,
-		'taxon_id',$dlm,
-		'accession',$dlm,
-		'description',$dlm,
-		'gene',$dlm,
-		'product',$dlm,
-		'binom',$dlm,
-		'tax_hierarchy',$dlm,
-		'pub_title',$dlm,
-		'pub_authors',$dlm,
-		'pub_abstract_text',$dlm,
-		'jrn_name',$dlm,
-		'jrn_doi',$dlm,	
-		'jrn_so',$dlm,
-		'jrn_volume',$dlm,
-		'jrn_issue',$dlm,
-		'jrn_pages',$dlm,
-		'jrn_pubdate',$dlm,
-		'nuc_seq',$dlm,
-		'prot_seq',$dlm,
-		'primers',$dlm,
-		'codon_start',$dlm,
-		'collection_date',$dlm,
-		'voucher_id',$dlm,
-		'collected_by',$dlm,
-		'identified_by',$dlm,
-		'organelle',$dlm,
-		'location',$dlm,
-		'lat_lon',$dlm,
-		$endl);
-		push(@return_output_lines, @output_lines) if($taxa_counter == 0);
+	push(@output_lines, @output_header);
+	push(@return_output_lines, @output_lines) if($taxa_counter == 0);
 	##############################################################################
 	# Loop through the downloaded genbank files and parse all the data
 	my $seq_counter = 0;
@@ -419,9 +443,20 @@ sub download_target_taxa {
 		# Extract the abstract text from the pubmed file.
 		my $cleaned_title = $publication_title;
 		$cleaned_title =~ s/://g; # Remove colons
+		# Check if the pubmed article has already been downloaded.
+		# If it has, skip ahead.
+		my $pubmed_was_stored = 0;
+		if(exists $pubmed_hash_ref->{$cleaned_title}) {
+			$pubmed_was_stored = 1;
+			print "\tUsing cached results for pubmed article.\n";
+			goto stored_pubmed;
+		}
+		
+		# Begin pubmed searching
 		my $pubmed_esearch_tries = 0;
 		my @pubmed_ids = ();
 		goto skip_pubmed if $skip_pubmed_search == 1;
+		print "\tSearching pubmed...\n";
 		pubmed_search:
 		my $seq_pubmed = Bio::DB::EUtilities->new(   	-eutil    	=> 'esearch',
 													   -db      	=> 'pubmed',
@@ -431,10 +466,20 @@ sub download_target_taxa {
 													   -verbose		=> -1);
 
 		eval {@pubmed_ids = $seq_pubmed->get_ids; };
-		if($@) {
-			print "\tProblem in pubmed search. Retrying...\n";
+		if($@ || scalar @pubmed_ids == 0) {
 			$pubmed_esearch_tries++;
-			goto skip_pubmed if $pubmed_esearch_tries == $max_pubmed_tries;
+			print "\tProblem in pubmed search. Retrying...\n";
+			if ($pubmed_esearch_tries == $max_pubmed_tries) {
+				$pubmed_hash_ref->{$cleaned_title}->{'abstract'}= 'NA';
+				$pubmed_hash_ref->{$cleaned_title}->{'name'} 	= 'NA';
+				$pubmed_hash_ref->{$cleaned_title}->{'DOI'}		= 'NA';
+				$pubmed_hash_ref->{$cleaned_title}->{'SO'}		= 'NA';
+				$pubmed_hash_ref->{$cleaned_title}->{'volume'}	= 'NA';
+				$pubmed_hash_ref->{$cleaned_title}->{'issue'}	= 'NA';
+				$pubmed_hash_ref->{$cleaned_title}->{'pages'}	= 'NA';
+				$pubmed_hash_ref->{$cleaned_title}->{'pubdate'} = 'NA';
+				goto skip_pubmed;
+			}
 			goto pubmed_search;
 		}
 		
@@ -451,20 +496,28 @@ sub download_target_taxa {
 		eval { $ds_pubmed = $seq_pubmed_summary->next_DocSum; };
 		if($@) {
 			print "\tProblem in pubmed summary. Retrying...\n";
-			$pubmed_summary_tries++;
+			
 			goto skip_pubmed if $pubmed_summary_tries == $max_pubmed_tries;
+			$pubmed_summary_tries++;
 			goto pubmed_summary;
 		}
 		
 		while (my $item = $ds_pubmed->next_Item('flattened'))  {
 			next if !defined($item->get_content);
-			$journal_name 		= $item->get_content if $item->get_name =~ m/FullJournalName/;
-			$journal_DOI 		= $item->get_content if $item->get_name =~ m/DOI/;
-			$journal_SO 		= $item->get_content if $item->get_name =~ m/SO/;
-			$journal_volume 	= $item->get_content if $item->get_name =~ m/Volume/;
-			$journal_issue 		= $item->get_content if $item->get_name =~ m/Issue/;
-			$journal_pages 		= $item->get_content if $item->get_name =~ m/Pages/;
-			$journal_pubdate 	= $item->get_content if $item->get_name =~ m/PubDate/;
+			$journal_name									= $item->get_content if $item->get_name =~ m/FullJournalName/;
+			$pubmed_hash_ref->{$cleaned_title}->{'name'} 	= $item->get_content if $item->get_name =~ m/FullJournalName/;
+			$journal_DOI 									= $item->get_content if $item->get_name =~ m/DOI/;
+			$pubmed_hash_ref->{$cleaned_title}->{'DOI'}		= $item->get_content if $item->get_name =~ m/DOI/;
+			$journal_SO 									= $item->get_content if $item->get_name =~ m/SO/;
+			$pubmed_hash_ref->{$cleaned_title}->{'SO'}		= $item->get_content if $item->get_name =~ m/SO/;
+			$journal_volume 								= $item->get_content if $item->get_name =~ m/Volume/;
+			$pubmed_hash_ref->{$cleaned_title}->{'volume'}	= $item->get_content if $item->get_name =~ m/Volume/;
+			$journal_issue 									= $item->get_content if $item->get_name =~ m/Issue/;
+			$pubmed_hash_ref->{$cleaned_title}->{'issue'}	= $item->get_content if $item->get_name =~ m/Issue/;
+			$journal_pages 									= $item->get_content if $item->get_name =~ m/Pages/;
+			$pubmed_hash_ref->{$cleaned_title}->{'pages'}	= $item->get_content if $item->get_name =~ m/Pages/;
+			$journal_pubdate 								= $item->get_content if $item->get_name =~ m/PubDate/;
+			$pubmed_hash_ref->{$cleaned_title}->{'pubdate'} = $item->get_content if $item->get_name =~ m/PubDate/;
 		}
 		
 		my $pubmed_fetch_tries = 0;
@@ -481,10 +534,10 @@ sub download_target_taxa {
 			goto skip_pubmed if $pubmed_fetch_tries == $max_pubmed_tries;
 			goto pubmed_fetch;
 		}
-		$abstract_text = ''; # If you got this far, clear the NA from abstract text.
 		open (PUBMED, '<'.$pubmed_file);
 		my @pubmed_xml_file = <PUBMED>;
 		foreach my $line (@pubmed_xml_file) {
+			$abstract_text = ''; # If you got this far, clear the NA from abstract text.
 			if($line =~ m/AbstractText/) {
 				$abstract_text .= $line;
 				# Clear XML tags.
@@ -492,11 +545,24 @@ sub download_target_taxa {
 				$abstract_text =~ s/\<\/AbstractText\>//g;
 				$abstract_text =~ s/\<.*\>//g; # Remove all XML tags for sure.
 				$abstract_text =~ s/^\s+//; # Remove leading space.
+				$pubmed_hash_ref->{$cleaned_title}->{'abstract'} = $abstract_text;
+				last;
 			}
 		}
 		close(PUBMED);
 		unlink($pubmed_file);
 		skip_pubmed: # Skipped here because could not find any pubmed articles
+		stored_pubmed: # Already had a stored pubmed article in the pubmed hash.
+		if($pubmed_was_stored == 1) {
+			$abstract_text		= $pubmed_hash_ref->{$cleaned_title}->{'abstract'};
+			$journal_name 		= $pubmed_hash_ref->{$cleaned_title}->{'name'};
+			$journal_DOI 		= $pubmed_hash_ref->{$cleaned_title}->{'DOI'};
+			$journal_SO 		= $pubmed_hash_ref->{$cleaned_title}->{'SO'};
+			$journal_volume 	= $pubmed_hash_ref->{$cleaned_title}->{'volume'};
+			$journal_issue 		= $pubmed_hash_ref->{$cleaned_title}->{'issue'};
+			$journal_pages 		= $pubmed_hash_ref->{$cleaned_title}->{'pages'};
+			$journal_pubdate 	= $pubmed_hash_ref->{$cleaned_title}->{'pubdate'};
+		}
 		##############################################################################
 		
 		#############################################################################
@@ -547,6 +613,8 @@ sub download_target_taxa {
 								$lat_lon,$dlm);
 		my @cleaned_output = ();
 		foreach my $current_output (@current_output) {
+			# Catch missing values. Probably should output an error here.
+			$current_output = 'NA' if !defined $current_output;
 			$current_output =~ s/\n//g; # Clear newlines.
 			push(@cleaned_output, $current_output);
 		}
@@ -573,13 +641,44 @@ sub download_target_taxa {
 	##############################################################################
 	
 	taxa_failed:
-	$failed_taxa = $target_taxon if $taxa_failed == 1;
 	sequence_failed:
-	$failed_sequence = $target_taxon if $sequence_failed == 1;
+	if (exists $failed_search_hash_ref->{$target_taxon}) {
+		my $failed_seq_taxa_id = $failed_search_hash_ref->{$target_taxon}->{'taxa_id'};
+		push(@return_output_lines, 	$target_taxon, $dlm, $failed_seq_taxa_id, $dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,	
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									'NA',$dlm,
+									$endl);
+	}
+	
 	$taxa_counter++;
 	
 	unlink($sequence_file) if defined $sequence_file; # Delete the genbank file.
-	return \@return_output_lines,$failed_taxa,$failed_sequence;
+	return \@return_output_lines;
 }
 
 # Available database:

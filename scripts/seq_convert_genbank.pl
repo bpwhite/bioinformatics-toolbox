@@ -43,8 +43,6 @@ use Hash::Util qw(
 				   
 use Data::Dumper;
 
-# Check for proper number of parameters
-die "Odd number of parameters.\n" if scalar @ARGV %2;
 
 # Initiate parameters
 my %arguments = ();
@@ -53,14 +51,22 @@ $arguments{'-slim'} = '1'; # Sequence limit
 $arguments{'-tlim'} = '1'; # Taxa limit
 $arguments{'-user_email'} = 'blah@blah.com'; # Default email address
 $arguments{'-out'} = 'output'; # Output prefix
+$arguments{'--help'} = 'help'; # Trigger help printout
 lock_keys(%arguments);
+if($ARGV[0] eq '--help') {
+	print "Help info\n";
+	exit;
+}
+
+# Check for proper number of parameters
+die "Odd number of parameters.\n" if scalar @ARGV %2;
 
 # Loop through arguments
 eval { 
 	for (my $i = 0; $i <= scalar(@ARGV)/2; $i+=2) {
 		my $argument = $ARGV[$i];
+		if ($argument eq '--help') { print "Seq_convert_genbank help info\n" } ;
 		my $parameter = $ARGV[$i+1];
-		
 		$arguments{$argument} = $parameter;
 		# print $arguments{$argument};
 	}

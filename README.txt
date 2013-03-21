@@ -32,6 +32,11 @@ V. Sequence Manipulation
 	readable format.
 	6. seq_rename_fasta_from_list.pl - Renames the ID's of a Fasta file based on a 
 	list.
+	7. seq_codon_translate.pl - Translate from a protein alignment back to a
+	nucleotide alignment. Input is a protein alignment and the original,
+	unaligned nucleotide sequences.
+	8. seq_convert_genbank.pl - Downloads most genbank info, including nucleotide
+	sequence, for a list of target taxa from NCBI.
 VI. Simulations
 	1. sim_replicators.pl - Particle physics simulator of basic biomolecules
 

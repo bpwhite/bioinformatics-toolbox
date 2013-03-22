@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use FindBin;
-use lib "$FindBin::Bin/libs"; 
+use lib "$FindBin::Bin/libs";
 use Time::HiRes qw( usleep );
 
 use Bio::TreeIO;

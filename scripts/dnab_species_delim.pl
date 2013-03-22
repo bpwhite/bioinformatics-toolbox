@@ -17,6 +17,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#!/usr/bin/perl
 use FindBin;
 use lib "$FindBin::Bin/libs"; 
 
@@ -98,7 +99,7 @@ my $minimum_phylo_alleles = 10;
 my %use_tags_hash =  (  1 => 1,	 # Use tags
 						2 => 2); # Don't use tags
 # my $use_tags = $use_tags_hash{1};
-my $use_tags = $use_tags_hash{2};
+my $use_tags = $use_tags_hash{1};
 
 my %cutoff_hash = ( 1 => '0.001',
 					2 => '0.005',

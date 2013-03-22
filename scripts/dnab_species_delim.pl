@@ -1,3 +1,4 @@
+#!/usr/bin/perl
 # This script takes an input of a FASTA sequence and outputs a 
 # species delimitation regime given certain parameters.
 # It is designed for use with the cytochrome oxidase I (COI) gene
@@ -19,10 +20,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #!/usr/bin/perl
 use FindBin;
-use lib "$FindBin::Bin/libs"; 
+use lib "$FindBin::Bin/libs/Sequence"; 
 
+print "Test";
 # Import sequence libs
-use lib "$FindBin::Bin/libs/Sequence";
 use Fasta;
 require 'Kimura_Distance_C.pl';
 

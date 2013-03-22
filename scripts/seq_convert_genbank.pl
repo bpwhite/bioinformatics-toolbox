@@ -102,7 +102,7 @@ my $endl = "\n";
 my $suppress_output = 'yes';
 foreach my $taxa (@taxa_list) {
 	$taxa =~ s/\n//g; # replace newlines
-	my ($results) = download_target_taxa($taxa,$taxa_counter,$suppress_output);
+	my ($results) = download_target_taxa($taxa,$taxa_counter,$suppress_output,$arguments{'-slim'});
 	push(@overall_results, @$results);
 	$taxa_counter++;
 }
@@ -113,13 +113,6 @@ foreach my $taxa (@taxa_list) {
 unlink $overall_output_file;
 open (OVEROUTPUT, '>>'.$overall_output_file);
 foreach my $output_line (@overall_results) {
-	# if (!defined($output_line)) {
-		# foreach my $output_line2 (@overall_results) {
-			# print $output_line2."\n";
-			# print "Died here.\n";
-		# }
-
-	# }
 	print OVEROUTPUT "\"".	$output_line if $output_line ne $endl;
 	print OVEROUTPUT 		$output_line if $output_line eq $endl;
 }
@@ -132,6 +125,7 @@ sub download_target_taxa {
 	my $target_taxon = shift;
 	my $taxa_counter = shift;
 	my $suppress_output = shift;
+	my $sequence_limit = shift;
 	##############################################################################
 	
 	##############################################################################
@@ -146,7 +140,6 @@ sub download_target_taxa {
 	my $failed_sequence = 'NA';
 	# my $search_options = '';
 	my $taxon_limit = 1;
-	my $sequence_limit = 10000;
 	my $user_email = 'blah@blah.com';
 	my $dlm = ',';
 	my $endl = "\n";
@@ -199,7 +192,11 @@ sub download_target_taxa {
 		'location',$dlm,
 		'lat_lon',$dlm,
 		$endl);
-		
+		# Output file headers.
+	my @output_lines = ();
+	my @return_output_lines = ();
+	push(@output_lines, @output_header);
+	push(@return_output_lines, @output_lines) if($taxa_counter == 0);
 	##############################################################################
 	# Retrieve taxon ID
 	my $taxonomy_eutil_tries = 1;
@@ -217,9 +214,7 @@ sub download_target_taxa {
 	if ($@ || (scalar(@taxon_ids) == 0)) {
 		print "\tProblem in taxonomy_eutil. Retrying...$taxonomy_eutil_tries\n";
 		if ($taxonomy_eutil_tries == $max_num_tries) {
-			print "***********\n";
 			$failed_search_hash_ref->{$target_taxon}->{'taxa_id'} = 'NA';
-			print "***********\n";
 			goto taxa_failed;
 		}
 		$taxonomy_eutil_tries++;
@@ -340,11 +335,7 @@ sub download_target_taxa {
 	my $seqin = Bio::SeqIO->new(-file   => $sequence_file,
 								-format => 'genbank');
 	##############################################################################
-	# Output file headers.
-	my @output_lines = ();
-	my @return_output_lines = ();
-	push(@output_lines, @output_header);
-	push(@return_output_lines, @output_lines) if($taxa_counter == 0);
+
 	##############################################################################
 	# Loop through the downloaded genbank files and parse all the data
 	my $seq_counter = 0;
@@ -644,7 +635,7 @@ sub download_target_taxa {
 		}
 		close(OUTPUT);
 	}
-	##############################################################################
+	#############################################################################
 	
 	taxa_failed:
 	sequence_failed:
@@ -680,9 +671,7 @@ sub download_target_taxa {
 									'NA',$dlm,
 									$endl);
 	}
-	
 	$taxa_counter++;
-	
 	unlink($sequence_file) if defined $sequence_file; # Delete the genbank file.
 	return \@return_output_lines;
 }

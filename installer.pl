@@ -33,7 +33,10 @@ if($^O =~ m/MSWin32/) {
 	system("perl -MCPAN -e o conf commit");
 	system("perl -MCPAN -e install Module::Build");
 	system("perl -MCPAN -e install Test::Harness");
-
+	system("perl -MCPAN -e install Inline");
+	system("perl -MCPAN -e install Inline::C");
+	system("perl -MCPAN -e install Inline::Files");
+	system("perl -MCPAN -e install Statistics::Descriptive");
 	print "Done!";
 	exit;
 

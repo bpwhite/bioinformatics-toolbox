@@ -18,11 +18,9 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#!/usr/bin/perl
 use FindBin;
 use lib "$FindBin::Bin/libs/Sequence"; 
 
-print "Test";
 # Import sequence libs
 use Fasta;
 require 'Kimura_Distance_C.pl';

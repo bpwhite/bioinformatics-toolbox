@@ -1,4 +1,4 @@
-# General Fasta tools
+# Interface for command line arguments
 #
 # Copyright (c) 2013, Bryan White
 
@@ -15,3 +15,37 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+package General::Arguments;
+
+use Moose;
+
+########################################################################
+# Class Variables
+
+########################################################################
+# Attributes
+has 'argument_v' => (
+	is	=> 'ro',
+	isa => 'ArrayRef',
+	required => 1,
+	builder => '_build_argument_v',
+);
+sub _build_argument_v {
+	return [];
+}
+has 'options' => (
+  is        => 'rw',
+  isa       => 'HashRef',
+  default   => sub { {} },
+);
+
+
+########################################################################
+sub BUILD {
+	my $self = shift;
+	
+	$self->options->{'test'} = 'blah';
+}
+########################################################################
+
+1;

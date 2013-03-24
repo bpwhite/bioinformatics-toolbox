@@ -18,6 +18,7 @@
 use FindBin;
 use lib "$FindBin::Bin/libs";
 use Time::HiRes qw( usleep );
+use General::Arguments;
 
 use Bio::TreeIO;
 use Bio::Tree::Tree;
@@ -45,6 +46,9 @@ use Hash::Util qw(
 use Data::Dumper;
 
 
+my $test = General::Arguments->new(arguments_v => \@ARGV);
+
+exit;
 # Initiate parameters
 my %arguments = ();
 $arguments{'-list'} = ''; # List file name 

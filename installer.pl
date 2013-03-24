@@ -42,6 +42,7 @@ if($^O =~ m/MSWin32/) {
 
 } elsif ($^O =~ m/linux/) {
 	print "Found ".$^O."\n";
+	system("apt-get install perl bioperl ");
 	print "Your operating system is not supported by this installer.\n";
 	exit;
 	print `apt-get install BioPerl`;

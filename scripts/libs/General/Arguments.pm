@@ -33,7 +33,7 @@ has 'argument_v' => (
 sub _build_argument_v {
 	return [];
 }
-has 'options' => (
+has 'option' => (
   is        => 'rw',
   isa       => 'HashRef',
   default   => sub { {} },
@@ -44,7 +44,7 @@ has 'options' => (
 sub BUILD {
 	my $self = shift;
 	
-	$self->options->{'test'} = 'blah';
+	$self->option->{'test'} = 'blah';
 }
 ########################################################################
 

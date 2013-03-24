@@ -46,7 +46,12 @@ use Hash::Util qw(
 use Data::Dumper;
 
 
-my $test = General::Arguments->new(arguments_v => \@ARGV);
+my $test = General::Arguments->new(	arguments_v => \@ARGV,
+									option => {	'-list' => 'a',
+												'-slim' => '1'});
+
+print $test->option->{'-list'};
+print $test->option->{'-slim'};
 
 exit;
 # Initiate parameters

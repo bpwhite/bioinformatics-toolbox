@@ -46,7 +46,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-query'		=> 'COI', 			# Target gene, etc.
 													'-pubmed'		=> 1,
 													}
-													); 		
+													);
 # $params->print_options;
 
 # Initiate parameters

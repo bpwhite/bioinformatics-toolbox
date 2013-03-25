@@ -72,11 +72,10 @@ sub _build_options {
 sub BUILD {
 	my $self = shift;
 
-	die "Odd number of parameters.\n" if scalar @{$self->arguments_v} %2;
-	
-	
-	# Loop through arguments
+	# Loop through arguments and set parameters
 	eval {
+		die "Missing parameters.\n" if scalar @{$self->arguments_v} == 0;
+		die "Odd number of parameters.\n" if scalar @{$self->arguments_v} %2;
 		# Set ARGV parameters
 		for (my $arg_i = 0; $arg_i <= (scalar(@{$self->arguments_v})/2); $arg_i+=2) {
 			if ($self->arguments_v->[$arg_i] eq '--help') { print "Seq_convert_genbank help info\n"; exit; };
@@ -102,8 +101,9 @@ sub BUILD {
 		my @parameter_error_split = split(/ /,$@);
 		my @parameter_error = grep $_ =~ /'/, @parameter_error_split;
 		print "*************************\n";
-		print "Fatal parameter error: $parameter_error[0].\n";
-		print "*************************\n\n\n";
+		print "Fatal parameter error:\n\n";
+		print "$@";
+		print "*************************\n";
 		exit;
 	}
 }

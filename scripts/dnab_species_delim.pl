@@ -20,10 +20,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use FindBin;
 use lib "$FindBin::Bin/libs/Sequence"; 
+use lib "$FindBin::Bin/libs/";
 
 # Import sequence libs
 use Fasta;
 require 'Kimura_Distance_C.pl';
+use General::Arguments;
 
 # BioPerl libs
 use Bio::TreeIO;
@@ -48,46 +50,17 @@ use warnings;
 
 
 # bit_Test();
-# exit;
-# my $alignment_file = "preservation_all_08_07_2012.fas";
-# my $alignment_file = "just_brachycentridae_aln.fas";
-# my $alignment_file = "small_test_aln.fas";
-# my $alignment_file = "sccwrp_everything_07_15_2012_aln.fas";
-# my $alignment_file = "baetis_07_16_2012_aln.fas";
-# my $alignment_file = "trichops_combined_7_16_2012.fas";
-# my $alignment_file = "brachycentridae_lepido_serico_07_17_2012_aln.fas";
-# my $alignment_file = "leptohyphidae_07_17_2012_aln.fas";
-# my $alignment_file = "sccwrp_library_07_17_2012_aln.fas";
-# my $alignment_file = "ephemeroptera_sccwrp_public_07_22_2012_aln.fas";
-# my $alignment_file = "ephemerella.fas";
-# my $alignment_file = "baetis_07_16_2012_unique.fas";
-# my $alignment_file = "ephemeroptera_sccwrp_07_26_2012.fas";
-# my $alignment_file = "chironomidae_sccwrp_07_26_2012.fas";
-# my $alignment_file = "sccwrp_coleoptera_07_27_2012.fas";
-# my $alignment_file = "diptera_all_bold_500bp.fas";
-# my $alignment_file = "churchill_trichoptera.fas";
-# my $alignment_file = "churchill_plecoptera.fas";
-# my $alignment_file = "churchill_ephemeroptera.fas";
-# my $alignment_file = "churchill_combined.fas";
-# my $alignment_file = "ephemeroptera_reference_combined.fas";
-# my $alignment_file = "coleoptera_psephenus.fas";
-# my $alignment_file = "psephenus_public.fas";
-# my $alignment_file = "mopalia.fas";
-# my $alignment_file = "BOLD_Ephemeroptera_100bp.fas";
-# my $alignment_file = "stroud_combined.fas";
-# my $alignment_file = "druiter_trichops.fas";
-# my $alignment_file = "sccwrp_hydromod_09_26_2012.fas";
-# my $alignment_file = "coleoptera_500bp.fas";
-# my $alignment_file = "polyplacophora_500bp.fas";
 
-my @alignment_files = <*.fas>;
-my $alignment_number = 0;
-foreach my $alignment_file (@alignment_files) {
-	print $alignment_number.". ".$alignment_file."\n";
-	$alignment_number++;
-}
-chomp(my $selected_alignment = <>);
-my $alignment_file = $alignment_files[($selected_alignment-1)];
+my $params = General::Arguments->new(	arguments_v => \@ARGV,
+									option_defs => {'-aln1' 		=> '', 			# List file name
+													'-cutoff' 		=> 0.02, 		# Sequence limit
+													'-tags' 		=> 1, 			# Taxa limit
+													'-min-length' 	=> 350, 		# User email
+													'-stat' 		=> 'analytical',# Output file prefix
+													}
+													);
+													
+my $alignment_file = $params->options->{'-aln1'};
 # exit;
 ##################################################################
 # Parameters
@@ -95,39 +68,9 @@ my $skip_phylo = 'skip';
 # my $skip_phylo = 'no';
 my $minimum_phylo_alleles = 10;
 
-my %use_tags_hash =  (  1 => 1,	 # Use tags
-						2 => 2); # Don't use tags
-# my $use_tags = $use_tags_hash{1};
-my $use_tags = $use_tags_hash{1};
-
-my %cutoff_hash = ( 1 => '0.001',
-					2 => '0.005',
-					3 => '0.010',
-					4 => '0.020',
-					5 => '0.022',
-					6 => '0.030',
-					7 => '0.040');
-# my $cutoff = $cutoff_hash{1};
-# my $cutoff = $cutoff_hash{3};
-# my $cutoff = $cutoff_hash{4};
-# my $cutoff = $cutoff_hash{5};
-# my $cutoff = $cutoff_hash{6};
-my $cutoff = 0.02;
-
-my %sequence_length_hash = (1 => 25,
-							2 => 50,
-							3 => 75,
-							4 => 125,
-							5 => 250,
-							6 => 350,
-							7 => 400,
-							8 => 450,
-							9 => 500,
-							10 => 650,
-							11 => 658);
-# my $minimum_sequence_length = $sequence_length_hash{1};
-# my $minimum_sequence_length = $sequence_length_hash{4};
-my $minimum_sequence_length = 350;
+my $use_tags = $params->options->{'-tags'};
+my $cutoff = $params->options->{'-cutoff'};
+my $minimum_sequence_length = $params->options->{'-min-length'};
 
 my $phylogenetic_length_cutoff = 350;
 

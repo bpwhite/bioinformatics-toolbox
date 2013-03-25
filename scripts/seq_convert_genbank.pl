@@ -128,6 +128,7 @@ sub download_target_taxa {
 	my @output_header = ('taxon_query',$dlm,
 		'taxon_id',$dlm,
 		'accession',$dlm,
+		'seqs_found',$dlm,
 		'description',$dlm,
 		'gene',$dlm,
 		'product',$dlm,
@@ -210,6 +211,7 @@ sub download_target_taxa {
 		$sequence_search_tries++;
 		goto sequence_search;
 	}
+	$number_seqs_found = scalar @sequence_ids;
 	print "\tFound ".scalar(@sequence_ids)." sequences to download.\n";
 	my $sequence_file = 'seqs_'.$taxon_id.'.gb';
 
@@ -545,6 +547,7 @@ sub download_target_taxa {
 		my @current_output = (	$target_taxon,$dlm,
 								$taxon_id,$dlm,
 								$accession_number,$dlm,
+								$number_seqs_found,$dlm,
 								$long_name,$dlm,
 								$gene_name,$dlm,
 								$product_name,$dlm,
@@ -604,8 +607,10 @@ sub download_target_taxa {
 	sequence_failed:
 	if (exists $failed_search_hash_ref->{$target_taxon}) {
 		my $failed_seq_taxa_id = $failed_search_hash_ref->{$target_taxon}->{'taxa_id'};
-		push(@return_output_lines, 	$target_taxon, $dlm, $failed_seq_taxa_id, $dlm,
+		push(@return_output_lines, 	$target_taxon, $dlm, 
+									$failed_seq_taxa_id, $dlm,
 									'NA',$dlm,
+									$number_seqs_found,$dlm,
 									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,

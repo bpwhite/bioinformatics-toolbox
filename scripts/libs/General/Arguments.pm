@@ -18,17 +18,6 @@
 package General::Arguments;
 
 use Moose;
-use Moose::Meta::Attribute::Native::Trait::Array;
-use Moose::Meta::Attribute::Native::Trait::Hash;
-
-use Hash::Util qw(
-                     hash_seed all_keys
-                     lock_keys unlock_keys
-                     lock_value unlock_value
-                     lock_hash unlock_hash
-                     lock_keys_plus hash_locked
-                     hidden_keys legal_keys
-                   );
 				   
 ########################################################################
 # Class Variables
@@ -75,11 +64,17 @@ sub BUILD {
 	# Loop through arguments and set parameters
 	eval {
 		die "Missing parameters.\n" if scalar @{$self->arguments_v} == 0;
+
+		my @help = grep { $_ eq '--help'} $self->arguments_v;
+		if (scalar(@help) > 0) { 
+			print $self->print_help; 
+			exit;
+		}
 		die "Odd number of parameters.\n" if scalar @{$self->arguments_v} %2;
 		# Set ARGV parameters
 		for (my $arg_i = 0; $arg_i <= (scalar(@{$self->arguments_v})/2); $arg_i+=2) {
-			if ($self->arguments_v->[$arg_i] eq '--help') { print "Seq_convert_genbank help info\n"; exit; };
-			my $option 	= $self->arguments_v->[$arg_i];
+			my $option = $self->arguments_v->[$arg_i];
+			
 			if(exists($self->option_defs->{$option})) {
 				my $value 					= $self->arguments_v->[$arg_i+1];
 				$self->options->{$option} 	= $value;
@@ -115,5 +110,14 @@ sub print_options {
 	while ( my ($key, $value) = each(%{$self->options}) ) {
         print "\t$key => $value\n";
     }
+}
+
+sub print_help {
+	# my $self = shift;
+	
+	# print "seq_convert_genbank.pl help\n";
+	# while ( my ($key, $value) = each(%{$self->option_defs}) ) {
+        # print "\t$key => $value\n";
+    # }
 }
 1;

@@ -71,22 +71,31 @@ sub _build_options {
 ########################################################################
 sub BUILD {
 	my $self = shift;
-	# print scalar @{$self->arguments_v}."\n";
-	# foreach my $test (@{$self->arguments_v}) {
-		# print $test."\n";
-	# }
-	# exit;
-	# Check for proper number of parameters
+
 	die "Odd number of parameters.\n" if scalar @{$self->arguments_v} %2;
 	
 	
 	# Loop through arguments
-	eval { 
+	eval {
+		# Set ARGV parameters
 		for (my $arg_i = 0; $arg_i <= (scalar(@{$self->arguments_v})/2); $arg_i+=2) {
 			if ($self->arguments_v->[$arg_i] eq '--help') { print "Seq_convert_genbank help info\n"; exit; };
 			my $option 	= $self->arguments_v->[$arg_i];
-			my $value 	= $self->arguments_v->[$arg_i+1];
-			$self->options->{$option} = $value;
+			if(exists($self->option_defs->{$option})) {
+				my $value 					= $self->arguments_v->[$arg_i+1];
+				$self->options->{$option} 	= $value;
+				print "\t".$option." => ".$value."\n";
+			} else {
+				die "Parameter does not exist: $option";
+			}
+		}
+		# Set default parameters for params not set by ARGV
+		while ( my ($key, $value) = each(%{$self->option_defs}) ) {
+			if (!exists ($self->options->{$key})) {
+				$self->options->{$key} = $self->option_defs->{$key};
+				print "\t$key => $value (default)\n";
+			}
+			
 		}
 	};
 	if ($@) {
@@ -95,10 +104,16 @@ sub BUILD {
 		print "*************************\n";
 		print "Fatal parameter error: $parameter_error[0].\n";
 		print "*************************\n\n\n";
-		# print $@."\n";
 		exit;
 	}
 }
 ########################################################################
 
+sub print_options {
+	my $self = shift;
+	print "Using parameters...\n";
+	while ( my ($key, $value) = each(%{$self->options}) ) {
+        print "\t$key => $value\n";
+    }
+}
 1;

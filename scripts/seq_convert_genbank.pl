@@ -34,28 +34,24 @@ use warnings;
 use Bio::DB::EUtilities;
 use Bio::SeqIO;
 
-
-				   
 use Data::Dumper;
 
 
-my $test = General::Arguments->new(	arguments_v => \@ARGV,
-									option_defs => {'-list' 		=> 'a', # List file name
-													'-slim' 		=> '1', # Sequence limit
-													'-tlim' 		=> '1', # Taxa limit
-													'-user_email' 	=> 'blah@blah.com', # User email
-													'-out' 			=> 'output', # Output file prefix
-													'--help' 		=> 'help'}); # Print help dialog
+my $params = General::Arguments->new(	arguments_v => \@ARGV,
+									option_defs => {'-list' 		=> '', 			# List file name
+													'-slim' 		=> 1, 			# Sequence limit
+													'-tlim' 		=> 1, 			# Taxa limit
+													'-user_email' 	=> 'foo@bar.com', 	# User email
+													'-outp' 		=> 'output', 		# Output file prefix
+													'-query'		=> 'COI', 			# Target gene, etc.
+													'-pubmed'		=> 1,
+													}
+													); 		
+# $params->print_options;
 
-print $test->option_defs->{'-list'};
-print $test->option_defs->{'-slim'};
-print $test->options->{'-list'};
-print $test->options->{'-slim'};
-
-exit;
 # Initiate parameters
-my $taxa_file = '';
-
+my $taxa_file = $params->options->{'-list'};
+print $params->options->{'-pubmed'}."\n";
 open (TAXALIST, '<'.$taxa_file);
 my @taxa_list = <TAXALIST>;
 
@@ -64,12 +60,12 @@ my @overall_results = ();
 my @overall_taxa_failures = ();
 my @overall_seq_failures = ();
 my $taxa_counter = 0;
-my $overall_output_file = 'overall_output.csv';
+my $overall_output_file = $params->options->{'-outp'}.'.csv';
 my $endl = "\n";
 my $suppress_output = 'yes';
 foreach my $taxa (@taxa_list) {
 	$taxa =~ s/\n//g; # replace newlines
-	my ($results) = download_target_taxa($taxa,$taxa_counter,$suppress_output,1);
+	my ($results) = download_target_taxa($taxa,$taxa_counter,$suppress_output,$params);
 	push(@overall_results, @$results);
 	$taxa_counter++;
 }
@@ -92,14 +88,14 @@ sub download_target_taxa {
 	my $target_taxon = shift;
 	my $taxa_counter = shift;
 	my $suppress_output = shift;
-	my $sequence_limit = shift;
+	my $params = shift;
 	##############################################################################
 	
 	##############################################################################
-	my $skip_pubmed_search = 0;
+	my $sequence_limit = $params->options->{'-slim'};
+	my $skip_pubmed_search = $params->options->{'-pubmed'};
 	# my $skip_pubmed_search = 1;
 	my $number_seqs_found = 'NA';
-	# my $target_taxon = 'Crassostrea angulata';
 	my $search_options = 'AND COI[gene]';
 	my $taxa_failed = 0; # Flag for if the taxa lookup fails
 	my $failed_taxa = 'NA';

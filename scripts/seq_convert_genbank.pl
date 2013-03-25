@@ -40,13 +40,15 @@ use Data::Dumper;
 
 
 my $test = General::Arguments->new(	arguments_v => \@ARGV,
-									option => {	'-list' 		=> 'a', # List file name
-												'-slim' 		=> '1', # Sequence limit
-												'-tlim' 		=> '1', # Taxa limit
-												'-user_email' 	=> 'blah@blah.com', # User email
-												'-out' 			=> 'output', # Output file prefix
-												'--help' 		=> 'help'}); # Print help dialog
+									option_defs => {'-list' 		=> 'a', # List file name
+													'-slim' 		=> '1', # Sequence limit
+													'-tlim' 		=> '1', # Taxa limit
+													'-user_email' 	=> 'blah@blah.com', # User email
+													'-out' 			=> 'output', # Output file prefix
+													'--help' 		=> 'help'}); # Print help dialog
 
+print $test->option_defs->{'-list'};
+print $test->option_defs->{'-slim'};
 print $test->options->{'-list'};
 print $test->options->{'-slim'};
 

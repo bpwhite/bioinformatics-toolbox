@@ -18,7 +18,18 @@
 package General::Arguments;
 
 use Moose;
+use Moose::Meta::Attribute::Native::Trait::Array;
+use Moose::Meta::Attribute::Native::Trait::Hash;
 
+use Hash::Util qw(
+                     hash_seed all_keys
+                     lock_keys unlock_keys
+                     lock_value unlock_value
+                     lock_hash unlock_hash
+                     lock_keys_plus hash_locked
+                     hidden_keys legal_keys
+                   );
+				   
 ########################################################################
 # Class Variables
 
@@ -33,7 +44,7 @@ has 'argument_v' => (
 sub _build_argument_v {
 	return [];
 }
-has 'option' => (
+has 'options' => (
   is        => 'rw',
   isa       => 'HashRef',
   default   => sub { {} },
@@ -44,7 +55,26 @@ has 'option' => (
 sub BUILD {
 	my $self = shift;
 	
-	$self->option->{'test'} = 'blah';
+	# my $args = $self->argument_v;
+
+	# Check for proper number of parameters
+	die "Odd number of parameters.\n" if scalar $self->argument_v %2;
+
+	# Loop through arguments
+	eval { 
+		foreach my $argument ($self->argument_v) {
+			if ($argument eq '--help') { print "Seq_convert_genbank help info\n" } ;
+		}
+	};
+	if ($@) {
+		my @parameter_error_split = split(/ /,$@);
+		my @parameter_error = grep $_ =~ /'/, @parameter_error_split;
+		print "*************************\n";
+		print "Incorrect parameter used: $parameter_error[0].\n";
+		print "*************************\n\n\n";
+		# print $@."\n";
+		die;
+	}
 }
 ########################################################################
 

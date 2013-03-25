@@ -34,70 +34,25 @@ use warnings;
 use Bio::DB::EUtilities;
 use Bio::SeqIO;
 
-use Hash::Util qw(
-                     hash_seed all_keys
-                     lock_keys unlock_keys
-                     lock_value unlock_value
-                     lock_hash unlock_hash
-                     lock_keys_plus hash_locked
-                     hidden_keys legal_keys
-                   );
+
 				   
 use Data::Dumper;
 
 
 my $test = General::Arguments->new(	arguments_v => \@ARGV,
-									option => {	'-list' => 'a',
-												'-slim' => '1'});
+									option => {	'-list' 		=> 'a', # List file name
+												'-slim' 		=> '1', # Sequence limit
+												'-tlim' 		=> '1', # Taxa limit
+												'-user_email' 	=> 'blah@blah.com', # User email
+												'-out' 			=> 'output', # Output file prefix
+												'--help' 		=> 'help'}); # Print help dialog
 
-print $test->option->{'-list'};
-print $test->option->{'-slim'};
+print $test->options->{'-list'};
+print $test->options->{'-slim'};
 
 exit;
 # Initiate parameters
-my %arguments = ();
-$arguments{'-list'} = ''; # List file name 
-$arguments{'-slim'} = '1'; # Sequence limit
-$arguments{'-tlim'} = '1'; # Taxa limit
-$arguments{'-user_email'} = 'blah@blah.com'; # Default email address
-$arguments{'-out'} = 'output'; # Output prefix
-$arguments{'--help'} = 'help'; # Trigger help printout
-lock_keys(%arguments);
-if($ARGV[0] eq '--help') {
-	print "Help info\n";
-	exit;
-}
-
-# Check for proper number of parameters
-die "Odd number of parameters.\n" if scalar @ARGV %2;
-
-# Loop through arguments
-eval { 
-	for (my $i = 0; $i <= scalar(@ARGV)/2; $i+=2) {
-		my $argument = $ARGV[$i];
-		if ($argument eq '--help') { print "Seq_convert_genbank help info\n" } ;
-		my $parameter = $ARGV[$i+1];
-		$arguments{$argument} = $parameter;
-		# print $arguments{$argument};
-	}
-};
-if ($@) {
-	my @parameter_error_split = split(/ /,$@);
-	my @parameter_error = grep $_ =~ /'/, @parameter_error_split;
-	print "*************************\n";
-	print "Incorrect parameter used: $parameter_error[0].\n";
-	print "*************************\n\n\n";
-	# print $@."\n";
-	die;
-}
-
-# Rename parameters to better variable names.
-my $taxa_file = $arguments{'-list'};
-# Print parameters
-print "Parameters:\n";
-while ( my ($key, $value) = each(%arguments) ) {
-        print "\t$key => $value\n";
-}
+my $taxa_file = '';
 
 open (TAXALIST, '<'.$taxa_file);
 my @taxa_list = <TAXALIST>;
@@ -112,7 +67,7 @@ my $endl = "\n";
 my $suppress_output = 'yes';
 foreach my $taxa (@taxa_list) {
 	$taxa =~ s/\n//g; # replace newlines
-	my ($results) = download_target_taxa($taxa,$taxa_counter,$suppress_output,$arguments{'-slim'});
+	my ($results) = download_target_taxa($taxa,$taxa_counter,$suppress_output,1);
 	push(@overall_results, @$results);
 	$taxa_counter++;
 }

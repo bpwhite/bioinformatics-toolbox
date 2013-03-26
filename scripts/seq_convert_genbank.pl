@@ -39,19 +39,20 @@ use Data::Dumper;
 
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
 									option_defs => {'-list' 		=> '', 			# List file name
-													'-slim' 		=> 1, 			# Sequence limit
+													'-slim' 		=> 999999999,	# Sequence search limit
+													'-sflim'		=> 1,			# Sequence fetch limit
 													'-tlim' 		=> 1, 			# Taxa limit
 													'-user_email' 	=> 'foo@bar.com', 	# User email
 													'-outp' 		=> 'output', 		# Output file prefix
 													'-query'		=> 'COI', 			# Target gene, etc.
-													'-pubmed'		=> 1,
+													'-pubmed'		=> 0,			# By default skip pubmed download
+													'-count-seqs'	=> 0,			# Toggle to only count sequences
 													}
 													);
-# $params->print_options;
+
 
 # Initiate parameters
 my $taxa_file = $params->options->{'-list'};
-print $params->options->{'-pubmed'}."\n";
 open (TAXALIST, '<'.$taxa_file);
 my @taxa_list = <TAXALIST>;
 
@@ -94,6 +95,7 @@ sub download_target_taxa {
 	##############################################################################
 	my $sequence_limit = $params->options->{'-slim'};
 	my $skip_pubmed_search = $params->options->{'-pubmed'};
+
 	# my $skip_pubmed_search = 1;
 	my $number_seqs_found = 'NA';
 	my $search_options = 'AND COI[gene]';
@@ -128,6 +130,7 @@ sub download_target_taxa {
 	my @output_header = ('taxon_query',$dlm,
 		'taxon_id',$dlm,
 		'accession',$dlm,
+		'seq_query',$dlm,
 		'seqs_found',$dlm,
 		'description',$dlm,
 		'gene',$dlm,
@@ -194,9 +197,11 @@ sub download_target_taxa {
 	sequence_search:
 	print "\tRetrieving sequences...\n";
 	my $sequence_term = 'txid'.$taxon_id.'[Organism:exp]';
+	my $sequence_search_limit = ($params->options->{'-slim'});
+	$sequence_search_limit = 999999999 if ($params->options->{'-count-seqs'} == 1);
 	my $sequence_search = Bio::DB::EUtilities->new(-eutil    => 'esearch',
 												   -db      => 'nucleotide',
-												   -retmax  => $sequence_limit,
+												   -retmax  => $sequence_search_limit,
 												   -rettype => 'gb',
 												   -email   => $user_email,
 												   -term    => $sequence_term.' '.$search_options);
@@ -212,16 +217,25 @@ sub download_target_taxa {
 		goto sequence_search;
 	}
 	$number_seqs_found = scalar @sequence_ids;
-	print "\tFound ".scalar(@sequence_ids)." sequences to download.\n";
+	# If only looking to count sequences, go here.
+	if ($params->options->{'-count-seqs'} == 1) {
+		$failed_search_hash_ref->{$target_taxon}->{'taxa_id'} = $taxon_id;
+		goto just_count_seqs;
+	}
+	print "\tFound ".$number_seqs_found." sequences to download.\n";
 	my $sequence_file = 'seqs_'.$taxon_id.'.gb';
-
 	
+	my $fetch_limit = $params->options->{'-sflim'}; # Fetch a limited number of seqs
+	# for (my $seq_i = $fetch_limit; $seq_i <= $number_seqs_found; $seq_i++) {
+		# delete $sequence_ids[$seq_i];
+	# }
 	my $sequence_download_tries = 1;
 	sequence_download:
 	print "\tDownloading sequences...\n";
 	my $sequence_fetch = Bio::DB::EUtilities->new( -eutil   => 'efetch',
 												   -db      => 'nucleotide',
 												   -rettype => 'gb',
+												   -retmax  => $fetch_limit,
 												   -email   => $user_email,
 												   -id      => \@sequence_ids);
 
@@ -417,7 +431,7 @@ sub download_target_taxa {
 		# Begin pubmed searching
 		my $pubmed_esearch_tries = 0;
 		my @pubmed_ids = ();
-		goto skip_pubmed if $skip_pubmed_search == 1;
+		goto skip_pubmed if $skip_pubmed_search == 0;
 		print "\tSearching pubmed...\n";
 		pubmed_search:
 		my $seq_pubmed = Bio::DB::EUtilities->new(   	-eutil    	=> 'esearch',
@@ -547,6 +561,7 @@ sub download_target_taxa {
 		my @current_output = (	$target_taxon,$dlm,
 								$taxon_id,$dlm,
 								$accession_number,$dlm,
+								$search_options,$dlm,
 								$number_seqs_found,$dlm,
 								$long_name,$dlm,
 								$gene_name,$dlm,
@@ -605,11 +620,13 @@ sub download_target_taxa {
 	
 	taxa_failed:
 	sequence_failed:
+	just_count_seqs:
 	if (exists $failed_search_hash_ref->{$target_taxon}) {
 		my $failed_seq_taxa_id = $failed_search_hash_ref->{$target_taxon}->{'taxa_id'};
 		push(@return_output_lines, 	$target_taxon, $dlm, 
 									$failed_seq_taxa_id, $dlm,
 									'NA',$dlm,
+									$search_options,$dlm,
 									$number_seqs_found,$dlm,
 									'NA',$dlm,
 									'NA',$dlm,

@@ -71,6 +71,7 @@ my $minimum_phylo_alleles = 10;
 my $use_tags = $params->options->{'-tags'};
 my $cutoff = $params->options->{'-cutoff'};
 my $minimum_sequence_length = $params->options->{'-min-length'};
+my $statistical_method = $params->options->{'-stat'};
 
 my $phylogenetic_length_cutoff = 350;
 
@@ -78,7 +79,7 @@ my %statistcal_method_hash = ( 1 => 'strict',
 								2 => 'analytical',
 								3 => 'bootstrap');
 # my $statistical_method = $statistcal_method_hash{1};
-my $statistical_method = $statistcal_method_hash{2};
+
 # my $statistical_method = $statistcal_method_hash{3};
 
 my 	%bootstrap_reps_hash = (1 => 25,

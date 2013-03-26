@@ -72,9 +72,8 @@ sub BUILD {
 		}
 		die "Odd number of parameters.\n" if scalar @{$self->arguments_v} %2;
 		# Set ARGV parameters
-		for (my $arg_i = 0; $arg_i <= (scalar(@{$self->arguments_v})/2); $arg_i+=2) {
-			my $option = $self->arguments_v->[$arg_i];
-			
+		for (my $arg_i = 0; $arg_i < (scalar(@{$self->arguments_v})); $arg_i+=2) {
+			my $option = $self->arguments_v->[$arg_i];			
 			if(exists($self->option_defs->{$option})) {
 				my $value 					= $self->arguments_v->[$arg_i+1];
 				$self->options->{$option} 	= $value;
@@ -89,7 +88,6 @@ sub BUILD {
 				$self->options->{$key} = $self->option_defs->{$key};
 				print "\t$key => $value (default)\n";
 			}
-			
 		}
 	};
 	if ($@) {

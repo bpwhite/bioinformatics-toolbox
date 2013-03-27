@@ -36,17 +36,17 @@ use Bio::SeqIO;
 
 use Data::Dumper;
 
-
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
-									option_defs => {'-list' 		=> '', 			# List file name
-													'-slim' 		=> 999999999,	# Sequence search limit
-													'-sflim'		=> 1,			# Sequence fetch limit
-													'-tlim' 		=> 1, 			# Taxa limit
+									option_defs => {'-list' 		=> '', 				# List file name
+													'-slim' 		=> 999999999,		# Sequence search limit
+													'-sflim'		=> 1,				# Sequence fetch limit
+													'-batch-cap'	=> 50,				# NCBI sequence fetch limit per batch
+													'-tlim' 		=> 1, 				# Taxa limit
 													'-user_email' 	=> 'foo@bar.com', 	# User email
 													'-outp' 		=> 'output', 		# Output file prefix
-													'-query'		=> 'COI', 			# Target gene, etc.
-													'-pubmed'		=> 0,			# By default skip pubmed download
-													'-count-seqs'	=> 0,			# Toggle to only count sequences
+													'-query'		=> '',				# Target gene, etc.
+													'-pubmed'		=> 0,				# By default skip pubmed download
+													'-count-seqs'	=> 0,				# Toggle to only count sequences
 													}
 													);
 
@@ -55,7 +55,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 my $taxa_file = $params->options->{'-list'};
 open (TAXALIST, '<'.$taxa_file);
 my @taxa_list = <TAXALIST>;
-
+close(TAXALIST);
 ##############################################################################
 my @overall_results = ();
 my @overall_taxa_failures = ();
@@ -69,6 +69,13 @@ foreach my $taxa (@taxa_list) {
 	my ($results) = download_target_taxa($taxa,$taxa_counter,$suppress_output,$params);
 	push(@overall_results, @$results);
 	$taxa_counter++;
+}
+
+# Cleaning up GB files...
+foreach my $taxa (@taxa_list) {
+	# $taxa =~ s/\n//g; # replace newlines
+	my $file = 'seqs_'.$taxa.'.gb';
+	unlink $file;
 }
 ##############################################################################
 
@@ -98,7 +105,7 @@ sub download_target_taxa {
 
 	# my $skip_pubmed_search = 1;
 	my $number_seqs_found = 'NA';
-	my $search_options = 'AND COI[gene]';
+	my $search_options = search_strings($params->options->{'-query'});
 	my $taxa_failed = 0; # Flag for if the taxa lookup fails
 	my $failed_taxa = 'NA';
 	my $sequence_failed = 0; # Flag for if the sequence lookup fails
@@ -185,6 +192,7 @@ sub download_target_taxa {
 			goto taxa_failed;
 		}
 		$taxonomy_eutil_tries++;
+		usleep($sleep_time); 	# Sleep so you don't overload NCBI's servers.
 		goto taxonomy_eutil;
 	}
 	my $taxon_id = $taxon_ids[0];
@@ -214,49 +222,102 @@ sub download_target_taxa {
 			goto sequence_failed;
 		}
 		$sequence_search_tries++;
+		usleep($sleep_time); 	# Sleep so you don't overload NCBI's servers.
 		goto sequence_search;
 	}
 	$number_seqs_found = scalar @sequence_ids;
 	# If only looking to count sequences, go here.
 	if ($params->options->{'-count-seqs'} == 1) {
 		$failed_search_hash_ref->{$target_taxon}->{'taxa_id'} = $taxon_id;
+		usleep($sleep_time); 	# Sleep so you don't overload NCBI's servers.
 		goto just_count_seqs;
 	}
 	print "\tFound ".$number_seqs_found." sequences to download.\n";
-	my $sequence_file = 'seqs_'.$taxon_id.'.gb';
-	
+	my $sequence_file = 'seqs_'.$target_taxon.'.gb';
+	unlink($sequence_file);
+	##############################################################################
+	# Batch downloader
 	my $fetch_limit = $params->options->{'-sflim'}; # Fetch a limited number of seqs
-	# for (my $seq_i = $fetch_limit; $seq_i <= $number_seqs_found; $seq_i++) {
-		# delete $sequence_ids[$seq_i];
-	# }
 	my $sequence_download_tries = 1;
-	sequence_download:
-	print "\tDownloading sequences...\n";
-	my $sequence_fetch = Bio::DB::EUtilities->new( -eutil   => 'efetch',
-												   -db      => 'nucleotide',
-												   -rettype => 'gb',
-												   -retmax  => $fetch_limit,
-												   -email   => $user_email,
-												   -id      => \@sequence_ids);
-
-	eval { $sequence_fetch->get_Response(-file => $sequence_file); };
-	if($@) {
-		print "\tProblem in sequence download. Retrying...\n";	
-		if ($sequence_download_tries == $max_num_tries) {
-			$failed_search_hash_ref->{$target_taxon}->{'taxa_id'} = $taxon_id;
-			goto sequence_failed;
+	my $ncbi_sequence_cap = $params->options->{'-batch-cap'};
+	my $int_number_batches = int @sequence_ids / $ncbi_sequence_cap;
+	my $mod_number_batches = @sequence_ids % $ncbi_sequence_cap;
+	$int_number_batches++ if($mod_number_batches > 0);
+	print "\tSequences will be downloaded in ".$int_number_batches." batches\n";
+	my $total_batched = 0;
+	for (my $batch_i = 0; $batch_i <= $int_number_batches; $batch_i++) {
+		my @sub_batch_list = ();
+		for (my $sub_i = 0; $sub_i <= $ncbi_sequence_cap; $sub_i++) {
+			last if $total_batched == scalar @sequence_ids;
+			last if $total_batched == $fetch_limit;
+			push(@sub_batch_list, $sequence_ids[$total_batched]);
+			$total_batched++;
 		}
-		$sequence_download_tries++;
-		goto sequence_download;
+		
+		sequence_download:
+		my $starting_count = 0;
+		if ($batch_i == 0) {
+			$starting_count = 0;
+		} else {
+			$starting_count = $total_batched-$ncbi_sequence_cap;
+		}
+		print "\tDownloading sequences...[".$batch_i."] ".$starting_count." to ".$total_batched."\n";
+		my $sub_batch_file = $batch_i."_".$sequence_file;
+		my $sequence_fetch = Bio::DB::EUtilities->new( -eutil   => 'efetch',
+													   -db      => 'nucleotide',
+													   -rettype => 'gb',
+													   -email   => $user_email,
+													   -id      => \@sub_batch_list);
+
+		eval { 
+			$sequence_fetch->get_Response(-file => $sub_batch_file);
+		};
+		if($@) {
+			print "\tProblem in sequence download. Retrying...\n";
+			print "\t".$@."\n";
+			if ($sequence_download_tries == $max_num_tries) {
+				$failed_search_hash_ref->{$target_taxon}->{'taxa_id'} = $taxon_id;
+				goto sequence_failed;
+			}
+			$sequence_download_tries++;
+			usleep($sleep_time); 	# Sleep so you don't overload NCBI's servers.
+			goto sequence_download;
+		}
+		last if $total_batched == scalar @sequence_ids;
+		last if $total_batched == $fetch_limit;
 	}
 	print "\tSequences downloaded to genbank format.\n";
 	##############################################################################
 
 	##############################################################################
+	my @batched_files = <*$sequence_file>;
+	my @concatenated_batch_file = ();
+	foreach my $file (@batched_files) {
+		next if $file eq $sequence_file;
+		open (CURRENT, "<$file") or die $!;
+		my @current_file = <CURRENT>;
+		push(@concatenated_batch_file, @current_file);
+		close CURRENT or die $!;
+	}
+	
+	
+	open(CONCAT, ">$sequence_file") or die $!;
+	foreach my $line (@concatenated_batch_file) {
+		print CONCAT $line;
+	}
+	close(CONCAT) or die $!;
+	foreach my $file (@batched_files) {
+		unlink($file) or die "|".$file."|";
+	}
+	##############################################################################
+	
+
+	##############################################################################
 	# Open genbank file into needed locations.
 	skip_genbank_download:
-	open (GENBANK, '<'.$sequence_file);
+	open(GENBANK, "<$sequence_file") or die $!;
 	my @genbank 						= <GENBANK>;
+	close GENBANK;
 	my %binomial_name_hash				= ();
 	my %taxonomy_hierarchy_hash 		= ();
 	my $current_accession 				= 'NA';
@@ -310,6 +371,7 @@ sub download_target_taxa {
 			$organism_line_i++;
 		}
 	}
+	# close(GENBANK);
 	##############################################################################
 	my $seqin = Bio::SeqIO->new(-file   => $sequence_file,
 								-format => 'genbank');
@@ -319,8 +381,7 @@ sub download_target_taxa {
 	# Loop through the downloaded genbank files and parse all the data
 	my $seq_counter = 0;
 	while (my $seq = $seqin->next_seq) {
-		print "\tSeq #: ".$seq_counter."\n";
-		usleep($sleep_time); 	# Sleep so you don't overload NCBI's servers.
+
 		# Pull these values as you go along and parse the genbank file.
 		# NCBI/Taxonomy Variables
 		my $taxon_id 				= 'NA'; # Taxon ID for NCBI
@@ -369,8 +430,7 @@ sub download_target_taxa {
 		
 		##############################################################################
 		# Obtain sequence feature information.
-		print "\tRetrieving sequence features...\n";
-		print "\t".$long_name."\n";
+		print "\t\t[".$seq_counter."] ".$long_name."\n";
 		for my $feat_object ($seq->get_SeqFeatures) {
 			for my $tag ($feat_object->get_all_tags) {             			
 				for my $value ($feat_object->get_tag_values($tag)) {
@@ -395,7 +455,7 @@ sub download_target_taxa {
 		}
 		##############################################################################
 		# Obtain reference annotations.
-		print "\tRetrieving annotations...\n";
+		print "\t\t\tRetrieving annotations...\n";
 		my $anno_collection = $seq->annotation;
 		for my $key ( $anno_collection->get_all_annotation_keys ) {
 			my @annotations = $anno_collection->get_Annotations($key);
@@ -657,7 +717,12 @@ sub download_target_taxa {
 									$endl);
 	}
 	$taxa_counter++;
-	unlink($sequence_file) if defined $sequence_file; # Delete the genbank file.
+	# if(open(GENBANK)) {
+		# print "File still open.";
+		# die;
+	# }
+	# unlink $sequence_file or warn "Could not unlink $sequence_file\n";
+	unlink($sequence_file) if defined $sequence_file;
 	return \@return_output_lines;
 }
 
@@ -670,3 +735,17 @@ sub download_target_taxa {
 		        # :proteinclusters, pcassay, pccompound, pcsubstance,
 		        # :seqannot, snp, sra, taxonomy, toolkit, toolkitall,
 		        # :unigene, unists
+				
+sub search_strings {
+	my $short_name = shift;
+	
+	my %search_string_hash = ();
+	$search_string_hash{'COI_full'} = "AND (COI[All Fields] OR \"cytochrome oxidase I\"[All Fields] OR COX1[All Fields] OR \"COXI\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
+	$search_string_hash{'16S_full'} = "AND (16S[All Fields] OR \"16S ribosomal RNA\"[All Fields] OR \"16S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
+
+	if(exists $search_string_hash{$short_name}) {
+		return $search_string_hash{$short_name};
+	} else {
+		return $short_name;
+	}
+}

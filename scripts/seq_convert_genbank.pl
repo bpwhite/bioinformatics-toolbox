@@ -39,8 +39,8 @@ use Data::Dumper;
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
 									option_defs => {'-list' 		=> '', 				# List file name
 													'-slim' 		=> 999999999,		# Sequence search limit
-													'-sflim'		=> 1,				# Sequence fetch limit
-													'-batch-cap'	=> 50,				# NCBI sequence fetch limit per batch
+													'-sflim'		=> 500000,			# Sequence fetch limit
+													'-batch-cap'	=> 350,				# NCBI sequence fetch limit per batch
 													'-tlim' 		=> 1, 				# Taxa limit
 													'-user_email' 	=> 'foo@bar.com', 	# User email
 													'-outp' 		=> 'output', 		# Output file prefix

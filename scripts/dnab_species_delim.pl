@@ -26,6 +26,7 @@ use lib "$FindBin::Bin/libs/";
 use Fasta;
 require 'Kimura_Distance_C.pl';
 use General::Arguments;
+use Sequence::Bootstrap;
 
 # BioPerl libs
 use Bio::TreeIO;
@@ -69,35 +70,11 @@ my $statistical_method = $params->options->{'-stat'};
 
 my $phylogenetic_length_cutoff = 350;
 
-srand();
+# srand();
 my $str1 = 'ACTTTATATTTTATTTTCGGCGCTTGGGCGGGCATGGTAGGGACTTCCCTTAGCCTATTAATTCGTGCTGAGTTGGGTAACCCTGGTTCTTTAATTGGTGACGACCAAATTTATAACGTTATTGTGACGGCGCATGCGTTTATTATGATTTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGTAATTGGCTGGTTCCCCTTATATTAGGTGCCCCTGATATGGCTTTCCCACGAATAAATAATATAAGATTTTGGTTGTTACCCCCGTCTTTAACTTTGCTGATTTCTAGTAGAATTGTGGATGTAGGGGCTGGCACTGGTTGGACGGTTTATCCTCCATTAGCTGCTAATATCGCCCACGGTGGTTCTTCAGTTGACTTTGCTATTTTCTCATTACATTTAGCTGGGGTTTCTTCTATTTTAGGTGCAGTTAACTTCATTACAACTGTCGTTAATATGCGCAGCCCGGGTATAACGTTAGACCGCATGCCATTATTTGTCTGATCTGTAGTAATTACAGCTGTGTTATTATTATTATCTTTACCAGTCTTAGCTGGGGCAATCACAATACTGTTAACTGATCGTAATCTGAATACTTCATTTTTTGATCCG------------------------------------';
 my $str2 = 'ACTCTGTATTTTATTTTTGGTGCTTGGTCGGGTATGGTGGGCACTTCTCTTAGTTTGTTAATTCGGGCTGAGTTGGGTAATCCTGGCTCACTTATTGGGGATGACCAGATTTATAACGTTATTGTTACTGCTCATGCGTTTATTATAATCTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGGAATTGGCTTGTACCCCTTATGTTAGGTGCCCCAGACATGGCTTTCCCTCGTATAAATAATATAAGTTTTTGGTTGTTGCCCCCGTCTTTGACTCTCTTGGTTTCAAGTAGAATCGTAGATGTAGGTGCGGGTACTGGTTGGACAGTTTACCCGCCTCTGGCAGCTAATATTGCCCACGGCGGGTCTTCTGTAGATTTTGCCATTTTTTCATTGCATCTAGCAGGGGTTTCTTCGATCTTAGGGGCTGTTAATTTTATTACAACTGTGGTGAATATACGTAGACCTGGTATAACCTTGGATCGAATGCCTCTATTTGTATGGTCCGTAGTAATTACAGCGGTGTTACTTTTGTTATCTTTACCAGTTTTAGCAGGGGCTATTACTATACTCCTGACTGACCGTAACCTAAACACCTCATTCTTCGACCCCGCGGGAGGAGGGGATCCTATTTTGTACCAACATCTC';
-my @weights = ();
-my @bs_start_weights = ();
 
-my $starting_weight = 1;
-my $max_chars = length($str1)-1;
-my $chars_sampled = 0 ;
-for (0..($max_chars)) {
-	push(@weights, $starting_weight);
-	push(@bs_start_weights, 0);
-}
-my @bs_weights = @bs_start_weights;
-
-for (0..($max_chars)) {
-	my $rand_position = abs int rand ($max_chars);
-	$bs_weights[$rand_position]++;
-}
-
-print "Weights: \n";
-my $bs_sum = 0;
-foreach my $position (@bs_weights) {
-	print $position." => ";
-	$bs_sum += $position;
-}
-print "\n";
-print "Total sum: ".$bs_sum."\n";
-my $weights = '';
+my $weights = Sequence::Bootstrap::bootstrap_weights(length($str1));
 
 my $max_comparisons = length($str1);
 
@@ -133,7 +110,7 @@ my $k2p_bs = $k2p_distance;
 
 print $k2p_no_bs." => ".$k2p_bs."\n";
 
-exit;
+
 
 # bit_Test();
 
@@ -359,11 +336,7 @@ for my $seq_id1 ( sort keys %seq_hash1 ) {
 	for my $seq_id2 ( sort keys %seq_hash2 ) {
 		next if $seq_id1 eq $seq_id2;
 		my $seq2_gapped = $seq_hash1_ref->{$seq_id2}->{'gapped_seq'};
-		my $mask = $seq1 ^ $seq2_gapped;
-		my $max_comparisons = 0;
-		while ($mask =~ /[\0]/g) { 
-			$max_comparisons++;
-		}
+
 		my ($transitions,	$transversions,		$bases_compared,
 			$k2p_distance,	$variance,			$stderror,
 			$mink2p,		$maxk2p,			$p_stderror,
@@ -371,7 +344,7 @@ for my $seq_id1 ( sort keys %seq_hash1 ) {
 			) = 0;
 		my $search_type = 1;
 		c_kimura_distance(	$seq1,				$seq2_gapped,		$critical_value,
-							$cutoff, 			$search_type, 		$max_comparisons,
+							$cutoff, 			$search_type, 		$max_seq_length,
 							$transitions,		$transversions,		$bases_compared,
 							$k2p_distance,		$variance,			$stderror,
 							$mink2p,			$maxk2p);
@@ -474,18 +447,13 @@ foreach my $query_seq (@query_seqs_array) {
 					}
 					next if $num_bases_compared < $minimum_sequence_length;
 			} elsif($statistical_method eq 'analytical') {
-					my $mask = $seq1_filtered ^ $seq2_gapped;
-					my $max_comparisons = 0;
-					while ($mask =~ /[\0]/g) { 
-						$num_bases_compared++;
-					}
 					($transitions,		$transversions,		$num_bases_compared,
 					$current_dist,		$variance,			$stderror,
 					$mink2p,			$maxk2p
 					) = 0;
 					my $search_type = 2;
 					c_kimura_distance(	$seq1_filtered,		$seq2_gapped,		$critical_value,
-										$cutoff, 			$search_type, 		$max_comparisons,
+										$cutoff, 			$search_type, 		$max_seq_length,
 										$transitions,		$transversions,		$num_bases_compared,
 										$current_dist,		$variance,			$stderror,
 										$mink2p,			$maxk2p);

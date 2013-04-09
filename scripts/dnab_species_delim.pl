@@ -68,7 +68,7 @@ my $use_tags = $params->options->{'-tags'};
 my $cutoff = $params->options->{'-cutoff'};
 my $minimum_sequence_length = $params->options->{'-min-length'};
 my $statistical_method = $params->options->{'-stat'};
-my $bootstrap_reps = $params->options{'-bsreps'};
+my $bootstrap_reps = $params->options->{'-bsreps'};
 my $doing_bootstrap = 0;
 if ($bootstrap_reps > 0) {
 	$doing_bootstrap = 1;

@@ -18,6 +18,7 @@ package Sequence::Bootstrap;
 
 use strict;
 use warnings;
+use Math::Random::MT::Perl qw(srand rand);
 
 use Exporter;
 
@@ -27,6 +28,7 @@ our @EXPORT_OK = qw(bootstrap_weights);
 
 sub bootstrap_weights {
 	my $seq_length = shift;
+	
 	# Create starting values
 	my @weights = ();
 	my @bs_start_weights = ();
@@ -46,12 +48,13 @@ sub bootstrap_weights {
 	# Increase the to-be-returned weight array by
 	# one for each time that position is sampled 
 	for (0..($max_chars)) {
-		my $rand_position = abs int rand ($max_chars);
+		my $rand_position = abs int rand ($seq_length);
+		# if($rand_position == 653) { die "Found 653" };
 		$bs_weights[$rand_position]++;
 	}
-	
+
 	# Convert array to string
-	my $weights = join "", @bs_weights;
+	my $weights = join("", @bs_weights);
 	
 	# Return string of weights
 	return $weights;

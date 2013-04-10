@@ -57,7 +57,7 @@ sub bootstrap_weights {
 	my $weights = join("", @bs_weights);
 	my $unweighted = join("",@unweighted);
 	# Return string of weights
-	return $weights,$unweighted;
+	return ($weights,$unweighted);
 }
 
 1;

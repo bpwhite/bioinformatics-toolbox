@@ -378,15 +378,11 @@ sub cluster_algorithm {
 			my $seq2_gapped = $seq_hash1_ref->{$seq_id2}->{'gapped_seq'};
 			my $search_type = 1;
 			my ($transitions,	$transversions,		$bases_compared,
-				$k2p_distance,	$variance,			$stderror,
-				$mink2p,		$maxk2p,			$p_stderror,
-				$p_min,			$p_max,				$p_dist
-				) = 0;
+				$k2p_distance) = 0;
 			c_k2p_bootstrap(	$seq1,				$seq2_gapped,		$critical_value,
-								$cutoff, 			$search_type, 		$max_seq_length,
+								$cutoff,			$max_seq_length,
 								$transitions,		$transversions,		$bases_compared,
-								$k2p_distance,		$variance,			$stderror,
-								$mink2p,			$maxk2p, 			$character_weights);
+								$k2p_distance,		$character_weights);
 			next if($bases_compared < $minimum_sequence_length);
 			if ($k2p_distance <= $cutoff) {
 				$seq_to_delete = $seq_id1;
@@ -423,7 +419,6 @@ sub cluster_algorithm {
 
 	print "Number predicted OTU's: ".$number_remaining_seqs."\n" if $doing_bootstrap == $bootstrap_flag;
 
-
 	# Begin rebuilding
 	print "Creating output file...\n" if $doing_bootstrap == $bootstrap_flag;
 
@@ -454,28 +449,22 @@ sub cluster_algorithm {
 				$p_min,			$p_max,				$p_dist
 				) = 0;
 			my $calculation_rounding = "%.5f";
-			
 			if($seq1_gapped eq $seq2_gapped) {
-				$mink2p = 0;
-				$maxk2p = 0;
-				$stderror = 0;
-				$current_dist = 0;
+				# $mink2p = 0;
+				# $maxk2p = 0;
+				# $stderror = 0;
+				# $current_dist = 0;
 				push(@{$query_results_hash{$query_seq->id}},$otu_seq->id);
 				$query_seq_was_matched++;
 				next;
 			} else {
-			my $search_type = 2;
-
-			c_k2p_bootstrap(	$seq1_filtered,		$seq2_gapped,		$critical_value,
-								$cutoff, 			$search_type, 		$max_seq_length,
+				c_k2p_bootstrap($seq1_filtered,		$seq2_gapped,		$critical_value,
+								$cutoff, 			$max_seq_length,
 								$transitions,		$transversions,		$bases_compared,
-								$current_dist,		$variance,			$stderror,
-								$mink2p,			$maxk2p, $character_weights);
+								$current_dist,		$character_weights);
 				
 				if($current_dist < $lowest_distance) {
 					$lowest_distance 		= $current_dist;
-					$lowest_min 			= $mink2p;
-					$lowest_max 			= $maxk2p;
 					$closest_match 			= $otu_seq->id;
 					$lowest_bases_compared 	= $bases_compared;
 				}
@@ -484,7 +473,7 @@ sub cluster_algorithm {
 
 			# If minimum distance is less than cutoff and statistical method is employed, 
 			# add the match to the match array for this query sequence.
-			if ($mink2p <= $cutoff) {
+			if ($current_dist <= $cutoff) {
 				push(@{$query_results_hash{$query_seq->id}},$otu_seq->id);
 				$query_seq_was_matched++;
 			}
@@ -753,30 +742,25 @@ sub cluster_algorithm {
 				next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
 				my $neighbor_seq_filtered = $otu_seq->object_id;
 				my ($transitions,	$transversions,		$bases_compared,
-					$k2p_distance,	$variance,			$stderror,
-					$mink2p,		$maxk2p,			$p_stderror,
-					$p_min,			$p_max,				$p_dist
-					) = 0;
-				my $search_type = 3;
+					$k2p_distance) = 0;
 				c_k2p_bootstrap(	$neighbor_seq_filtered,	$first_exemplar_seq_gapped,		$critical_value,
-									$cutoff, 				$search_type, 		$max_seq_length,
+									$cutoff, 				$max_seq_length,
 									$transitions,			$transversions,		$bases_compared,
-									$k2p_distance,			$variance,			$stderror,
-									$mink2p,				$maxk2p, $character_weights);
+									$k2p_distance,			$character_weights);
 				next if $bases_compared < $minimum_sequence_length;
 				if($k2p_distance < $nn_dist) {
 					$nn_dist = $k2p_distance;
 					$nn_id = $otu_seq->id;
-					$nn_min = $mink2p;
-					$nn_max = $maxk2p;
+					# $nn_min = $mink2p;
+					# $nn_max = $maxk2p;
 					$nn_sequence = $otu_seq->seq();
 				}
 			}
 			my $nn_rounding = "%.3f";
 			$nn_id 		= filter_one_id($nn_id);
 			$nn_dist 	= sprintf($nn_rounding,$nn_dist)*100;
-			$nn_min 	= sprintf($nn_rounding,$nn_min)*100;
-			$nn_max 	= sprintf($nn_rounding,$nn_max)*100;
+			# $nn_min 	= sprintf($nn_rounding,$nn_min)*100;
+			# $nn_max 	= sprintf($nn_rounding,$nn_max)*100;
 			##################################################################
 			## End nearest neighbor search
 
@@ -807,10 +791,9 @@ sub cluster_algorithm {
 						) = 0;
 					my $search_type = 3;
 					c_k2p_bootstrap(	$seq1_filtered,			$seq2_gapped,		$critical_value,
-										$cutoff, 				$search_type, 		$max_seq_length,
+										$cutoff, 				$max_seq_length,
 										$transitions,			$transversions,		$bases_compared,
-										$k2p_distance,			$variance,			$stderror,
-										$mink2p,				$maxk2p, $character_weights);
+										$k2p_distance,			$character_weights);
 									
 					if ($bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
 					if($k2p_distance > 0) {
@@ -892,11 +875,11 @@ sub cluster_algorithm {
 				$max_distance 			= sprintf($rounding,$distances_stat->max())*100;
 				$se_distance			= sprintf($rounding,($distances_stat->standard_deviation()/sqrt(scalar(@distances))))*100;
 				
-				$stderrors_stat->add_data(@std_errors);
-				$mean_stderrors 		= sprintf($rounding,$stderrors_stat->mean())*100;
-				$min_stderrors 			= sprintf($rounding,$stderrors_stat->min())*100;
-				$max_stderrors 			= sprintf($rounding,$stderrors_stat->max())*100;
-				$se_stderrors			= sprintf($rounding,($stderrors_stat->standard_deviation()/sqrt(scalar(@std_errors))))*100;
+				# $stderrors_stat->add_data(@std_errors);
+				# $mean_stderrors 		= sprintf($rounding,$stderrors_stat->mean())*100;
+				# $min_stderrors 			= sprintf($rounding,$stderrors_stat->min())*100;
+				# $max_stderrors 			= sprintf($rounding,$stderrors_stat->max())*100;
+				# $se_stderrors			= sprintf($rounding,($stderrors_stat->standard_deviation()/sqrt(scalar(@std_errors))))*100;
 			}
 			##################################################################
 			

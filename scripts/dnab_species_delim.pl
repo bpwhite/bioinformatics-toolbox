@@ -81,7 +81,7 @@ my $phylogenetic_length_cutoff = 350;
 my $delimiter = ",";
 
 # srand();
-# my $str1 = 'ACTTTATATTTTATTTTCGGCGCTTGGGCGGGCATGGTAGGGACTTCCCTTAGCCTATTAATTCGTGCTGAGTTGGGTAACCCTGGTTCTTTAATTGGTGACGACCAAATTTATAACGTTATTGTGACGGCGCATGCGTTTATTATGATTTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGTAATTGGCTGGTTCCCCTTATATTAGGTGCCCCTGATATGGCTTTCCCACGAATAAATAATATAAGATTTTGGTTGTTACCCCCGTCTTTAACTTTGCTGATTTCTAGTAGAATTGTGGATGTAGGGGCTGGCACTGGTTGGACGGTTTATCCTCCATTAGCTGCTAATATCGCCCACGGTGGTTCTTCAGTTGACTTTGCTATTTTCTCATTACATTTAGCTGGGGTTTCTTCTATTTTAGGTGCAGTTAACTTCATTACAACTGTCGTTAATATGCGCAGCCCGGGTATAACGTTAGACCGCATGCCATTATTTGTCTGATCTGTAGTAATTACAGCTGTGTTATTATTATTATCTTTACCAGTCTTAGCTGGGGCAATCACAATACTGTTAACTGATCGTAATCTGAATACTTCATTTTTTGATCCG------------------------------------';
+# my $str1 = '*****ATATTTTATTTTCGGCGCTTGGGCGGGCATGGTAGGGACTTCCCTTAGCCTATTAATTCGTGCTGAGTTGGGTAACCCTGGTTCTTTAATTGGTGACGACCAAATTTATAACGTTATTGTGACGGCGCATGCGTTTATTATGATTTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGTAATTGGCTGGTTCCCCTTATATTAGGTGCCCCTGATATGGCTTTCCCACGAATAAATAATATAAGATTTTGGTTGTTACCCCCGTCTTTAACTTTGCTGATTTCTAGTAGAATTGTGGATGTAGGGGCTGGCACTGGTTGGACGGTTTATCCTCCATTAGCTGCTAATATCGCCCACGGTGGTTCTTCAGTTGACTTTGCTATTTTCTCATTACATTTAGCTGGGGTTTCTTCTATTTTAGGTGCAGTTAACTTCATTACAACTGTCGTTAATATGCGCAGCCCGGGTATAACGTTAGACCGCATGCCATTATTTGTCTGATCTGTAGTAATTACAGCTGTGTTATTATTATTATCTTTACCAGTCTTAGCTGGGGCAATCACAATACTGTTAACTGATCGTAATCTGAATACTTCATTTTTTGATCCG------------------------------------';
 # my $str2 = 'ACTCTGTATTTTATTTTTGGTGCTTGGTCGGGTATGGTGGGCACTTCTCTTAGTTTGTTAATTCGGGCTGAGTTGGGTAATCCTGGCTCACTTATTGGGGATGACCAGATTTATAACGTTATTGTTACTGCTCATGCGTTTATTATAATCTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGGAATTGGCTTGTACCCCTTATGTTAGGTGCCCCAGACATGGCTTTCCCTCGTATAAATAATATAAGTTTTTGGTTGTTGCCCCCGTCTTTGACTCTCTTGGTTTCAAGTAGAATCGTAGATGTAGGTGCGGGTACTGGTTGGACAGTTTACCCGCCTCTGGCAGCTAATATTGCCCACGGCGGGTCTTCTGTAGATTTTGCCATTTTTTCATTGCATCTAGCAGGGGTTTCTTCGATCTTAGGGGCTGTTAATTTTATTACAACTGTGGTGAATATACGTAGACCTGGTATAACCTTGGATCGAATGCCTCTATTTGTATGGTCCGTAGTAATTACAGCGGTGTTACTTTTGTTATCTTTACCAGTTTTAGCAGGGGCTATTACTATACTCCTGACTGACCGTAACCTAAACACCTCATTCTTCGACCCCGCGGGAGGAGGGGATCCTATTTTGTACCAACATCTC';
 
 # srand(1);
@@ -93,39 +93,40 @@ my $delimiter = ",";
 # }
 # exit;
 # my $max_comparisons = length($str1);
+# my ($weights,$unweighted) = Sequence::Bootstrap::bootstrap_weights(length($str1));
+# $weights =$weights;
 
 # print $max_comparisons."\n";
-# my $critical_value = 1.25;
+# my $critical_value2 = 1.25;
 # my $max_seq_length = 350;
 # my ($transitions,	$transversions,		$bases_compared,
 	# $k2p_distance,	$variance,			$stderror,
 	# $mink2p,		$maxk2p,			$p_stderror,
 	# $p_min,			$p_max,				$p_dist
 	# ) = 0;
-# my $search_type = 3;
-# c_kimura_distance(	$str1,				$str2,				$critical_value,
+# my $search_type = 1;
+# c_kimura_distance(	$str1,				$str2,				$critical_value2,
 					# $cutoff, 			$search_type, 		$max_comparisons,
 					# $transitions,		$transversions,		$bases_compared,
 					# $k2p_distance,		$variance,			$stderror,
 					# $mink2p,			$maxk2p);
 # my $k2p_no_bs = $k2p_distance;
-
-# print $k2p_distance."\n";
+# $k2p_distance = 0;
 
  # ($transitions,	$transversions,		$bases_compared,
 	# $k2p_distance,	$variance,			$stderror,
 	# $mink2p,		$maxk2p,			$p_stderror,
 	# $p_min,			$p_max,				$p_dist
 	# ) = 0;
-# c_k2p_bootstrap(	$str1,				$str2,				$critical_value,
-					# $cutoff, 			$search_type, 		$max_seq_length,
+# c_k2p_bootstrap(	$str1,				$str2,				$critical_value2,
+					# $cutoff, 			$search_type, 		$max_comparisons,
 					# $transitions,		$transversions,		$bases_compared,
 					# $k2p_distance,		$variance,			$stderror,
 					# $mink2p,			$maxk2p, $weights);
 # my $k2p_bs = $k2p_distance;
 
 # print $k2p_no_bs." => ".$k2p_bs."\n";
-
+# exit;
 
 
 # bit_Test();
@@ -332,7 +333,7 @@ sub cluster_algorithm {
 	my $character_weights 	= shift;
 	my $doing_bootstrap		= shift;
 	##################################################################
-	print $character_weights."\n\n";
+	# print $character_weights."\n\n";
 	##################################################################
 	my @unique_sequence_array = ();
 	for my $seq_string ( sort keys %unique_sequences ) {
@@ -367,7 +368,6 @@ sub cluster_algorithm {
 	my $remaining_unique_seqs 	= keys %original_seq_hash;
 	my $num_unique_seqs 		= keys %seq_hash1;
 	%original_seq_hash 			= (); # Flush
-
 	for my $seq_id1 ( sort keys %seq_hash1 ) {
 		my $max_bases_compared = 0;
 		my $seq1 = $seq_hash1_ref->{$seq_id1}->{'filtered_seq'};
@@ -376,7 +376,6 @@ sub cluster_algorithm {
 		for my $seq_id2 ( sort keys %seq_hash2 ) {
 			next if $seq_id1 eq $seq_id2;
 			my $seq2_gapped = $seq_hash1_ref->{$seq_id2}->{'gapped_seq'};
-
 			my $search_type = 1;
 			my ($transitions,	$transversions,		$bases_compared,
 				$k2p_distance,	$variance,			$stderror,
@@ -387,7 +386,7 @@ sub cluster_algorithm {
 								$cutoff, 			$search_type, 		$max_seq_length,
 								$transitions,		$transversions,		$bases_compared,
 								$k2p_distance,		$variance,			$stderror,
-								$mink2p,			$maxk2p, $character_weights);
+								$mink2p,			$maxk2p, 			$character_weights);
 			next if($bases_compared < $minimum_sequence_length);
 			if ($k2p_distance <= $cutoff) {
 				$seq_to_delete = $seq_id1;
@@ -404,7 +403,6 @@ sub cluster_algorithm {
 	print "Done deleting.\n" if $doing_bootstrap == $bootstrap_flag;
 	my $remaining_otu = keys %seq_hash1;
 	print $remaining_otu."\n" if $doing_bootstrap == $bootstrap_flag;
-
 	print "Rebuilding sequence arrays...\n" if $doing_bootstrap == $bootstrap_flag;
 	my $number_remaining_seqs = 0;
 	##################################################################
@@ -754,19 +752,20 @@ sub cluster_algorithm {
 			foreach my $otu_seq (@otu_seqs_array) { # For each OTU
 				next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
 				my $neighbor_seq_filtered = $otu_seq->object_id;
-				my ($transitions,	$transversions,	$num_bases_compared,	$current_dist,
-					$variance,		$stderror,		$mink2p,				$maxk2p,$p_stderror,
-					$p_min,			$p_max,			$p_dist
+				my ($transitions,	$transversions,		$bases_compared,
+					$k2p_distance,	$variance,			$stderror,
+					$mink2p,		$maxk2p,			$p_stderror,
+					$p_min,			$p_max,				$p_dist
 					) = 0;
-					my $search_type = 3;
-					c_kimura_distance(	$neighbor_seq_filtered,	$first_exemplar_seq_gapped,	$critical_value,
-										$cutoff, 				$search_type, 				$max_seq_length,
-										$transitions,			$transversions,				$num_bases_compared,
-										$current_dist,			$variance,					$stderror,
-										$mink2p,				$maxk2p);
-					next if $num_bases_compared < $minimum_sequence_length;
-				if($current_dist < $nn_dist) {
-					$nn_dist = $current_dist;
+				my $search_type = 3;
+				c_k2p_bootstrap(	$neighbor_seq_filtered,	$first_exemplar_seq_gapped,		$critical_value,
+									$cutoff, 				$search_type, 		$max_seq_length,
+									$transitions,			$transversions,		$bases_compared,
+									$k2p_distance,			$variance,			$stderror,
+									$mink2p,				$maxk2p, $character_weights);
+				next if $bases_compared < $minimum_sequence_length;
+				if($k2p_distance < $nn_dist) {
+					$nn_dist = $k2p_distance;
 					$nn_id = $otu_seq->id;
 					$nn_min = $mink2p;
 					$nn_max = $maxk2p;
@@ -801,30 +800,27 @@ sub cluster_algorithm {
 				for my $seq2_gapped ( sort keys %current_otu_sequences ) {
 					$unique_alleles{$seq1_gapped} = 'a';
 					$unique_alleles{$seq2_gapped} = 'a';
-					my $mask = $seq1_filtered ^ $seq2_gapped;
-					my $max_comparisons = 0;
-					while ($mask =~ /[\0]/g) { 
-						$max_comparisons++;
-					}
-					my ($transitions,	$transversions,	$num_bases_compared,$current_dist,
-						$used_ts_shortcut,
-						$variance,		$stderror,		$mink2p,			$maxk2p,$p_stderror,
-						$p_min,			$p_max,			$p_dist) = 0;
+					my ($transitions,	$transversions,		$bases_compared,
+						$k2p_distance,	$variance,			$stderror,
+						$mink2p,		$maxk2p,			$p_stderror,
+						$p_min,			$p_max,				$p_dist
+						) = 0;
 					my $search_type = 3;
-						c_kimura_distance(	$seq1_filtered,	$seq2_gapped,	$critical_value,
-											$cutoff, $search_type, $max_comparisons,
-											$transitions,	$transversions,	$num_bases_compared,
-											$current_dist,	$variance,		$stderror,
-											$mink2p,		$maxk2p);
-					if ($num_bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
-					if($current_dist > 0) {
+					c_k2p_bootstrap(	$seq1_filtered,			$seq2_gapped,		$critical_value,
+										$cutoff, 				$search_type, 		$max_seq_length,
+										$transitions,			$transversions,		$bases_compared,
+										$k2p_distance,			$variance,			$stderror,
+										$mink2p,				$maxk2p, $character_weights);
+									
+					if ($bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
+					if($k2p_distance > 0) {
 						# Store distinct allele sequences greater than 0 dist.
 						$distinct_alleles{$seq1_gapped} = 'a';
 						$distinct_alleles{$seq2_gapped} = 'a';
 					}
-					push(@distances, $current_dist);
+					push(@distances, $k2p_distance);
 					push(@std_errors, $stderror);
-					push(@num_comparisons, $num_bases_compared);
+					push(@num_comparisons, $bases_compared);
 					last if $unique_oqm_i == $matrix_count;
 					$unique_oqm_i++;
 				}

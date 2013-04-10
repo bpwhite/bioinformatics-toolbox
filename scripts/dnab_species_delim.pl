@@ -322,7 +322,7 @@ sub overseer {
 	print $reps_this_worker."\n";
 	for (my $i = 1; $i <= $reps_this_worker; $i++) {
 		# print "BS rep: ".$i."\n";
-		my $character_weights = Sequence::Bootstrap::bootstrap_weights($max_seq_length);
+		my ($character_weights,$unweighted) = Sequence::Bootstrap::bootstrap_weights($max_seq_length);
 		cluster_algorithm($character_weights, $doing_bootstrap);
 	}
 }
@@ -332,7 +332,7 @@ sub cluster_algorithm {
 	my $character_weights 	= shift;
 	my $doing_bootstrap		= shift;
 	##################################################################
-	
+	print $character_weights."\n\n";
 	##################################################################
 	my @unique_sequence_array = ();
 	for my $seq_string ( sort keys %unique_sequences ) {
@@ -377,17 +377,17 @@ sub cluster_algorithm {
 			next if $seq_id1 eq $seq_id2;
 			my $seq2_gapped = $seq_hash1_ref->{$seq_id2}->{'gapped_seq'};
 
+			my $search_type = 1;
 			my ($transitions,	$transversions,		$bases_compared,
 				$k2p_distance,	$variance,			$stderror,
 				$mink2p,		$maxk2p,			$p_stderror,
 				$p_min,			$p_max,				$p_dist
 				) = 0;
-			my $search_type = 1;
-			c_kimura_distance(	$seq1,				$seq2_gapped,		$critical_value,
+			c_k2p_bootstrap(	$seq1,				$seq2_gapped,		$critical_value,
 								$cutoff, 			$search_type, 		$max_seq_length,
 								$transitions,		$transversions,		$bases_compared,
 								$k2p_distance,		$variance,			$stderror,
-								$mink2p,			$maxk2p);
+								$mink2p,			$maxk2p, $character_weights);
 			next if($bases_compared < $minimum_sequence_length);
 			if ($k2p_distance <= $cutoff) {
 				$seq_to_delete = $seq_id1;
@@ -450,9 +450,10 @@ sub cluster_algorithm {
 		my $seq1_gapped				= $query_seq->seq();
 		foreach my $otu_seq (@otu_seqs_array) {
 			my $seq2_gapped = $otu_seq->seq();
-			my ($transitions,	$transversions,		$num_bases_compared,
-				$current_dist,	$used_ts_shortcut,	$variance,
-				$stderror,		$mink2p,			$maxk2p
+			my  ($transitions,	$transversions,		$bases_compared,
+				$current_dist,	$variance,			$stderror,
+				$mink2p,		$maxk2p,			$p_stderror,
+				$p_min,			$p_max,				$p_dist
 				) = 0;
 			my $calculation_rounding = "%.5f";
 			
@@ -465,25 +466,22 @@ sub cluster_algorithm {
 				$query_seq_was_matched++;
 				next;
 			} else {
-				($transitions,		$transversions,		$num_bases_compared,
-				$current_dist,		$variance,			$stderror,
-				$mink2p,			$maxk2p
-				) = 0;
-				my $search_type = 2;
-				c_kimura_distance(	$seq1_filtered,		$seq2_gapped,		$critical_value,
-									$cutoff, 			$search_type, 		$max_seq_length,
-									$transitions,		$transversions,		$num_bases_compared,
-									$current_dist,		$variance,			$stderror,
-									$mink2p,			$maxk2p);
+			my $search_type = 2;
+
+			c_k2p_bootstrap(	$seq1_filtered,		$seq2_gapped,		$critical_value,
+								$cutoff, 			$search_type, 		$max_seq_length,
+								$transitions,		$transversions,		$bases_compared,
+								$current_dist,		$variance,			$stderror,
+								$mink2p,			$maxk2p, $character_weights);
 				
 				if($current_dist < $lowest_distance) {
 					$lowest_distance 		= $current_dist;
 					$lowest_min 			= $mink2p;
 					$lowest_max 			= $maxk2p;
 					$closest_match 			= $otu_seq->id;
-					$lowest_bases_compared 	= $num_bases_compared;
+					$lowest_bases_compared 	= $bases_compared;
 				}
-				next if $num_bases_compared < $minimum_sequence_length;
+				next if $bases_compared < $minimum_sequence_length;
 			}
 
 			# If minimum distance is less than cutoff and statistical method is employed, 

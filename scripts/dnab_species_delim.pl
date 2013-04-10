@@ -45,7 +45,7 @@ use Benchmark qw(:all);
 use POSIX qw(ceil);
 use File::Copy;
 use Math::Random::MT::Perl qw(srand rand irand);
-use Math::Random::OO::Bootstrap;
+use Digest::SHA qw(sha1 sha1_base64);
 
 use strict;
 use warnings;
@@ -57,6 +57,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-min-length' 	=> 350, 		# User email
 													'-stat' 		=> 'analytical',# Output file prefix
 													'-bsreps'		=> 0,			# Number of BS reps to perform. 0 for no bootstrap
+													'-threads'		=> 1,			# Number of threads to use.
 													}
 													);
 													
@@ -68,53 +69,62 @@ my $use_tags = $params->options->{'-tags'};
 my $cutoff = $params->options->{'-cutoff'};
 my $minimum_sequence_length = $params->options->{'-min-length'};
 my $statistical_method = $params->options->{'-stat'};
+my $num_threads = $params->options->{'-threads'};
 my $bootstrap_reps = $params->options->{'-bsreps'};
+my $bootstrap_flag = 1;
 my $doing_bootstrap = 0;
 if ($bootstrap_reps > 0) {
 	$doing_bootstrap = 1;
 }
-
+$doing_bootstrap = 0;
 my $phylogenetic_length_cutoff = 350;
+my $delimiter = ",";
 
 # srand();
-my $str1 = 'ACTTTATATTTTATTTTCGGCGCTTGGGCGGGCATGGTAGGGACTTCCCTTAGCCTATTAATTCGTGCTGAGTTGGGTAACCCTGGTTCTTTAATTGGTGACGACCAAATTTATAACGTTATTGTGACGGCGCATGCGTTTATTATGATTTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGTAATTGGCTGGTTCCCCTTATATTAGGTGCCCCTGATATGGCTTTCCCACGAATAAATAATATAAGATTTTGGTTGTTACCCCCGTCTTTAACTTTGCTGATTTCTAGTAGAATTGTGGATGTAGGGGCTGGCACTGGTTGGACGGTTTATCCTCCATTAGCTGCTAATATCGCCCACGGTGGTTCTTCAGTTGACTTTGCTATTTTCTCATTACATTTAGCTGGGGTTTCTTCTATTTTAGGTGCAGTTAACTTCATTACAACTGTCGTTAATATGCGCAGCCCGGGTATAACGTTAGACCGCATGCCATTATTTGTCTGATCTGTAGTAATTACAGCTGTGTTATTATTATTATCTTTACCAGTCTTAGCTGGGGCAATCACAATACTGTTAACTGATCGTAATCTGAATACTTCATTTTTTGATCCG------------------------------------';
-my $str2 = 'ACTCTGTATTTTATTTTTGGTGCTTGGTCGGGTATGGTGGGCACTTCTCTTAGTTTGTTAATTCGGGCTGAGTTGGGTAATCCTGGCTCACTTATTGGGGATGACCAGATTTATAACGTTATTGTTACTGCTCATGCGTTTATTATAATCTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGGAATTGGCTTGTACCCCTTATGTTAGGTGCCCCAGACATGGCTTTCCCTCGTATAAATAATATAAGTTTTTGGTTGTTGCCCCCGTCTTTGACTCTCTTGGTTTCAAGTAGAATCGTAGATGTAGGTGCGGGTACTGGTTGGACAGTTTACCCGCCTCTGGCAGCTAATATTGCCCACGGCGGGTCTTCTGTAGATTTTGCCATTTTTTCATTGCATCTAGCAGGGGTTTCTTCGATCTTAGGGGCTGTTAATTTTATTACAACTGTGGTGAATATACGTAGACCTGGTATAACCTTGGATCGAATGCCTCTATTTGTATGGTCCGTAGTAATTACAGCGGTGTTACTTTTGTTATCTTTACCAGTTTTAGCAGGGGCTATTACTATACTCCTGACTGACCGTAACCTAAACACCTCATTCTTCGACCCCGCGGGAGGAGGGGATCCTATTTTGTACCAACATCTC';
+# my $str1 = 'ACTTTATATTTTATTTTCGGCGCTTGGGCGGGCATGGTAGGGACTTCCCTTAGCCTATTAATTCGTGCTGAGTTGGGTAACCCTGGTTCTTTAATTGGTGACGACCAAATTTATAACGTTATTGTGACGGCGCATGCGTTTATTATGATTTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGTAATTGGCTGGTTCCCCTTATATTAGGTGCCCCTGATATGGCTTTCCCACGAATAAATAATATAAGATTTTGGTTGTTACCCCCGTCTTTAACTTTGCTGATTTCTAGTAGAATTGTGGATGTAGGGGCTGGCACTGGTTGGACGGTTTATCCTCCATTAGCTGCTAATATCGCCCACGGTGGTTCTTCAGTTGACTTTGCTATTTTCTCATTACATTTAGCTGGGGTTTCTTCTATTTTAGGTGCAGTTAACTTCATTACAACTGTCGTTAATATGCGCAGCCCGGGTATAACGTTAGACCGCATGCCATTATTTGTCTGATCTGTAGTAATTACAGCTGTGTTATTATTATTATCTTTACCAGTCTTAGCTGGGGCAATCACAATACTGTTAACTGATCGTAATCTGAATACTTCATTTTTTGATCCG------------------------------------';
+# my $str2 = 'ACTCTGTATTTTATTTTTGGTGCTTGGTCGGGTATGGTGGGCACTTCTCTTAGTTTGTTAATTCGGGCTGAGTTGGGTAATCCTGGCTCACTTATTGGGGATGACCAGATTTATAACGTTATTGTTACTGCTCATGCGTTTATTATAATCTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGGAATTGGCTTGTACCCCTTATGTTAGGTGCCCCAGACATGGCTTTCCCTCGTATAAATAATATAAGTTTTTGGTTGTTGCCCCCGTCTTTGACTCTCTTGGTTTCAAGTAGAATCGTAGATGTAGGTGCGGGTACTGGTTGGACAGTTTACCCGCCTCTGGCAGCTAATATTGCCCACGGCGGGTCTTCTGTAGATTTTGCCATTTTTTCATTGCATCTAGCAGGGGTTTCTTCGATCTTAGGGGCTGTTAATTTTATTACAACTGTGGTGAATATACGTAGACCTGGTATAACCTTGGATCGAATGCCTCTATTTGTATGGTCCGTAGTAATTACAGCGGTGTTACTTTTGTTATCTTTACCAGTTTTAGCAGGGGCTATTACTATACTCCTGACTGACCGTAACCTAAACACCTCATTCTTCGACCCCGCGGGAGGAGGGGATCCTATTTTGTACCAACATCTC';
 
-my $weights = Sequence::Bootstrap::bootstrap_weights(length($str1));
+# srand(1);
+# my $weights = '';
+# for (0..100) {
+	# $weights = Sequence::Bootstrap::bootstrap_weights(length($str1));
 
-my $max_comparisons = length($str1);
+	# print $weights."\n\n\n";
+# }
+# exit;
+# my $max_comparisons = length($str1);
 
-print $max_comparisons."\n";
-my $critical_value = 1.25;
-my $max_seq_length = 350;
-my ($transitions,	$transversions,		$bases_compared,
-	$k2p_distance,	$variance,			$stderror,
-	$mink2p,		$maxk2p,			$p_stderror,
-	$p_min,			$p_max,				$p_dist
-	) = 0;
-my $search_type = 3;
-c_kimura_distance(	$str1,				$str2,				$critical_value,
-					$cutoff, 			$search_type, 		$max_comparisons,
-					$transitions,		$transversions,		$bases_compared,
-					$k2p_distance,		$variance,			$stderror,
-					$mink2p,			$maxk2p);
-my $k2p_no_bs = $k2p_distance;
+# print $max_comparisons."\n";
+# my $critical_value = 1.25;
+# my $max_seq_length = 350;
+# my ($transitions,	$transversions,		$bases_compared,
+	# $k2p_distance,	$variance,			$stderror,
+	# $mink2p,		$maxk2p,			$p_stderror,
+	# $p_min,			$p_max,				$p_dist
+	# ) = 0;
+# my $search_type = 3;
+# c_kimura_distance(	$str1,				$str2,				$critical_value,
+					# $cutoff, 			$search_type, 		$max_comparisons,
+					# $transitions,		$transversions,		$bases_compared,
+					# $k2p_distance,		$variance,			$stderror,
+					# $mink2p,			$maxk2p);
+# my $k2p_no_bs = $k2p_distance;
 
-print $k2p_distance."\n";
+# print $k2p_distance."\n";
 
- ($transitions,	$transversions,		$bases_compared,
-	$k2p_distance,	$variance,			$stderror,
-	$mink2p,		$maxk2p,			$p_stderror,
-	$p_min,			$p_max,				$p_dist
-	) = 0;
-c_k2p_bootstrap(	$str1,				$str2,				$critical_value,
-					$cutoff, 			$search_type, 		$max_seq_length,
-					$transitions,		$transversions,		$bases_compared,
-					$k2p_distance,		$variance,			$stderror,
-					$mink2p,			$maxk2p, $weights);
-my $k2p_bs = $k2p_distance;
+ # ($transitions,	$transversions,		$bases_compared,
+	# $k2p_distance,	$variance,			$stderror,
+	# $mink2p,		$maxk2p,			$p_stderror,
+	# $p_min,			$p_max,				$p_dist
+	# ) = 0;
+# c_k2p_bootstrap(	$str1,				$str2,				$critical_value,
+					# $cutoff, 			$search_type, 		$max_seq_length,
+					# $transitions,		$transversions,		$bases_compared,
+					# $k2p_distance,		$variance,			$stderror,
+					# $mink2p,			$maxk2p, $weights);
+# my $k2p_bs = $k2p_distance;
 
-print $k2p_no_bs." => ".$k2p_bs."\n";
+# print $k2p_no_bs." => ".$k2p_bs."\n";
 
 
 
@@ -130,40 +140,9 @@ my $num_examplars = 5;
 
 # 2-tailed crit values. Normal distribution
 my $alpha_level = 0.05;
-$critical_value = 1.96; # Default
-if($alpha_level == 0.01)		{
-	$critical_value = 2.575;
-}
-elsif($alpha_level == 0.025)	{
-	$critical_value = 2.2414;
-}
-elsif($alpha_level == 0.05) 	{
-	$critical_value = 1.96;
-}
-elsif($alpha_level == 0.075) 	{
-	$critical_value = 1.7805;
-}
-elsif($alpha_level == 0.10) 	{ 
-	$critical_value = 1.645;
-}
-elsif($alpha_level == 0.125) 	{ 
-	$critical_value = 1.5341;
-}
-elsif($alpha_level == 0.15) 	{ 
-	$critical_value = 1.4395;
-}
-elsif($alpha_level == 0.175) 	{ 
-	$critical_value = 1.3563;
-}
-elsif($alpha_level == 0.20) 	{
-	$critical_value = 1.28;
-}
+my $critical_value = 1.96; # Default
 
-my %intra_otu_distances_hash = ( 1 => 1,
-								 2 => 2);
-my $intra_otu_distances = $intra_otu_distances_hash{1};
-
-my $interactive_mode = 0;
+my $intra_otu_distances = 1;
 
 fix_bold_fasta($alignment_file);
 
@@ -181,6 +160,22 @@ unless(-d ($output_path)) {
 	print "Creating output path: ".$output_path."\n";
 	mkdir $output_path;
 }
+my $otu_summary_file = $output_prefix.'_otu_summary.csv';
+my $otu_summary_excel = $output_prefix.'_otu_summary_excel.csv';
+unlink $output_path.$otu_summary_file;
+open(OTU_SUMMARY, '>>'.$output_path.$otu_summary_file);
+unlink $output_path.$otu_summary_excel;
+open(OTU_EXCEL, '>>'.$output_path.$otu_summary_excel);
+
+my $otu_results = $output_prefix.'_otu_results.csv';
+unlink $output_path.$otu_results;
+open(OTU_RESULTS, '>>'.$output_path.$otu_results);
+print OTU_RESULTS 'otu_seq,query_seq'."\n";
+
+
+my $otu_exemplars = $output_prefix.'_exemplars.fas';
+unlink $output_path.$otu_exemplars;
+open(EXEMPLARS, '>>'.$output_path.$otu_exemplars);
 ##################################################################
 
 ##################################################################
@@ -245,7 +240,7 @@ if ($use_tags == 1) {
 # 4. Replace ambiguous characters with gaps (-)
 my %unique_sequences = (); # Don't flush
 my @query_seqs_array = ();
-$max_seq_length = 0;
+my $max_seq_length = 0;
 my $alignment_length = 0;
 my @ambiguous_characters = ('N', 'R', 'Y', 'K', 
 							'M', 'S', 'W', 'B', 
@@ -278,30 +273,70 @@ foreach my $seq (@original_sequence_array) {
 	push(@query_seqs_array,$seq);
 }
 ##################################################################
+use threads;
+use threads::shared;
 
-##################################################################
-my @unique_sequence_array = ();
-for my $seq_string ( sort keys %unique_sequences ) {
-	if(fast_seq_length($seq_string) < 1) { next; };
-	my $seq_id = $unique_sequences{$seq_string};
-	my @query_seq = grep { $_->id eq $seq_id } @original_sequence_array;
-	push(@unique_sequence_array,$query_seq[0]);
-}
-print scalar(@unique_sequence_array)." unique sequences remaining.\n";
-##################################################################
+# Create the thread-shared bootstrap hash.
+my %bootstrap_hash = ();
+share(%bootstrap_hash);
 
-##################################################################
-my %original_seq_hash 		= ();
-my $original_seq_hash_ref 	= \%original_seq_hash;
-foreach my $seq (@unique_sequence_array) {
-	$original_seq_hash_ref->{$seq->id}->{'gapped_seq'} = $seq->seq();
-	$original_seq_hash_ref->{$seq->id}->{'filtered_seq'} = $seq->object_id();
+my $reps_per_thread = int $bootstrap_reps/$num_threads;
+my $remainder_reps 	= $bootstrap_reps % $num_threads;
+
+print "Dividing task into $reps_per_thread reps per thread\n";
+print "Remainder $remainder_reps\n";
+
+my @threads = ();
+for (1..($num_threads-1)) {
+	print "Spawning Worker $_"."\n";
+	if ($_ < ($num_threads-1)) {
+		my $thr = threads->create(\&overseer,$reps_per_thread);
+		push(@threads,$thr);
+	} else {
+		my $thr = threads->create(\&overseer,($reps_per_thread+$remainder_reps));
+		push(@threads,$thr);
+	}
 }
-@unique_sequence_array = (); # Flush
-##################################################################
-for (1..5) {
+for (0..(scalar(@threads)-1)) {
+	print "Joining Worker $_\n";
+	$threads[$_]->join();
+}
+# @threads->join();
+
+sub overseer {
+	my $reps_this_worker = shift;
+	for (my $i = 0; $i <= $reps_this_worker; $i++) {
+		my $character_weights = Sequence::Bootstrap::bootstrap_weights($max_seq_length);
+		cluster_algorithm($character_weights);
+	}
+}
+
+sub cluster_algorithm {
 	##################################################################
-	print "Deleting highly similar sequences...\n" if $doing_bootstrap == 0;
+	my $character_weights = shift;
+	
+	my @unique_sequence_array = ();
+	for my $seq_string ( sort keys %unique_sequences ) {
+		if(fast_seq_length($seq_string) < 1) { next; };
+		my $seq_id = $unique_sequences{$seq_string};
+		my @query_seq = grep { $_->id eq $seq_id } @original_sequence_array;
+		push(@unique_sequence_array,$query_seq[0]);
+	}
+	print scalar(@unique_sequence_array)." unique sequences remaining.\n" if $doing_bootstrap == $bootstrap_flag;
+	##################################################################
+
+	##################################################################
+	my %original_seq_hash 		= ();
+	my $original_seq_hash_ref 	= \%original_seq_hash;
+	foreach my $seq (@unique_sequence_array) {
+		$original_seq_hash_ref->{$seq->id}->{'gapped_seq'} = $seq->seq();
+		$original_seq_hash_ref->{$seq->id}->{'filtered_seq'} = $seq->object_id();
+	}
+	@unique_sequence_array = (); # Flush
+	##################################################################
+
+	##################################################################
+	print "Deleting highly similar sequences...\n" if $doing_bootstrap == $bootstrap_flag;
 	my %seq_hash1 = ();
 	%seq_hash1 = %original_seq_hash;
 	my %seq_hash2 = %original_seq_hash;
@@ -313,6 +348,7 @@ for (1..5) {
 	my $remaining_unique_seqs 	= keys %original_seq_hash;
 	my $num_unique_seqs 		= keys %seq_hash1;
 	%original_seq_hash 			= (); # Flush
+
 	for my $seq_id1 ( sort keys %seq_hash1 ) {
 		my $max_bases_compared = 0;
 		my $seq1 = $seq_hash1_ref->{$seq_id1}->{'filtered_seq'};
@@ -345,12 +381,12 @@ for (1..5) {
 		$seq_i++;
 	}
 
-	print "\n" if $doing_bootstrap == 0;
-	print "Done deleting.\n" if $doing_bootstrap == 0;
+	print "\n" if $doing_bootstrap == $bootstrap_flag;
+	print "Done deleting.\n" if $doing_bootstrap == $bootstrap_flag;
 	my $remaining_otu = keys %seq_hash1;
-	print $remaining_otu."\n" if $doing_bootstrap == 0;
+	print $remaining_otu."\n" if $doing_bootstrap == $bootstrap_flag;
 
-	print "Rebuilding sequence arrays...\n" if $doing_bootstrap == 0;
+	print "Rebuilding sequence arrays...\n" if $doing_bootstrap == $bootstrap_flag;
 	my $number_remaining_seqs = 0;
 	##################################################################
 
@@ -368,11 +404,11 @@ for (1..5) {
 	%seq_hash1 = (); # Flush
 	%seq_hash2 = (); # Flush
 
-	print "Number predicted OTU's: ".$number_remaining_seqs."\n" if $doing_bootstrap == 0;
+	print "Number predicted OTU's: ".$number_remaining_seqs."\n" if $doing_bootstrap == $bootstrap_flag;
 
 
 	# Begin rebuilding
-	print "Creating output file...\n" if $doing_bootstrap == 0;
+	print "Creating output file...\n" if $doing_bootstrap == $bootstrap_flag;
 
 	# my $matches_file = $output_prefix.'_matches.csv';
 	# unlink $output_path.$matches_file;
@@ -381,7 +417,7 @@ for (1..5) {
 	my $number_query_seqs 	= scalar(@query_seqs_array);
 	my $query_seq_i 		= 1;
 
-	print "Re-Matching deleted sequences to OTU's...\n";
+	print "Re-Matching deleted sequences to OTU's...\n" if $doing_bootstrap == $bootstrap_flag;
 	my %query_results_hash 	= (); # Contains each query seq and its corresponding otu matches
 	my @new_otu_seqs = ();
 	foreach my $query_seq (@query_seqs_array) {
@@ -454,14 +490,14 @@ for (1..5) {
 	# close(MATCHES);
 
 	# OTU summary and content file names
-	if ($doing_bootstrap == 0) {
-		my $otu_summary_file = $output_prefix.'_otu_summary.csv';
-		my $otu_summary_excel = $output_prefix.'_otu_summary_excel.csv';
-		unlink $output_path.$otu_summary_file;
-		open(OTU_SUMMARY, '>>'.$output_path.$otu_summary_file);
-		unlink $output_path.$otu_summary_excel;
-		open(OTU_EXCEL, '>>'.$output_path.$otu_summary_excel);
+	my $otu_i = 1;
+	my $string_space = '';
 
+	if ($doing_bootstrap == $bootstrap_flag) {
+	##################################################################
+	# Bootstrap Check ################################################
+	##################################################################
+	
 		print OTU_SUMMARY "OTU Results: ".($cutoff*100)."% cutoff\n";
 		# print OTU_SUMMARY "User: Bryan White\n";
 		print OTU_SUMMARY "\tAlignment: ".$alignment_file."\n";
@@ -475,63 +511,57 @@ for (1..5) {
 		print "\tSequences: ".$number_query_seqs."\n";
 		print "\tMinimum seq. length: ".$minimum_sequence_length."\n";
 		print "\n";
+	
+		my $last_otu_seq = '';
+		$string_space = "%-60s %-11s %-30s  %-30s %-33s %-33s %-30s %-12s %-12s %-17s %-100s\n";
+
+		printf	$string_space,
+				"[OTU #] OTU Ref. ID",
+				"[# Morpho]",
+				"[A - U - D]",
+				"Avg. Dist SE: (Min - Max)",
+				"Avg. Comparisons SE: (Min - Max)",
+				"Avg. Length SE: (Min - Max)",		
+				"Avg. SE SE: (Min - Max)",
+				"[Sub-groups]",
+				"[Link Depth]",
+				"[Link Strength %]",
+				"Nearest Neighbor Dst (Min - Max)";
+		
+		# my $delimiter = '';
+		print OTU_SUMMARY
+				"[OTU #] OTU Ref. ID".$delimiter.
+				"[# Morpho]".$delimiter.
+				"[A - U - D]".$delimiter.
+				"Avg. Dist SE: (Min - Max)".$delimiter.
+				"Avg. Comparisons SE: (Min - Max)".$delimiter.
+				"Avg. Length SE: (Min - Max)".$delimiter.
+				"Avg. SE SE: (Min - Max)".$delimiter.
+				"[Sub-groups]".$delimiter.
+				"[Link Depth]".$delimiter.
+				"[Link Strength %]".$delimiter.
+				"Nearest Neighbor Dst (Min - Max)".$delimiter."\n";
+		print OTU_EXCEL
+				"OTU #".$delimiter."OTU Ref. ID".$delimiter.
+				"# Morpho".$delimiter.
+				"Abundance".$delimiter."Unique Alleles".$delimiter."Distinct Alleles".$delimiter.
+				"Avg. Dist".$delimiter."Dist SE ".$delimiter."Min Dist".$delimiter."Max".$delimiter.
+				"Avg. Comparisons".$delimiter." Comparisons SE".$delimiter."Min comparisons".$delimiter."Max comparisons".$delimiter.
+				"Avg. Length".$delimiter."Length SE".$delimiter."Min length".$delimiter."Max length".$delimiter.
+				"Avg. SE".$delimiter. "SE SE".$delimiter."Min SE".$delimiter."Max SE".$delimiter.
+				"Sub-groups".$delimiter.
+				"Link Depth".$delimiter.
+				"Link Strength Percent".$delimiter.
+				"Nearest Neighbor".$delimiter."Dist".$delimiter."Min".$delimiter."Max".$delimiter."\n";
+
+	##################################################################
+	# End Bootstrap Check ############################################
+	##################################################################
 	}
-	my $otu_i = 1;
-	# my $num_otus = scalar(@otu_seqs_array);
-
-	my $last_otu_seq = '';
-	my $string_space = "%-60s %-11s %-30s  %-30s %-33s %-33s %-30s %-12s %-12s %-17s %-100s\n";
-
-	printf	$string_space,
-			"[OTU #] OTU Ref. ID",
-			"[# Morpho]",
-			"[A - U - D]",
-			"Avg. Dist SE: (Min - Max)",
-			"Avg. Comparisons SE: (Min - Max)",
-			"Avg. Length SE: (Min - Max)",		
-			"Avg. SE SE: (Min - Max)",
-			"[Sub-groups]",
-			"[Link Depth]",
-			"[Link Strength %]",
-			"Nearest Neighbor Dst (Min - Max)";
-	my $delimiter = ",";
-	# my $delimiter = '';
-	print OTU_SUMMARY
-			"[OTU #] OTU Ref. ID".$delimiter.
-			"[# Morpho]".$delimiter.
-			"[A - U - D]".$delimiter.
-			"Avg. Dist SE: (Min - Max)".$delimiter.
-			"Avg. Comparisons SE: (Min - Max)".$delimiter.
-			"Avg. Length SE: (Min - Max)".$delimiter.
-			"Avg. SE SE: (Min - Max)".$delimiter.
-			"[Sub-groups]".$delimiter.
-			"[Link Depth]".$delimiter.
-			"[Link Strength %]".$delimiter.
-			"Nearest Neighbor Dst (Min - Max)".$delimiter."\n";
-	print OTU_EXCEL
-			"OTU #".$delimiter."OTU Ref. ID".$delimiter.
-			"# Morpho".$delimiter.
-			"Abundance".$delimiter."Unique Alleles".$delimiter."Distinct Alleles".$delimiter.
-			"Avg. Dist".$delimiter."Dist SE ".$delimiter."Min Dist".$delimiter."Max".$delimiter.
-			"Avg. Comparisons".$delimiter." Comparisons SE".$delimiter."Min comparisons".$delimiter."Max comparisons".$delimiter.
-			"Avg. Length".$delimiter."Length SE".$delimiter."Min length".$delimiter."Max length".$delimiter.
-			"Avg. SE".$delimiter. "SE SE".$delimiter."Min SE".$delimiter."Max SE".$delimiter.
-			"Sub-groups".$delimiter.
-			"Link Depth".$delimiter.
-			"Link Strength Percent".$delimiter.
-			"Nearest Neighbor".$delimiter."Dist".$delimiter."Min".$delimiter."Max".$delimiter."\n";
-
-	# Output the OTU content (match) results
-	my $otu_results = $output_prefix.'_otu_results.csv';
-	unlink $output_path.$otu_results;
-	open(OTU_RESULTS, '>>'.$output_path.$otu_results);
-	print OTU_RESULTS 'otu_seq,query_seq'."\n";
-
-
-	my $otu_exemplars = $output_prefix.'_exemplars.fas';
-	unlink $output_path.$otu_exemplars;
-	open(EXEMPLARS, '>>'.$output_path.$otu_exemplars);
-
+	
+	##################################################################
+	# Begin OTU Matching
+	##################################################################
 	my @query_seqs_found = ();
 	my @found_links_OTUs = ();
 	my $num_exemplars = 0;
@@ -605,7 +635,6 @@ for (1..5) {
 		$link_depth++;
 		if ($previous_number_queries_found !=  $current_number_queries_found) { goto accumulate_linked_OTUs } ;
 		
-		
 		##################################################################
 		## End accumulation and flush variables ##########################
 		@otu_links_array 				= (); # Flush
@@ -615,383 +644,412 @@ for (1..5) {
 		$query_matches_ref				= ''; # Flush
 		##################################################################
 		
-		##################################################################
-		# Collect the sequences for the current OTU into this array, current_otu_sequences
-		# Output the OTU content (match) results
-		my %current_otu_sequences 		= ();
-		my %current_otu_seqs_and_id		= ();
-		my %exemplars_hash 				= ();
-		my $current_otu_output = $output_prefix.'_'.$otu_i.'.fas';
-		unlink $output_path.$current_otu_output;
-		open(OTU_FASTA, '>>'.$output_path.$current_otu_output);
-		my @seq_lengths = ();
-		foreach my $query_seq_id (@unique_overall_query_matches) {
-			my @query_seq = grep { $_->id eq $query_seq_id } @query_seqs_array;
-			$current_otu_sequences{$query_seq[0]->seq()} = $query_seq[0]->object_id();
-			$current_otu_seqs_and_id{$query_seq_id} = $query_seq[0]->seq();
-			$exemplars_hash{$query_seq[0]->id} = $query_seq[0]->seq();
-			my $current_seq_length = fast_seq_length($query_seq[0]->seq());
-			push(@seq_lengths,$current_seq_length);
-			my $filtered_otu_id = filter_one_id($otu_seq->id);
-			my $filtered_query_id = filter_one_id($query_seq[0]->id());
-			
-			print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
-			print OTU_FASTA '>['.$otu_i.']_'.$query_seq_id."\n";
-			print OTU_FASTA $query_seq[0]->seq()."\n";
-		}
-		close(OTU_FASTA);
-		##################################################################
-		
-		##################################################################
-		## Begin finding exemplars
-		# Sort sequence lengths and print exemplars.
-		my @sorted_seq_lengths = (sort { $b <=> $a } @seq_lengths);
-		my @printed_exemplars = ();
-		my @exemplar_keys = keys %exemplars_hash;
-		fisher_yates_shuffle( \@exemplar_keys );    # permutes @array in place
-		for (my $exemplar_i = 0; ($exemplar_i < $num_examplars) && ($exemplar_i < scalar(@seq_lengths)); $exemplar_i++) {
-			foreach my $seq_id (@exemplar_keys) {
-				next if $seq_id ~~ @printed_exemplars;
-				if(fast_seq_length($exemplars_hash{$seq_id}) == $sorted_seq_lengths[$exemplar_i]) {
-					print EXEMPLARS '>['.$otu_i.']_'.$seq_id."\n";
-					print EXEMPLARS $exemplars_hash{$seq_id}."\n";
-					push(@printed_exemplars,$seq_id);
-					$num_exemplars++;
-					last;
-				}
-			}
-		}
-		my $first_exemplar_seq_gapped = $exemplars_hash{$printed_exemplars[0]};
-		%exemplars_hash 		= (); # Flush
-		@exemplar_keys 			= (); # Flush
-		@sorted_seq_lengths 	= (); # Flush
-		@printed_exemplars 		= (); # Flush
-		##################################################################
-		
-		##################################################################
-		# Use first exemplar to find nearest neighbor.
-		my $nn_id = '';
-		my $nn_dist = 100;
-		my $nn_min = 0;
-		my $nn_max = 0;
-		my $nn_sequence = '';
-		foreach my $otu_seq (@otu_seqs_array) { # For each OTU
-			next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
-			my $neighbor_seq_filtered = $otu_seq->object_id;
-			my ($transitions,	$transversions,	$num_bases_compared,	$current_dist,
-				$variance,		$stderror,		$mink2p,				$maxk2p,$p_stderror,
-				$p_min,			$p_max,			$p_dist
-				) = 0;
-				my $search_type = 3;
-				c_kimura_distance(	$neighbor_seq_filtered,	$first_exemplar_seq_gapped,	$critical_value,
-									$cutoff, 				$search_type, 				$max_seq_length,
-									$transitions,			$transversions,				$num_bases_compared,
-									$current_dist,			$variance,					$stderror,
-									$mink2p,				$maxk2p);
-				next if $num_bases_compared < $minimum_sequence_length;
-			if($current_dist < $nn_dist) {
-				$nn_dist = $current_dist;
-				$nn_id = $otu_seq->id;
-				$nn_min = $mink2p;
-				$nn_max = $maxk2p;
-				$nn_sequence = $otu_seq->seq();
-			}
-		}
-		my $nn_rounding = "%.3f";
-		$nn_id 		= filter_one_id($nn_id);
-		$nn_dist 	= sprintf($nn_rounding,$nn_dist)*100;
-		$nn_min 	= sprintf($nn_rounding,$nn_min)*100;
-		$nn_max 	= sprintf($nn_rounding,$nn_max)*100;
-		##################################################################
-		## End nearest neighbor search
-
-		##################################################################
-		# Collect sequence lengths and distances.
-		my @overall_names 			= ();
-		my @num_comparisons			= ();
-		my %unique_alleles			= ();
-		my %distinct_alleles		= ();
-		my @distances 				= ();
-		my @std_errors				= ();
-		my @deflated_dists			= ();
-		my @deflated_stderrors		= ();
-		my $num_unique_oqm 			= keys %current_otu_sequences;
-		my $matrix_count 			= ($num_unique_oqm*$num_unique_oqm-$num_unique_oqm)/2;
-		my $maximum_dist			= 0;
-		my $minimum_possible_max	= 0;
-		my $unique_oqm_i 			= 1;
-		for my $seq1_gapped ( sort keys %current_otu_sequences ) {
-			my $seq1_filtered = $current_otu_sequences{$seq1_gapped};
-			for my $seq2_gapped ( sort keys %current_otu_sequences ) {
-				$unique_alleles{$seq1_gapped} = 'a';
-				$unique_alleles{$seq2_gapped} = 'a';
-				my $mask = $seq1_filtered ^ $seq2_gapped;
-				my $max_comparisons = 0;
-				while ($mask =~ /[\0]/g) { 
-					$max_comparisons++;
-				}
-				my ($transitions,	$transversions,	$num_bases_compared,$current_dist,
-					$used_ts_shortcut,
-					$variance,		$stderror,		$mink2p,			$maxk2p,$p_stderror,
-					$p_min,			$p_max,			$p_dist) = 0;
-				my $search_type = 3;
-					c_kimura_distance(	$seq1_filtered,	$seq2_gapped,	$critical_value,
-										$cutoff, $search_type, $max_comparisons,
-										$transitions,	$transversions,	$num_bases_compared,
-										$current_dist,	$variance,		$stderror,
-										$mink2p,		$maxk2p);
-				if ($num_bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
-				if($current_dist > 0) {
-					# Store distinct allele sequences greater than 0 dist.
-					$distinct_alleles{$seq1_gapped} = 'a';
-					$distinct_alleles{$seq2_gapped} = 'a';
-				}
-				push(@distances, $current_dist);
-				push(@std_errors, $stderror);
-				push(@num_comparisons, $num_bases_compared);
-				last if $unique_oqm_i == $matrix_count;
-				$unique_oqm_i++;
-			}
-			last if $unique_oqm_i == $matrix_count;
-		}
-		##################################################################
-		## End intra-OTU distance calculations
-		%current_otu_sequences = (); # Flush
-		##################################################################
-		
-		##################################################################
-		# Compute overall sub-morpho names
-		foreach my $unique_o_q_match1 (@unique_overall_query_matches) {
-			my $current_name 	= filter_one_id($unique_o_q_match1);
-			$current_name 		= convert_id_to_name($current_name);
-			push(@overall_names,$current_name);
-		}
-		##################################################################
-
-		##################################################################
-		# Stat summaries
-		my $mean_sequence_length 	= 0; # Sequence length stats
-		my $min_sequence_length 	= 0;
-		my $max_sequence_length 	= 0;
-		my $se_sequence_length		= 0;
-		my $mean_number_comparisons	= 0; # Num comparisons stats
-		my $min_number_comparisons 	= 0;
-		my $max_number_comparisons 	= 0;
-		my $se_number_comparisons	= 0;
-		my $mean_distance 			= 0; # Normal distance stats
-		my $min_distance 			= 0;
-		my $max_distance			= 0;
-		my $se_distance				= 0;
-		my $mean_stderrors			= 0; # Standard errors stats
-		my $min_stderrors			= 0;
-		my $max_stderrors			= 0;
-		my $se_stderrors			= 0;
-		my $percent_dominant_allele	= 100; # Allele stats
-		my $num_unique_alleles		= 0;
-		my $num_distinct_alleles	= 0;
-		
-		my $seq_rounding 			= "%.1f";
-		my $seq_length_stat 		= Statistics::Descriptive::Full->new();
-		my $num_comparisons_stat 	= Statistics::Descriptive::Full->new();
-		if(scalar(@seq_lengths) > 0) {
-			$seq_length_stat->add_data(@seq_lengths);
-			$mean_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->mean());
-			$min_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->min());
-			$max_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->max());
-			$se_sequence_length		= sprintf($seq_rounding,($seq_length_stat->standard_deviation()/sqrt(scalar(@seq_lengths))));
-		}
-		if(scalar(@num_comparisons)) {
-			$num_comparisons_stat->add_data(@num_comparisons);
-			$mean_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->mean());
-			$min_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->min());
-			$max_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->max());
-			$se_number_comparisons		= sprintf($seq_rounding,($num_comparisons_stat->standard_deviation()/sqrt(scalar(@num_comparisons))));
-		}
-		my $rounding 					= "%.3f";
-		my $distances_stat 				= Statistics::Descriptive::Full->new();
-		my $stderrors_stat 				= Statistics::Descriptive::Full->new();
-		my $deflated_distances_stat 	= Statistics::Descriptive::Full->new();
-		my $deflated_std_errors_stat	= Statistics::Descriptive::Full->new();
-		my $allele_stats			 	= Statistics::Descriptive::Full->new();
-		if(scalar(@distances) > 0) {
-			$distances_stat->add_data(@distances);
-			$mean_distance 			= sprintf($rounding,$distances_stat->mean())*100;
-			$min_distance 			= sprintf($rounding,$distances_stat->min())*100;
-			$max_distance 			= sprintf($rounding,$distances_stat->max())*100;
-			$se_distance			= sprintf($rounding,($distances_stat->standard_deviation()/sqrt(scalar(@distances))))*100;
-			
-			$stderrors_stat->add_data(@std_errors);
-			$mean_stderrors 		= sprintf($rounding,$stderrors_stat->mean())*100;
-			$min_stderrors 			= sprintf($rounding,$stderrors_stat->min())*100;
-			$max_stderrors 			= sprintf($rounding,$stderrors_stat->max())*100;
-			$se_stderrors			= sprintf($rounding,($stderrors_stat->standard_deviation()/sqrt(scalar(@std_errors))))*100;
-		}
-		##################################################################
-		
-		##################################################################
-		# Calculate the percentage of query specimens accoutned for in each link step
-		my $abundance = scalar(@unique_overall_query_matches);
-		my $link_strength_string = '';
-		my $link_strength_i = 1;
-		my $last_link = scalar(@link_strength);
-		my $link_rounding = "%.0f";
-		foreach my $link (@link_strength) {
-			last if ($link_strength_i == $last_link);
-			my $current_link_strength = sprintf($link_rounding,($link/$abundance*100));
-			if($link_strength_i != ($last_link-1)) {
-				$link_strength_string .= $current_link_strength."_";
-			} else {
-				$link_strength_string .= $current_link_strength;
-			}
-			$link_strength_i++;
-		}
-		##################################################################
-		
-		##################################################################
-		# Number of morpho names
-		my %unique_overall_names = map {$_,1} @overall_names;
-		my @unique_overall_names = keys %unique_overall_names;
-		$num_unique_alleles = keys %unique_alleles;
-		# $num_distinct_alleles = keys %unique_distinct_alleles;
-		$num_distinct_alleles = keys %distinct_alleles;
-		##################################################################
-		
-		##################################################################
-		# Console output
-		printf	$string_space,
-				"[".$otu_i."] ".filter_one_id($otu_seq->id),
-				"[".scalar(@unique_overall_names)."]",
-				"[".$abundance." / ".$num_unique_alleles." / ".$num_distinct_alleles."]",
-				# "".$num_specimens_assigned_gmyc,
-				"".$mean_distance."% SE: ".$se_distance."% (".$min_distance."% - ".$max_distance."%) ",
-				"".$mean_number_comparisons." SE: ".$se_number_comparisons." (".$min_number_comparisons." - ".$max_number_comparisons.")",
-				"".$mean_sequence_length." SE: ".$se_sequence_length." (".$min_sequence_length." - ".$max_sequence_length.")",
-				"".$mean_stderrors."% SE: ".$se_stderrors."% (".$min_stderrors."% - ".$max_stderrors."%) ",
-				"[".scalar(@unique_otu_links)."]",
-				"[".$link_depth."]",
-				"[".$link_strength_string."]",
-				"".$nn_id." -> ".$nn_dist."% (".$nn_min."% - ".$nn_max."%)";
-		print OTU_SUMMARY
-				"[".$otu_i."] ".filter_one_id($otu_seq->id).$delimiter.
-				"[".scalar(@unique_overall_names)."]".$delimiter.
-				"[".$abundance." / ".$num_unique_alleles." / ".$num_distinct_alleles."]".$delimiter.
-				"".$mean_distance."% SE: ".$se_distance."% (".$min_distance."% - ".$max_distance."%) ".$delimiter.
-				"".$mean_number_comparisons." SE: ".$se_number_comparisons." (".$min_number_comparisons." - ".$max_number_comparisons.")".$delimiter.
-				"".$mean_sequence_length." SE: ".$se_sequence_length." (".$min_sequence_length." - ".$max_sequence_length.")".$delimiter.
-				"".$mean_stderrors."% SE: ".$se_stderrors."% (".$min_stderrors."% - ".$max_stderrors."%) ".$delimiter.
-				"[".scalar(@unique_otu_links)."]".$delimiter.
-				"[".$link_depth."]".$delimiter.
-				"[".$link_strength_string."]".$delimiter.
-				"".$nn_id." -> ".$nn_dist."% (".$nn_min."% - ".$nn_max."%)".$delimiter."\n";
-		print OTU_EXCEL
-				$otu_i.$delimiter.filter_one_id($otu_seq->id).$delimiter.
-				scalar(@unique_overall_names).$delimiter.
-				$abundance.$delimiter.$num_unique_alleles.$delimiter.$num_distinct_alleles.$delimiter.
-				$mean_distance.$delimiter.$se_distance.$delimiter.$min_distance.$delimiter.$max_distance.$delimiter.
-				$mean_number_comparisons.$delimiter.$se_number_comparisons.$delimiter.$min_number_comparisons.$delimiter.$max_number_comparisons.$delimiter.
-				$mean_sequence_length.$delimiter.$se_sequence_length.$delimiter.$min_sequence_length.$delimiter.$max_sequence_length.$delimiter.
-				$mean_stderrors.$delimiter.$se_stderrors.$delimiter.$min_stderrors.$delimiter.$max_stderrors.$delimiter.
-				scalar(@unique_otu_links).$delimiter.
-				$link_depth.$delimiter.
-				$link_strength_string.$delimiter.
-				$nn_id.$delimiter.$nn_dist.$delimiter.$nn_min.$delimiter.$nn_max.$delimiter."\n";
-
-		##################################################################
-		foreach my $unique_overall_name (@unique_overall_names) {
-			my $unique_name_abundance = 0;
-			foreach my $unique_name (@overall_names) {
-				if($unique_overall_name eq $unique_name) {
-					$unique_name_abundance++;
-				}
-			}
-			print "\t->".$unique_overall_name." [".$unique_name_abundance."]\n";
-			print OTU_SUMMARY "         -->".$unique_overall_name." [".$unique_name_abundance."]".$delimiter."\n";
-			# print "\tp-value: ".$p_value."\n\t# clusters: ".$ml_clusters."\n\tcluster range: ".$ml_clusters_conf."\n\t# entities: ".$ml_entities."\n\tentities range: ".$ml_entities_conf."\n";
-		}
-		push(@otu_morpho_lumps,scalar(@unique_overall_names));
-
-		push(@query_seqs_found,@unique_overall_query_matches);
-		$otu_i++;
-	}
-	close(EXEMPLARS);
-	print OTU_SUMMARY "\n";
-	print OTU_SUMMARY "Found ".scalar(@query_seqs_found)."\n";
-	print OTU_SUMMARY "Not matched :\n";
-	print "\n";
-	print "Found ".scalar(@query_seqs_found)."\n";
-	print "Not matched :\n";
-	foreach my $orig_query_seq (@original_sequence_array) {
-		if ($orig_query_seq->id ~~ @query_seqs_found) {
-			next;
+		my $otu_digest = sha1_base64(@unique_overall_query_matches);
+		if (exists $bootstrap_hash{$otu_digest}) {
+			$bootstrap_hash{$otu_digest} += 1;
 		} else {
-			print OTU_SUMMARY "\t".$orig_query_seq->id." Sequence Length: ".fast_seq_length($orig_query_seq->seq())."\n";
-			print "\t".$orig_query_seq->id." Sequence Length: ".fast_seq_length($orig_query_seq->seq())."\n";
+			$bootstrap_hash{$otu_digest} = 1;
+		}
+		
+		if ($doing_bootstrap == $bootstrap_flag) {
+		##################################################################
+		# Bootstrap Check ################################################
+		##################################################################
+			
+			##################################################################
+			# Collect the sequences for the current OTU into this array, current_otu_sequences
+			# Output the OTU content (match) results
+			my %current_otu_sequences 		= ();
+			my %current_otu_seqs_and_id		= ();
+			my %exemplars_hash 				= ();
+			my $current_otu_output = $output_prefix.'_'.$otu_i.'.fas';
+			unlink $output_path.$current_otu_output;
+			open(OTU_FASTA, '>>'.$output_path.$current_otu_output);
+			my @seq_lengths = ();
+			foreach my $query_seq_id (@unique_overall_query_matches) {
+				my @query_seq = grep { $_->id eq $query_seq_id } @query_seqs_array;
+				$current_otu_sequences{$query_seq[0]->seq()} = $query_seq[0]->object_id();
+				$current_otu_seqs_and_id{$query_seq_id} = $query_seq[0]->seq();
+				$exemplars_hash{$query_seq[0]->id} = $query_seq[0]->seq();
+				my $current_seq_length = fast_seq_length($query_seq[0]->seq());
+				push(@seq_lengths,$current_seq_length);
+				my $filtered_otu_id = filter_one_id($otu_seq->id);
+				my $filtered_query_id = filter_one_id($query_seq[0]->id());
+				
+				print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
+				print OTU_FASTA '>['.$otu_i.']_'.$query_seq_id."\n";
+				print OTU_FASTA $query_seq[0]->seq()."\n";
+			}
+			close(OTU_FASTA);
+			##################################################################
+			
+			##################################################################
+			## Begin finding exemplars
+			# Sort sequence lengths and print exemplars.
+			my @sorted_seq_lengths = (sort { $b <=> $a } @seq_lengths);
+			my @printed_exemplars = ();
+			my @exemplar_keys = keys %exemplars_hash;
+			fisher_yates_shuffle( \@exemplar_keys );    # permutes @array in place
+			for (my $exemplar_i = 0; ($exemplar_i < $num_examplars) && ($exemplar_i < scalar(@seq_lengths)); $exemplar_i++) {
+				foreach my $seq_id (@exemplar_keys) {
+					next if $seq_id ~~ @printed_exemplars;
+					if(fast_seq_length($exemplars_hash{$seq_id}) == $sorted_seq_lengths[$exemplar_i]) {
+						print EXEMPLARS '>['.$otu_i.']_'.$seq_id."\n";
+						print EXEMPLARS $exemplars_hash{$seq_id}."\n";
+						push(@printed_exemplars,$seq_id);
+						$num_exemplars++;
+						last;
+					}
+				}
+			}
+			my $first_exemplar_seq_gapped = $exemplars_hash{$printed_exemplars[0]};
+			%exemplars_hash 		= (); # Flush
+			@exemplar_keys 			= (); # Flush
+			@sorted_seq_lengths 	= (); # Flush
+			@printed_exemplars 		= (); # Flush
+			##################################################################
+			
+			##################################################################
+			# Use first exemplar to find nearest neighbor.
+			my $nn_id = '';
+			my $nn_dist = 100;
+			my $nn_min = 0;
+			my $nn_max = 0;
+			my $nn_sequence = '';
+			foreach my $otu_seq (@otu_seqs_array) { # For each OTU
+				next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
+				my $neighbor_seq_filtered = $otu_seq->object_id;
+				my ($transitions,	$transversions,	$num_bases_compared,	$current_dist,
+					$variance,		$stderror,		$mink2p,				$maxk2p,$p_stderror,
+					$p_min,			$p_max,			$p_dist
+					) = 0;
+					my $search_type = 3;
+					c_kimura_distance(	$neighbor_seq_filtered,	$first_exemplar_seq_gapped,	$critical_value,
+										$cutoff, 				$search_type, 				$max_seq_length,
+										$transitions,			$transversions,				$num_bases_compared,
+										$current_dist,			$variance,					$stderror,
+										$mink2p,				$maxk2p);
+					next if $num_bases_compared < $minimum_sequence_length;
+				if($current_dist < $nn_dist) {
+					$nn_dist = $current_dist;
+					$nn_id = $otu_seq->id;
+					$nn_min = $mink2p;
+					$nn_max = $maxk2p;
+					$nn_sequence = $otu_seq->seq();
+				}
+			}
+			my $nn_rounding = "%.3f";
+			$nn_id 		= filter_one_id($nn_id);
+			$nn_dist 	= sprintf($nn_rounding,$nn_dist)*100;
+			$nn_min 	= sprintf($nn_rounding,$nn_min)*100;
+			$nn_max 	= sprintf($nn_rounding,$nn_max)*100;
+			##################################################################
+			## End nearest neighbor search
+
+			##################################################################
+			# Collect sequence lengths and distances.
+			my @overall_names 			= ();
+			my @num_comparisons			= ();
+			my %unique_alleles			= ();
+			my %distinct_alleles		= ();
+			my @distances 				= ();
+			my @std_errors				= ();
+			my @deflated_dists			= ();
+			my @deflated_stderrors		= ();
+			my $num_unique_oqm 			= keys %current_otu_sequences;
+			my $matrix_count 			= ($num_unique_oqm*$num_unique_oqm-$num_unique_oqm)/2;
+			my $maximum_dist			= 0;
+			my $minimum_possible_max	= 0;
+			my $unique_oqm_i 			= 1;
+			for my $seq1_gapped ( sort keys %current_otu_sequences ) {
+				my $seq1_filtered = $current_otu_sequences{$seq1_gapped};
+				for my $seq2_gapped ( sort keys %current_otu_sequences ) {
+					$unique_alleles{$seq1_gapped} = 'a';
+					$unique_alleles{$seq2_gapped} = 'a';
+					my $mask = $seq1_filtered ^ $seq2_gapped;
+					my $max_comparisons = 0;
+					while ($mask =~ /[\0]/g) { 
+						$max_comparisons++;
+					}
+					my ($transitions,	$transversions,	$num_bases_compared,$current_dist,
+						$used_ts_shortcut,
+						$variance,		$stderror,		$mink2p,			$maxk2p,$p_stderror,
+						$p_min,			$p_max,			$p_dist) = 0;
+					my $search_type = 3;
+						c_kimura_distance(	$seq1_filtered,	$seq2_gapped,	$critical_value,
+											$cutoff, $search_type, $max_comparisons,
+											$transitions,	$transversions,	$num_bases_compared,
+											$current_dist,	$variance,		$stderror,
+											$mink2p,		$maxk2p);
+					if ($num_bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
+					if($current_dist > 0) {
+						# Store distinct allele sequences greater than 0 dist.
+						$distinct_alleles{$seq1_gapped} = 'a';
+						$distinct_alleles{$seq2_gapped} = 'a';
+					}
+					push(@distances, $current_dist);
+					push(@std_errors, $stderror);
+					push(@num_comparisons, $num_bases_compared);
+					last if $unique_oqm_i == $matrix_count;
+					$unique_oqm_i++;
+				}
+				last if $unique_oqm_i == $matrix_count;
+			}
+			##################################################################
+			## End intra-OTU distance calculations
+			%current_otu_sequences = (); # Flush
+			##################################################################
+			
+			##################################################################
+			# Compute overall sub-morpho names
+			foreach my $unique_o_q_match1 (@unique_overall_query_matches) {
+				my $current_name 	= filter_one_id($unique_o_q_match1);
+				$current_name 		= convert_id_to_name($current_name);
+				push(@overall_names,$current_name);
+			}
+			##################################################################
+
+			##################################################################
+			# Stat summaries
+			my $mean_sequence_length 	= 0; # Sequence length stats
+			my $min_sequence_length 	= 0;
+			my $max_sequence_length 	= 0;
+			my $se_sequence_length		= 0;
+			my $mean_number_comparisons	= 0; # Num comparisons stats
+			my $min_number_comparisons 	= 0;
+			my $max_number_comparisons 	= 0;
+			my $se_number_comparisons	= 0;
+			my $mean_distance 			= 0; # Normal distance stats
+			my $min_distance 			= 0;
+			my $max_distance			= 0;
+			my $se_distance				= 0;
+			my $mean_stderrors			= 0; # Standard errors stats
+			my $min_stderrors			= 0;
+			my $max_stderrors			= 0;
+			my $se_stderrors			= 0;
+			my $percent_dominant_allele	= 100; # Allele stats
+			my $num_unique_alleles		= 0;
+			my $num_distinct_alleles	= 0;
+			
+			my $seq_rounding 			= "%.1f";
+			my $seq_length_stat 		= Statistics::Descriptive::Full->new();
+			my $num_comparisons_stat 	= Statistics::Descriptive::Full->new();
+			if(scalar(@seq_lengths) > 0) {
+				$seq_length_stat->add_data(@seq_lengths);
+				$mean_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->mean());
+				$min_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->min());
+				$max_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->max());
+				$se_sequence_length		= sprintf($seq_rounding,($seq_length_stat->standard_deviation()/sqrt(scalar(@seq_lengths))));
+			}
+			if(scalar(@num_comparisons)) {
+				$num_comparisons_stat->add_data(@num_comparisons);
+				$mean_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->mean());
+				$min_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->min());
+				$max_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->max());
+				$se_number_comparisons		= sprintf($seq_rounding,($num_comparisons_stat->standard_deviation()/sqrt(scalar(@num_comparisons))));
+			}
+			my $rounding 					= "%.3f";
+			my $distances_stat 				= Statistics::Descriptive::Full->new();
+			my $stderrors_stat 				= Statistics::Descriptive::Full->new();
+			my $deflated_distances_stat 	= Statistics::Descriptive::Full->new();
+			my $deflated_std_errors_stat	= Statistics::Descriptive::Full->new();
+			my $allele_stats			 	= Statistics::Descriptive::Full->new();
+			if(scalar(@distances) > 0) {
+				$distances_stat->add_data(@distances);
+				$mean_distance 			= sprintf($rounding,$distances_stat->mean())*100;
+				$min_distance 			= sprintf($rounding,$distances_stat->min())*100;
+				$max_distance 			= sprintf($rounding,$distances_stat->max())*100;
+				$se_distance			= sprintf($rounding,($distances_stat->standard_deviation()/sqrt(scalar(@distances))))*100;
+				
+				$stderrors_stat->add_data(@std_errors);
+				$mean_stderrors 		= sprintf($rounding,$stderrors_stat->mean())*100;
+				$min_stderrors 			= sprintf($rounding,$stderrors_stat->min())*100;
+				$max_stderrors 			= sprintf($rounding,$stderrors_stat->max())*100;
+				$se_stderrors			= sprintf($rounding,($stderrors_stat->standard_deviation()/sqrt(scalar(@std_errors))))*100;
+			}
+			##################################################################
+			
+			##################################################################
+			# Calculate the percentage of query specimens accoutned for in each link step
+			my $abundance = scalar(@unique_overall_query_matches);
+			my $link_strength_string = '';
+			my $link_strength_i = 1;
+			my $last_link = scalar(@link_strength);
+			my $link_rounding = "%.0f";
+			foreach my $link (@link_strength) {
+				last if ($link_strength_i == $last_link);
+				my $current_link_strength = sprintf($link_rounding,($link/$abundance*100));
+				if($link_strength_i != ($last_link-1)) {
+					$link_strength_string .= $current_link_strength."_";
+				} else {
+					$link_strength_string .= $current_link_strength;
+				}
+				$link_strength_i++;
+			}
+			##################################################################
+			
+			##################################################################
+			# Number of morpho names
+			my %unique_overall_names = map {$_,1} @overall_names;
+			my @unique_overall_names = keys %unique_overall_names;
+			$num_unique_alleles = keys %unique_alleles;
+			# $num_distinct_alleles = keys %unique_distinct_alleles;
+			$num_distinct_alleles = keys %distinct_alleles;
+			##################################################################
+			
+			##################################################################
+			# Console output
+			printf	$string_space,
+					"[".$otu_i."] ".filter_one_id($otu_seq->id),
+					"[".scalar(@unique_overall_names)."]",
+					"[".$abundance." / ".$num_unique_alleles." / ".$num_distinct_alleles."]",
+					# "".$num_specimens_assigned_gmyc,
+					"".$mean_distance."% SE: ".$se_distance."% (".$min_distance."% - ".$max_distance."%) ",
+					"".$mean_number_comparisons." SE: ".$se_number_comparisons." (".$min_number_comparisons." - ".$max_number_comparisons.")",
+					"".$mean_sequence_length." SE: ".$se_sequence_length." (".$min_sequence_length." - ".$max_sequence_length.")",
+					"".$mean_stderrors."% SE: ".$se_stderrors."% (".$min_stderrors."% - ".$max_stderrors."%) ",
+					"[".scalar(@unique_otu_links)."]",
+					"[".$link_depth."]",
+					"[".$link_strength_string."]",
+					"".$nn_id." -> ".$nn_dist."% (".$nn_min."% - ".$nn_max."%)";
+			print OTU_SUMMARY
+					"[".$otu_i."] ".filter_one_id($otu_seq->id).$delimiter.
+					"[".scalar(@unique_overall_names)."]".$delimiter.
+					"[".$abundance." / ".$num_unique_alleles." / ".$num_distinct_alleles."]".$delimiter.
+					"".$mean_distance."% SE: ".$se_distance."% (".$min_distance."% - ".$max_distance."%) ".$delimiter.
+					"".$mean_number_comparisons." SE: ".$se_number_comparisons." (".$min_number_comparisons." - ".$max_number_comparisons.")".$delimiter.
+					"".$mean_sequence_length." SE: ".$se_sequence_length." (".$min_sequence_length." - ".$max_sequence_length.")".$delimiter.
+					"".$mean_stderrors."% SE: ".$se_stderrors."% (".$min_stderrors."% - ".$max_stderrors."%) ".$delimiter.
+					"[".scalar(@unique_otu_links)."]".$delimiter.
+					"[".$link_depth."]".$delimiter.
+					"[".$link_strength_string."]".$delimiter.
+					"".$nn_id." -> ".$nn_dist."% (".$nn_min."% - ".$nn_max."%)".$delimiter."\n";
+			print OTU_EXCEL
+					$otu_i.$delimiter.filter_one_id($otu_seq->id).$delimiter.
+					scalar(@unique_overall_names).$delimiter.
+					$abundance.$delimiter.$num_unique_alleles.$delimiter.$num_distinct_alleles.$delimiter.
+					$mean_distance.$delimiter.$se_distance.$delimiter.$min_distance.$delimiter.$max_distance.$delimiter.
+					$mean_number_comparisons.$delimiter.$se_number_comparisons.$delimiter.$min_number_comparisons.$delimiter.$max_number_comparisons.$delimiter.
+					$mean_sequence_length.$delimiter.$se_sequence_length.$delimiter.$min_sequence_length.$delimiter.$max_sequence_length.$delimiter.
+					$mean_stderrors.$delimiter.$se_stderrors.$delimiter.$min_stderrors.$delimiter.$max_stderrors.$delimiter.
+					scalar(@unique_otu_links).$delimiter.
+					$link_depth.$delimiter.
+					$link_strength_string.$delimiter.
+					$nn_id.$delimiter.$nn_dist.$delimiter.$nn_min.$delimiter.$nn_max.$delimiter."\n";
+
+			##################################################################
+			foreach my $unique_overall_name (@unique_overall_names) {
+				my $unique_name_abundance = 0;
+				foreach my $unique_name (@overall_names) {
+					if($unique_overall_name eq $unique_name) {
+						$unique_name_abundance++;
+					}
+				}
+				print "\t->".$unique_overall_name." [".$unique_name_abundance."]\n";
+				print OTU_SUMMARY "         -->".$unique_overall_name." [".$unique_name_abundance."]".$delimiter."\n";
+				# print "\tp-value: ".$p_value."\n\t# clusters: ".$ml_clusters."\n\tcluster range: ".$ml_clusters_conf."\n\t# entities: ".$ml_entities."\n\tentities range: ".$ml_entities_conf."\n";
+			}
+			push(@otu_morpho_lumps,scalar(@unique_overall_names));
+
+			push(@query_seqs_found,@unique_overall_query_matches);
+			$otu_i++;
+			
+		##################################################################
+		# End Bootstrap Check ############################################
+		##################################################################
 		}
 	}
-
-	print "Exemplars printed: ".$num_exemplars."\n";
-
-	print "\n\n";
-	print "Identification Sucess:\n\n";
-	## Identification analysis
-	my %id_analysis_morpho_ids = ();
-	my %id_analysis_otu_ids = ();
-	my %id_analysis_gmyc_ids = ();
-	# Build keys for each type of ID (morpho, otu, gmyc)
-	for my $specimen_id (sort keys %$morpho_name_hash_ref) {
-		$id_analysis_morpho_ids{convert_id_to_name($specimen_id)} = 1;
-		$id_analysis_otu_ids{$morpho_name_hash_ref->{$specimen_id}->{'otu_id'}} = 1;
-	}
-	my @otu_morpho_correspondence = ();
-	my @gmyc_morpho_correspondence = ();
-	for my $morpho_id (sort keys %id_analysis_morpho_ids) {
-		my @current_morpho_otu_ids = ();
-		my @current_morpho_gmyc_ids = ();
-		for my $specimen_id (sort keys %$morpho_name_hash_ref) {
-			my $current_morpho_name = convert_id_to_name($specimen_id);
-			if ($current_morpho_name eq $morpho_id) {
-				push(@current_morpho_otu_ids, $morpho_name_hash_ref->{$specimen_id}->{'otu_id'});
+	
+	if ($doing_bootstrap == $bootstrap_flag) {
+	##################################################################
+	# Bootstrap Check ################################################
+	##################################################################
+		close(EXEMPLARS);
+		print OTU_SUMMARY "\n";
+		print OTU_SUMMARY "Found ".scalar(@query_seqs_found)."\n";
+		print OTU_SUMMARY "Not matched :\n";
+		print "\n";
+		print "Found ".scalar(@query_seqs_found)."\n";
+		print "Not matched :\n";
+		foreach my $orig_query_seq (@original_sequence_array) {
+			if ($orig_query_seq->id ~~ @query_seqs_found) {
+				next;
+			} else {
+				print OTU_SUMMARY "\t".$orig_query_seq->id." Sequence Length: ".fast_seq_length($orig_query_seq->seq())."\n";
+				print "\t".$orig_query_seq->id." Sequence Length: ".fast_seq_length($orig_query_seq->seq())."\n";
 			}
 		}
-		my %current_unique_otu_ids = map {$_,1} @current_morpho_otu_ids;
-		my $number_otu_ids = keys %current_unique_otu_ids;
-		push(@otu_morpho_correspondence,$number_otu_ids);
-		# print $morpho_id."\n";
-		# print "\tOTU: \n";
-		# for my $unique_otu (sort keys %current_unique_otu_ids) {
-			# print "\t\t".$unique_otu."\n";
-		# }
-		# print "\tGMYC: \n";
-		# for my $unique_gmyc (sort keys %current_unique_gmyc_ids) {
-			# print "\t\t".$unique_gmyc."\n";
-		# }
+
+		print "Exemplars printed: ".$num_exemplars."\n";
+
+		print "\n\n";
+		print "Identification Sucess:\n\n";
+		## Identification analysis
+		my %id_analysis_morpho_ids = ();
+		my %id_analysis_otu_ids = ();
+		my %id_analysis_gmyc_ids = ();
+		# Build keys for each type of ID (morpho, otu, gmyc)
+		for my $specimen_id (sort keys %$morpho_name_hash_ref) {
+			$id_analysis_morpho_ids{convert_id_to_name($specimen_id)} = 1;
+			$id_analysis_otu_ids{$morpho_name_hash_ref->{$specimen_id}->{'otu_id'}} = 1;
+		}
+		my @otu_morpho_correspondence = ();
+		my @gmyc_morpho_correspondence = ();
+		for my $morpho_id (sort keys %id_analysis_morpho_ids) {
+			my @current_morpho_otu_ids = ();
+			my @current_morpho_gmyc_ids = ();
+			for my $specimen_id (sort keys %$morpho_name_hash_ref) {
+				my $current_morpho_name = convert_id_to_name($specimen_id);
+				if ($current_morpho_name eq $morpho_id) {
+					push(@current_morpho_otu_ids, $morpho_name_hash_ref->{$specimen_id}->{'otu_id'});
+				}
+			}
+			my %current_unique_otu_ids = map {$_,1} @current_morpho_otu_ids;
+			my $number_otu_ids = keys %current_unique_otu_ids;
+			push(@otu_morpho_correspondence,$number_otu_ids);
+			# print $morpho_id."\n";
+			# print "\tOTU: \n";
+			# for my $unique_otu (sort keys %current_unique_otu_ids) {
+				# print "\t\t".$unique_otu."\n";
+			# }
+			# print "\tGMYC: \n";
+			# for my $unique_gmyc (sort keys %current_unique_gmyc_ids) {
+				# print "\t\t".$unique_gmyc."\n";
+			# }
+		}
+		my %unique_otu_correspondences = map {$_,1} @otu_morpho_correspondence;
+		my $identification_rounding = "%.1f";
+		print "Morpho Correspondence Success rates: \n";
+		print "\tOTU: # IDs, % Correspondence\n";
+		for my $unique_otu_correspondences (sort keys %unique_otu_correspondences) {
+			my @current_correspondences = grep { $_ == $unique_otu_correspondences } @otu_morpho_correspondence;
+			my $percent_correspondence = scalar(@current_correspondences)/scalar(@otu_morpho_correspondence)*100;
+			$percent_correspondence = sprintf($identification_rounding,$percent_correspondence);
+			print "\t\t".$unique_otu_correspondences.") ".$percent_correspondence."\n";
+		}
+
+
+		my %unique_otu_morpho_lumps = map {$_,1} @otu_morpho_lumps;
+		print "\tOTU Lumping Rate: # Morpho, % Lumping\n";
+		for my $unique_otu_morpho_lumps (sort keys %unique_otu_morpho_lumps) {
+			my @current_correspondences = grep { $_ == $unique_otu_morpho_lumps } @otu_morpho_lumps;
+			my $percent_correspondence = scalar(@current_correspondences)/scalar(@otu_morpho_lumps)*100;
+			$percent_correspondence = sprintf($identification_rounding,$percent_correspondence);
+			print "\t\t".$unique_otu_morpho_lumps.") ".$percent_correspondence."\n";
+		}
+	##################################################################
+	# End Bootstrap Check ############################################
+	##################################################################
 	}
-	my %unique_otu_correspondences = map {$_,1} @otu_morpho_correspondence;
-	my $identification_rounding = "%.1f";
-	print "Morpho Correspondence Success rates: \n";
-	print "\tOTU: # IDs, % Correspondence\n";
-	for my $unique_otu_correspondences (sort keys %unique_otu_correspondences) {
-		my @current_correspondences = grep { $_ == $unique_otu_correspondences } @otu_morpho_correspondence;
-		my $percent_correspondence = scalar(@current_correspondences)/scalar(@otu_morpho_correspondence)*100;
-		$percent_correspondence = sprintf($identification_rounding,$percent_correspondence);
-		print "\t\t".$unique_otu_correspondences.") ".$percent_correspondence."\n";
-	}
+}
 
 
-	my %unique_otu_morpho_lumps = map {$_,1} @otu_morpho_lumps;
-	print "\tOTU Lumping Rate: # Morpho, % Lumping\n";
-	for my $unique_otu_morpho_lumps (sort keys %unique_otu_morpho_lumps) {
-		my @current_correspondences = grep { $_ == $unique_otu_morpho_lumps } @otu_morpho_lumps;
-		my $percent_correspondence = scalar(@current_correspondences)/scalar(@otu_morpho_lumps)*100;
-		$percent_correspondence = sprintf($identification_rounding,$percent_correspondence);
-		print "\t\t".$unique_otu_morpho_lumps.") ".$percent_correspondence."\n";
-	}
+my $t1 = Benchmark->new;
+my $time = timediff($t1, $t0);
+print "\n";
+print timestr($time)."\n";
 
-	my $t1 = Benchmark->new;
-	my $time = timediff($t1, $t0);
-	print "\n";
-	print timestr($time)."\n";
-
+if ($doing_bootstrap == $bootstrap_flag) {
 	print OTU_SUMMARY "\n";
 	print OTU_SUMMARY timestr($time).$delimiter."\n";
 
@@ -1007,6 +1065,7 @@ for (1..5) {
 
 	close(OTU_SUMMARY);
 }
+
 ########################################################################################################
 ## Begin subs																						   #
 ########################################################################################################

@@ -38,7 +38,7 @@ use Bio::SeqIO;
 use Data::Dumper;
 
 my $nucleotide_seqs_file = 'hsp70_genomic_CDS.fas';
-my $protein_aln_file = 'hsp70_CDS_protein_aln.fas';
+my $protein_aln_file = 'mafft_ginsi_protein_alignment.fas';
 my $output_file = 'nucleotide_alignment.fas';
 
 my @nucleotide_seqs = ();

@@ -30,17 +30,17 @@ sub bootstrap_weights {
 	my $seq_length = shift;
 	
 	# Create starting values
-	my @weights = ();
+	my @unweighted = ();
 	my @bs_start_weights = ();
 
 	# Fill a starting weight array with 1's
 	# Fill a starting weight array to be
 	# bootstrapped with 0's
-	my $starting_weight = 1;
+	my $default_weight = 1;
 	my $max_chars = $seq_length-1;
 	my $chars_sampled = 0;
 	for (0..($max_chars)) {
-		push(@weights, $starting_weight);
+		push(@unweighted, $default_weight);
 		push(@bs_start_weights, 0);
 	}
 	my @bs_weights = @bs_start_weights;
@@ -55,9 +55,9 @@ sub bootstrap_weights {
 
 	# Convert array to string
 	my $weights = join("", @bs_weights);
-	
+	my $unweighted = join("",@unweighted);
 	# Return string of weights
-	return $weights;
+	return $weights,$unweighted;
 }
 
 1;

@@ -71,12 +71,12 @@ my $minimum_sequence_length = $params->options->{'-min-length'};
 my $statistical_method = $params->options->{'-stat'};
 my $num_threads = $params->options->{'-threads'};
 my $bootstrap_reps = $params->options->{'-bsreps'};
-my $bootstrap_flag = 1;
+my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
 if ($bootstrap_reps > 0) {
 	$doing_bootstrap = 1;
 }
-$doing_bootstrap = 0;
+
 my $phylogenetic_length_cutoff = 350;
 my $delimiter = ",";
 
@@ -273,12 +273,20 @@ foreach my $seq (@original_sequence_array) {
 	push(@query_seqs_array,$seq);
 }
 ##################################################################
+# If we're not boostrapping, skip ahead.
+if ($doing_bootstrap == $bootstrap_flag) {
+	print "Skipping bootstrap\n";
+	goto skip_bootstrap;
+}
+
 use threads;
 use threads::shared;
 
 # Create the thread-shared bootstrap hash.
 my %bootstrap_hash = ();
 share(%bootstrap_hash);
+my $bootstrap_counter = 0;
+share($bootstrap_counter);
 
 my $reps_per_thread = int $bootstrap_reps/$num_threads;
 my $remainder_reps 	= $bootstrap_reps % $num_threads;
@@ -287,7 +295,7 @@ print "Dividing task into $reps_per_thread reps per thread\n";
 print "Remainder $remainder_reps\n";
 
 my @threads = ();
-for (1..($num_threads-1)) {
+for (0..($num_threads-1)) {
 	print "Spawning Worker $_"."\n";
 	if ($_ < ($num_threads-1)) {
 		my $thr = threads->create(\&overseer,$reps_per_thread);
@@ -301,20 +309,31 @@ for (0..(scalar(@threads)-1)) {
 	print "Joining Worker $_\n";
 	$threads[$_]->join();
 }
-# @threads->join();
+
+skip_bootstrap:
+# Not doing bootstrap
+$doing_bootstrap = 0;
+my ($character_weights,$unweighted) = Sequence::Bootstrap::bootstrap_weights($max_seq_length);
+cluster_algorithm($unweighted, $doing_bootstrap);
 
 sub overseer {
 	my $reps_this_worker = shift;
-	for (my $i = 0; $i <= $reps_this_worker; $i++) {
+	my $doing_bootstrap = 1;
+	print $reps_this_worker."\n";
+	for (my $i = 1; $i <= $reps_this_worker; $i++) {
+		# print "BS rep: ".$i."\n";
 		my $character_weights = Sequence::Bootstrap::bootstrap_weights($max_seq_length);
-		cluster_algorithm($character_weights);
+		cluster_algorithm($character_weights, $doing_bootstrap);
 	}
 }
 
 sub cluster_algorithm {
 	##################################################################
-	my $character_weights = shift;
+	my $character_weights 	= shift;
+	my $doing_bootstrap		= shift;
+	##################################################################
 	
+	##################################################################
 	my @unique_sequence_array = ();
 	for my $seq_string ( sort keys %unique_sequences ) {
 		if(fast_seq_length($seq_string) < 1) { next; };
@@ -513,10 +532,11 @@ sub cluster_algorithm {
 		print "\n";
 	
 		my $last_otu_seq = '';
-		$string_space = "%-60s %-11s %-30s  %-30s %-33s %-33s %-30s %-12s %-12s %-17s %-100s\n";
+		$string_space = "%-60s %-5s %-11s %-30s  %-30s %-33s %-33s %-30s %-12s %-12s %-17s %-100s\n";
 
 		printf	$string_space,
 				"[OTU #] OTU Ref. ID",
+				"BSS",
 				"[# Morpho]",
 				"[A - U - D]",
 				"Avg. Dist SE: (Min - Max)",
@@ -531,6 +551,7 @@ sub cluster_algorithm {
 		# my $delimiter = '';
 		print OTU_SUMMARY
 				"[OTU #] OTU Ref. ID".$delimiter.
+				"BSS".$delimiter.
 				"[# Morpho]".$delimiter.
 				"[A - U - D]".$delimiter.
 				"Avg. Dist SE: (Min - Max)".$delimiter.
@@ -543,6 +564,7 @@ sub cluster_algorithm {
 				"Nearest Neighbor Dst (Min - Max)".$delimiter."\n";
 		print OTU_EXCEL
 				"OTU #".$delimiter."OTU Ref. ID".$delimiter.
+				"BSS".$delimiter.
 				"# Morpho".$delimiter.
 				"Abundance".$delimiter."Unique Alleles".$delimiter."Distinct Alleles".$delimiter.
 				"Avg. Dist".$delimiter."Dist SE ".$delimiter."Min Dist".$delimiter."Max".$delimiter.
@@ -569,7 +591,6 @@ sub cluster_algorithm {
 	my %morpho_name_hash = ();
 	my $morpho_name_hash_ref = \%morpho_name_hash;
 	my @otu_morpho_lumps = ();
-	my @gmyc_morpho_lumps = ();
 
 	foreach my $otu_seq (@otu_seqs_array) { # For each OTU
 		next if $otu_seq->id ~~ @found_links_OTUs; # Skip found OTU's
@@ -644,11 +665,27 @@ sub cluster_algorithm {
 		$query_matches_ref				= ''; # Flush
 		##################################################################
 		
-		my $otu_digest = sha1_base64(@unique_overall_query_matches);
-		if (exists $bootstrap_hash{$otu_digest}) {
-			$bootstrap_hash{$otu_digest} += 1;
-		} else {
-			$bootstrap_hash{$otu_digest} = 1;
+		my @sorted_ids = sort @unique_overall_query_matches;
+		my $otu_id_string = join ",", @sorted_ids;
+		my $otu_digest = sha1_base64($otu_id_string);
+		# foreach my $id (@unique_overall_query_matches) {
+			# if ($id =~ m/COI/) {
+				# print $id."\n";
+				# exit;
+			# }
+		# }
+		if ($doing_bootstrap != $bootstrap_flag) {
+			# print $otu_digest."\n";
+			# print "BS Rep: ".$bootstrap_counter."\n";
+			if (exists($bootstrap_hash{$otu_digest})) {
+				# print "A\n";
+				$bootstrap_hash{$otu_digest}++;
+				$bootstrap_counter++;
+			} else {
+				# print "B\n";
+				$bootstrap_hash{$otu_digest} = 1;
+				$bootstrap_counter++;
+			}
 		}
 		
 		if ($doing_bootstrap == $bootstrap_flag) {
@@ -901,6 +938,7 @@ sub cluster_algorithm {
 			# Console output
 			printf	$string_space,
 					"[".$otu_i."] ".filter_one_id($otu_seq->id),
+					$bootstrap_hash{$otu_digest},
 					"[".scalar(@unique_overall_names)."]",
 					"[".$abundance." / ".$num_unique_alleles." / ".$num_distinct_alleles."]",
 					# "".$num_specimens_assigned_gmyc,
@@ -914,6 +952,7 @@ sub cluster_algorithm {
 					"".$nn_id." -> ".$nn_dist."% (".$nn_min."% - ".$nn_max."%)";
 			print OTU_SUMMARY
 					"[".$otu_i."] ".filter_one_id($otu_seq->id).$delimiter.
+					$bootstrap_hash{$otu_digest}.$delimiter.
 					"[".scalar(@unique_overall_names)."]".$delimiter.
 					"[".$abundance." / ".$num_unique_alleles." / ".$num_distinct_alleles."]".$delimiter.
 					"".$mean_distance."% SE: ".$se_distance."% (".$min_distance."% - ".$max_distance."%) ".$delimiter.
@@ -926,6 +965,7 @@ sub cluster_algorithm {
 					"".$nn_id." -> ".$nn_dist."% (".$nn_min."% - ".$nn_max."%)".$delimiter."\n";
 			print OTU_EXCEL
 					$otu_i.$delimiter.filter_one_id($otu_seq->id).$delimiter.
+					$bootstrap_hash{$otu_digest}.$delimiter.
 					scalar(@unique_overall_names).$delimiter.
 					$abundance.$delimiter.$num_unique_alleles.$delimiter.$num_distinct_alleles.$delimiter.
 					$mean_distance.$delimiter.$se_distance.$delimiter.$min_distance.$delimiter.$max_distance.$delimiter.
@@ -1043,6 +1083,7 @@ sub cluster_algorithm {
 	}
 }
 
+print "BS Counter ".$bootstrap_counter."\n";
 
 my $t1 = Benchmark->new;
 my $time = timediff($t1, $t0);
@@ -1133,7 +1174,7 @@ sub fix_bold_fasta {
 		foreach my $line (@fasta) {
 			if($line =~ /^>/) {
 				$line =~ s/ /_/; # replace whitespace with _
-				$line =~ s/-/_/; # replace whitespace with _
+				# $line =~ s/-/_/; # replace whitespace with _
 				$line =~ s/BOLD:/BOLD_/; # replace whitespace with _
 			}
 		}

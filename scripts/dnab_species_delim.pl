@@ -653,6 +653,7 @@ sub cluster_algorithm {
 		my @sorted_ids = sort @unique_overall_query_matches;
 		my $otu_id_string = join ",", @sorted_ids;
 		my $otu_digest = sha1_base64($otu_id_string);
+
 		# foreach my $id (@unique_overall_query_matches) {
 			# if ($id =~ m/COI/) {
 				# print $id."\n";
@@ -678,6 +679,8 @@ sub cluster_algorithm {
 		# Bootstrap Check ################################################
 		##################################################################
 			
+			my $bootstrap_percentage = $bootstrap_hash{$otu_digest}/$bootstrap_reps;
+			$bootstrap_percentage = sprintf("%.3f",$bootstrap_percentage)*100;
 			##################################################################
 			# Collect the sequences for the current OTU into this array, current_otu_sequences
 			# Output the OTU content (match) results
@@ -716,7 +719,7 @@ sub cluster_algorithm {
 				foreach my $seq_id (@exemplar_keys) {
 					next if $seq_id ~~ @printed_exemplars;
 					if(fast_seq_length($exemplars_hash{$seq_id}) == $sorted_seq_lengths[$exemplar_i]) {
-						print EXEMPLARS '>['.$otu_i.']_'.$seq_id."\n";
+						print EXEMPLARS '>['.$otu_i.']_['.$bootstrap_percentage.']_['.$otu_digest.']_'.$seq_id."\n";
 						print EXEMPLARS $exemplars_hash{$seq_id}."\n";
 						push(@printed_exemplars,$seq_id);
 						$num_exemplars++;
@@ -751,16 +754,12 @@ sub cluster_algorithm {
 				if($k2p_distance < $nn_dist) {
 					$nn_dist = $k2p_distance;
 					$nn_id = $otu_seq->id;
-					# $nn_min = $mink2p;
-					# $nn_max = $maxk2p;
 					$nn_sequence = $otu_seq->seq();
 				}
 			}
 			my $nn_rounding = "%.3f";
 			$nn_id 		= filter_one_id($nn_id);
 			$nn_dist 	= sprintf($nn_rounding,$nn_dist)*100;
-			# $nn_min 	= sprintf($nn_rounding,$nn_min)*100;
-			# $nn_max 	= sprintf($nn_rounding,$nn_max)*100;
 			##################################################################
 			## End nearest neighbor search
 
@@ -874,12 +873,6 @@ sub cluster_algorithm {
 				$min_distance 			= sprintf($rounding,$distances_stat->min())*100;
 				$max_distance 			= sprintf($rounding,$distances_stat->max())*100;
 				$se_distance			= sprintf($rounding,($distances_stat->standard_deviation()/sqrt(scalar(@distances))))*100;
-				
-				# $stderrors_stat->add_data(@std_errors);
-				# $mean_stderrors 		= sprintf($rounding,$stderrors_stat->mean())*100;
-				# $min_stderrors 			= sprintf($rounding,$stderrors_stat->min())*100;
-				# $max_stderrors 			= sprintf($rounding,$stderrors_stat->max())*100;
-				# $se_stderrors			= sprintf($rounding,($stderrors_stat->standard_deviation()/sqrt(scalar(@std_errors))))*100;
 			}
 			##################################################################
 			
@@ -915,7 +908,7 @@ sub cluster_algorithm {
 			# Console output
 			printf	$string_space,
 					"[".$otu_i."] ".filter_one_id($otu_seq->id),
-					$bootstrap_hash{$otu_digest},
+					$bootstrap_percentage,
 					"[".scalar(@unique_overall_names)."]",
 					"[".$abundance." / ".$num_unique_alleles." / ".$num_distinct_alleles."]",
 					# "".$num_specimens_assigned_gmyc,
@@ -929,7 +922,7 @@ sub cluster_algorithm {
 					"".$nn_id." -> ".$nn_dist."% (".$nn_min."% - ".$nn_max."%)";
 			print OTU_SUMMARY
 					"[".$otu_i."] ".filter_one_id($otu_seq->id).$delimiter.
-					$bootstrap_hash{$otu_digest}.$delimiter.
+					$bootstrap_percentage.$delimiter.
 					"[".scalar(@unique_overall_names)."]".$delimiter.
 					"[".$abundance." / ".$num_unique_alleles." / ".$num_distinct_alleles."]".$delimiter.
 					"".$mean_distance."% SE: ".$se_distance."% (".$min_distance."% - ".$max_distance."%) ".$delimiter.
@@ -942,7 +935,7 @@ sub cluster_algorithm {
 					"".$nn_id." -> ".$nn_dist."% (".$nn_min."% - ".$nn_max."%)".$delimiter."\n";
 			print OTU_EXCEL
 					$otu_i.$delimiter.filter_one_id($otu_seq->id).$delimiter.
-					$bootstrap_hash{$otu_digest}.$delimiter.
+					$bootstrap_percentage.$delimiter.
 					scalar(@unique_overall_names).$delimiter.
 					$abundance.$delimiter.$num_unique_alleles.$delimiter.$num_distinct_alleles.$delimiter.
 					$mean_distance.$delimiter.$se_distance.$delimiter.$min_distance.$delimiter.$max_distance.$delimiter.

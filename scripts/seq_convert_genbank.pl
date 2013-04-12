@@ -35,31 +35,38 @@ use Bio::DB::EUtilities;
 use Bio::SeqIO;
 
 use Data::Dumper;
+use Devel::Size qw(size total_size);
+use Test::LeakTrace;
 
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
 									option_defs => {'-list' 		=> '', 				# List file name
 													'-slim' 		=> 999999999,		# Sequence search limit
-													'-sflim'		=> 500000,			# Sequence fetch limit
+													'-sflim'		=> 999999999,		# Sequence fetch limit
 													'-batch-cap'	=> 350,				# NCBI sequence fetch limit per batch
-													'-tlim' 		=> 1, 				# Taxa limit
+													'-tlim' 		=> 999999999,		# Taxa limit
 													'-user_email' 	=> 'foo@bar.com', 	# User email
 													'-outp' 		=> 'output', 		# Output file prefix
 													'-query'		=> '',				# Target gene, etc.
 													'-pubmed'		=> 0,				# By default skip pubmed download
 													'-count-seqs'	=> 0,				# Toggle to only count sequences
+													'-voucher-only' => 0,				# Toggle using voucher only sequences
+													'-term'			=> '',				# Use a search term instead of a list
 													}
 													);
-
-
 # Initiate parameters
+
 my $taxa_file = $params->options->{'-list'};
-open (TAXALIST, '<'.$taxa_file);
-my @taxa_list = <TAXALIST>;
-close(TAXALIST);
+my @taxa_list = ();
+if ($params->options->{'-term'}) {
+	push(@taxa_list, $params->options->{'-term'});
+	$params->options->{'-outp'} = $params->options->{'-term'};
+} else {
+	open (TAXALIST, '<'.$taxa_file);
+	@taxa_list = <TAXALIST>;
+	close(TAXALIST);
+}
 ##############################################################################
 my @overall_results = ();
-my @overall_taxa_failures = ();
-my @overall_seq_failures = ();
 my $taxa_counter = 0;
 my $overall_output_file = $params->options->{'-outp'}.'.csv';
 my $endl = "\n";
@@ -102,7 +109,7 @@ sub download_target_taxa {
 	##############################################################################
 	my $sequence_limit = $params->options->{'-slim'};
 	my $skip_pubmed_search = $params->options->{'-pubmed'};
-
+	my $voucher_only = $params->options->{'-voucher-only'};
 	# my $skip_pubmed_search = 1;
 	my $number_seqs_found = 'NA';
 	my $search_options = search_strings($params->options->{'-query'});
@@ -119,6 +126,8 @@ sub download_target_taxa {
 	my $sleep_time = 1000; # microsends, pause between seconds
 	my $max_num_tries = 2;
 	my $max_pubmed_tries = 2;
+	my $sequence_file = 'seqs_'.$target_taxon.'.gb';
+	unlink($sequence_file);
 	
 	##############################################################################
 	# Optimization hashes. Swap memory for speed.
@@ -173,17 +182,19 @@ sub download_target_taxa {
 	push(@return_output_lines, @output_lines) if($taxa_counter == 0);
 	##############################################################################
 	# Retrieve taxon ID
-	my $taxonomy_eutil_tries = 1;
-	taxonomy_eutil:
+	
 	print "[".$taxa_counter."] Searching for $target_taxon\n";
+	my @taxon_ids = ();
+	print "\tSearching taxonomy\n";
+	my $taxonomy_eutil_tries = 1;
+
+	taxonomy_eutil:
 	my $taxonomy_eutil = Bio::DB::EUtilities->new(-eutil    => 'esearch',
 												   -db      => 'taxonomy',
 												   -retmax  => $taxon_limit,
 												   -rettype => 'gb',
 												   -email   => $user_email,
 												   -term    => $target_taxon);
-										   
-	my @taxon_ids = ();
 	eval { @taxon_ids = $taxonomy_eutil->get_ids(); };
 	if ($@ || (scalar(@taxon_ids) == 0)) {
 		print "\tProblem in taxonomy_eutil. Retrying...$taxonomy_eutil_tries\n";
@@ -195,6 +206,9 @@ sub download_target_taxa {
 		usleep($sleep_time); 	# Sleep so you don't overload NCBI's servers.
 		goto taxonomy_eutil;
 	}
+	
+
+
 	my $taxon_id = $taxon_ids[0];
 	print "\tFound taxon ID: $taxon_id\n";
 	##############################################################################
@@ -207,12 +221,15 @@ sub download_target_taxa {
 	my $sequence_term = 'txid'.$taxon_id.'[Organism:exp]';
 	my $sequence_search_limit = ($params->options->{'-slim'});
 	$sequence_search_limit = 999999999 if ($params->options->{'-count-seqs'} == 1);
+
+	
 	my $sequence_search = Bio::DB::EUtilities->new(-eutil    => 'esearch',
 												   -db      => 'nucleotide',
 												   -retmax  => $sequence_search_limit,
 												   -rettype => 'gb',
 												   -email   => $user_email,
 												   -term    => $sequence_term.' '.$search_options);
+
 	my @sequence_ids = ();
 	eval { @sequence_ids = $sequence_search->get_ids(); };
 	if ($@ || (scalar(@sequence_ids) == 0)) {
@@ -233,8 +250,6 @@ sub download_target_taxa {
 		goto just_count_seqs;
 	}
 	print "\tFound ".$number_seqs_found." sequences to download.\n";
-	my $sequence_file = 'seqs_'.$target_taxon.'.gb';
-	unlink($sequence_file);
 	##############################################################################
 	# Batch downloader
 	my $fetch_limit = $params->options->{'-sflim'}; # Fetch a limited number of seqs
@@ -263,7 +278,9 @@ sub download_target_taxa {
 		}
 		print "\tDownloading sequences...[".$batch_i."] ".$starting_count." to ".$total_batched."\n";
 		my $sub_batch_file = $batch_i."_".$sequence_file;
-		my $sequence_fetch = Bio::DB::EUtilities->new( -eutil   => 'efetch',
+		my $sequence_fetch = '';
+
+		$sequence_fetch = Bio::DB::EUtilities->new( -eutil   => 'efetch',
 													   -db      => 'nucleotide',
 													   -rettype => 'gb',
 													   -email   => $user_email,
@@ -286,6 +303,7 @@ sub download_target_taxa {
 		last if $total_batched == scalar @sequence_ids;
 		last if $total_batched == $fetch_limit;
 	}
+
 	print "\tSequences downloaded to genbank format.\n";
 	##############################################################################
 
@@ -371,6 +389,7 @@ sub download_target_taxa {
 			$organism_line_i++;
 		}
 	}
+	@genbank = (); # FLUSH.
 	# close(GENBANK);
 	##############################################################################
 	my $seqin = Bio::SeqIO->new(-file   => $sequence_file,
@@ -430,7 +449,7 @@ sub download_target_taxa {
 		
 		##############################################################################
 		# Obtain sequence feature information.
-		print "\t\t[".$seq_counter."] ".$long_name."\n";
+		# print "\t\t[".$seq_counter."] ".$long_name."\n";
 		for my $feat_object ($seq->get_SeqFeatures) {
 			for my $tag ($feat_object->get_all_tags) {             			
 				for my $value ($feat_object->get_tag_values($tag)) {
@@ -453,9 +472,13 @@ sub download_target_taxa {
 				}
 			}
 		}
+		# If targetting specimens that only have vouchers.
+		if(($voucher_only == 1) && ($voucher_id eq 'NA')) {
+			next;
+		}
 		##############################################################################
 		# Obtain reference annotations.
-		print "\t\t\tRetrieving annotations...\n";
+		# print "\t\t\tRetrieving annotations...\n";
 		my $anno_collection = $seq->annotation;
 		for my $key ( $anno_collection->get_all_annotation_keys ) {
 			my @annotations = $anno_collection->get_Annotations($key);
@@ -484,7 +507,7 @@ sub download_target_taxa {
 		my $pubmed_was_stored = 0;
 		if(exists $pubmed_hash_ref->{$cleaned_title}) {
 			$pubmed_was_stored = 1;
-			print "\tUsing cached results for pubmed article.\n";
+			# print "\tUsing cached results for pubmed article.\n";
 			goto stored_pubmed;
 		}
 		
@@ -492,7 +515,7 @@ sub download_target_taxa {
 		my $pubmed_esearch_tries = 0;
 		my @pubmed_ids = ();
 		goto skip_pubmed if $skip_pubmed_search == 0;
-		print "\tSearching pubmed...\n";
+		# print "\tSearching pubmed...\n";
 		pubmed_search:
 		my $seq_pubmed = Bio::DB::EUtilities->new(   	-eutil    	=> 'esearch',
 													   -db      	=> 'pubmed',
@@ -502,6 +525,7 @@ sub download_target_taxa {
 													   -verbose		=> -1);
 
 		eval {@pubmed_ids = $seq_pubmed->get_ids; };
+		$seq_pubmed = undef; # Flush
 		if($@ || scalar @pubmed_ids == 0) {
 			$pubmed_esearch_tries++;
 			print "\tProblem in pubmed search. Retrying...\n";
@@ -527,7 +551,7 @@ sub download_target_taxa {
 															-retmax  	=> 1,
 															-email   	=> $user_email,
 															-id    		=> $pubmed_ids[0]);
-		print "\tCould not find article for: ".$cleaned_title."\n" 	if !defined($pubmed_ids[0]);
+		# print "\tCould not find article for: ".$cleaned_title."\n" 	if !defined($pubmed_ids[0]);
 		# Did find pubmed articles, get the summary
 		eval { $ds_pubmed = $seq_pubmed_summary->next_DocSum; };
 		if($@) {
@@ -723,6 +747,7 @@ sub download_target_taxa {
 	# }
 	# unlink $sequence_file or warn "Could not unlink $sequence_file\n";
 	unlink($sequence_file) if defined $sequence_file;
+
 	return \@return_output_lines;
 }
 

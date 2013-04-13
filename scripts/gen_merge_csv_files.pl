@@ -15,6 +15,8 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use FindBin;
+use lib "$FindBin::Bin/libs/";
 use General::Arguments;
 
 my $params = General::Arguments->new(	arguments_v => \@ARGV,

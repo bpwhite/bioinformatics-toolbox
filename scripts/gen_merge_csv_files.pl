@@ -20,14 +20,17 @@ use lib "$FindBin::Bin/libs/";
 use General::Arguments;
 
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
-									option_defs => {'-folder' 		=> '', 			# Folder where CSV files are stored.
+									option_defs => {'-folder' 		=> '', 				# Folder where CSV files are stored.
+													'-outp'			=> 'combined.csv',	# File Output name.
 													}
 													);
 
 my $folder = $params->options->{'-folder'};
-												
+
+
 my @csv_files = <$folder/*.csv>;
 my @output_csv = ();
+my $file_counter = 0;
 foreach my $csv_file (@csv_files) {
 	print "Adding $csv_file\n";
 	open F, "< $csv_file";
@@ -35,15 +38,18 @@ foreach my $csv_file (@csv_files) {
 	close F or die "Couln't close $csv_file!";
 	my $line_counter = 0;
 	foreach my $line (@current_file) {
-		if($line_counter == 0) { # skip first line
+		if(($file_counter != 0) && ($line_counter == 0)) { # skip first line
 			$line_counter = 1;
 			next;
 		}
 		push(@output_csv, $line);
+		$line_counter++;
 	}
+	$file_counter++;
 }
 
-my $output_file = 'combined.csv';
+my $output_file = $params->options->{'-outp'};
+
 unlink ($output_file);
 open (OUTPUT, '>>'.$output_file) or die "Could not open $f";
 foreach my $line(@output_csv) {

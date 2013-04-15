@@ -72,9 +72,11 @@ foreach my $line (@csv_file) {
 	my $record_counter = 0;
 	foreach my $split (@records) {
 		$record_counter++;
-		$split =~ s/"//g;
+		$split =~ s/"//g; # Strip double quotes
+		$split =~ s/'//g; # Strip single quotes
+		
 		$split = 'NA' if $split eq ''; # Fill blanks with NA
-		print $split."\n";
+		# print $split."\n";
 		if ($record_counter != $num_records) {
 			$insert_string .= "'".$split."',";
 		} else {
@@ -83,7 +85,6 @@ foreach my $line (@csv_file) {
 		
 	}
 	$insert_string =~ s/,+$//;
-	print $insert_string;
 	
 	# my $sth = $dbh->prepare("SELECT * FROM foo WHERE bla");
 	# foreach my 
@@ -91,7 +92,7 @@ foreach my $line (@csv_file) {
 
 	my $statement = $dbh->prepare($query);
 	# eval {
-	$statement->execute();
+	$statement->execute() or die "$@\n";
 	# }
 	# if($@) {
 		# die "Could not insert record $@\n";

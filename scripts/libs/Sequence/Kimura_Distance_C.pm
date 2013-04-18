@@ -14,6 +14,7 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# use Inline::Files::Virtual;
 use Inline::Files;
 use Inline C;
 
@@ -27,8 +28,8 @@ our @EXPORT_OK = qw(c_kimura_distance c_k2p_bootstrap);
 
 1;
 __END__
-__C__
 
+__C__
 #include <stdio.h>
 #include <math.h>
 #include <string.h>

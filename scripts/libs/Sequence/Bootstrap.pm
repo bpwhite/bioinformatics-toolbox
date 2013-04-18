@@ -54,8 +54,8 @@ sub bootstrap_weights {
 	}
 
 	# Convert array to string
-	my $weights = join("", @bs_weights);
-	my $unweighted = join("",@unweighted);
+	my $weights = \@bs_weights;
+	my $unweighted = \@unweighted;
 	# Return string of weights
 	return ($weights,$unweighted);
 }

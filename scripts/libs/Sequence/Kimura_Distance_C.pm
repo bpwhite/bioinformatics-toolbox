@@ -25,6 +25,8 @@ use Exporter;
 our @ISA= qw( Exporter );
 our @EXPORT_OK = qw(c_kimura_distance c_k2p_bootstrap);
 
+1;
+__END__
 __C__
 
 #include <stdio.h>

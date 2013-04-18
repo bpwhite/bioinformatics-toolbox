@@ -23,8 +23,9 @@ use lib "$FindBin::Bin/libs/Sequence";
 use lib "$FindBin::Bin/libs/";
 
 # Import sequence libs
-use Fasta;
-require 'Kimura_Distance_C.pl';
+use Sequence::Fasta;
+# require 'Kimura_Distance_C.pl';
+use Sequence::Kimura_Distance_C;
 use General::Arguments;
 use Sequence::Bootstrap;
 
@@ -46,6 +47,8 @@ use POSIX qw(ceil);
 use File::Copy;
 use Math::Random::MT::Perl qw(srand rand irand);
 use Digest::SHA qw(sha1 sha1_base64);
+use threads;
+use threads::shared;
 
 use strict;
 use warnings;
@@ -279,9 +282,6 @@ if ($doing_bootstrap == $bootstrap_flag) {
 	print "Skipping bootstrap\n";
 	goto skip_bootstrap;
 }
-
-use threads;
-use threads::shared;
 
 # Create the thread-shared bootstrap hash.
 my %bootstrap_hash = ();
@@ -679,7 +679,8 @@ sub cluster_algorithm {
 		# Bootstrap Check ################################################
 		##################################################################
 			
-			my $bootstrap_percentage = $bootstrap_hash{$otu_digest}/$bootstrap_reps;
+			my $bootstrap_percentage = 0;
+			$bootstrap_percentage = $bootstrap_hash{$otu_digest}/$bootstrap_reps if($bootstrap_reps > 0);
 			$bootstrap_percentage = sprintf("%.3f",$bootstrap_percentage)*100;
 			##################################################################
 			# Collect the sequences for the current OTU into this array, current_otu_sequences

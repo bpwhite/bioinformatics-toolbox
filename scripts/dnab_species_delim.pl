@@ -24,7 +24,6 @@ use lib "$FindBin::Bin/libs/";
 
 # Import sequence libs
 use Sequence::Fasta;
-use Sequence::Kimura_Distance_C;
 use Sequence::Kimura_Distance;
 use General::Arguments;
 use Sequence::Bootstrap;
@@ -53,6 +52,11 @@ use threads::shared;
 
 use strict;
 use warnings;
+##################################################################
+# Start benchmark
+my $t0 = Benchmark->new;
+my $k2p1 = 0;
+##################################################################
 
 
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
@@ -86,28 +90,45 @@ my $phylogenetic_length_cutoff = 350;
 my $delimiter = ",";
 
 # srand();
-my $str1 = '*****ATATTTTATTTTCGGCGCTTGGGCGGGCATGGTAGGGACTTCCCTTAGCCTATTAATTCGTGCTGAGTTGGGTAACCCTGGTTCTTTAATTGGTGACGACCAAATTTATAACGTTATTGTGACGGCGCATGCGTTTATTATGATTTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGTAATTGGCTGGTTCCCCTTATATTAGGTGCCCCTGATATGGCTTTCCCACGAATAAATAATATAAGATTTTGGTTGTTACCCCCGTCTTTAACTTTGCTGATTTCTAGTAGAATTGTGGATGTAGGGGCTGGCACTGGTTGGACGGTTTATCCTCCATTAGCTGCTAATATCGCCCACGGTGGTTCTTCAGTTGACTTTGCTATTTTCTCATTACATTTAGCTGGGGTTTCTTCTATTTTAGGTGCAGTTAACTTCATTACAACTGTCGTTAATATGCGCAGCCCGGGTATAACGTTAGACCGCATGCCATTATTTGTCTGATCTGTAGTAATTACAGCTGTGTTATTATTATTATCTTTACCAGTCTTAGCTGGGGCAATCACAATACTGTTAACTGATCGTAATCTGAATACTTCATTTTTTGATCCG------------------------------------';
-my $str2 = 'ACTCTGTATTTTATTTTTGGTGCTTGGTCGGGTATGGTGGGCACTTCTCTTAGTTTGTTAATTCGGGCTGAGTTGGGTAATCCTGGCTCACTTATTGGGGATGACCAGATTTATAACGTTATTGTTACTGCTCATGCGTTTATTATAATCTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGGAATTGGCTTGTACCCCTTATGTTAGGTGCCCCAGACATGGCTTTCCCTCGTATAAATAATATAAGTTTTTGGTTGTTGCCCCCGTCTTTGACTCTCTTGGTTTCAAGTAGAATCGTAGATGTAGGTGCGGGTACTGGTTGGACAGTTTACCCGCCTCTGGCAGCTAATATTGCCCACGGCGGGTCTTCTGTAGATTTTGCCATTTTTTCATTGCATCTAGCAGGGGTTTCTTCGATCTTAGGGGCTGTTAATTTTATTACAACTGTGGTGAATATACGTAGACCTGGTATAACCTTGGATCGAATGCCTCTATTTGTATGGTCCGTAGTAATTACAGCGGTGTTACTTTTGTTATCTTTACCAGTTTTAGCAGGGGCTATTACTATACTCCTGACTGACCGTAACCTAAACACCTCATTCTTCGACCCCGCGGGAGGAGGGGATCCTATTTTGTACCAACATCTC';
+# my $str1 = '*****ATATTTTATTTTCGGCGCTTGGGCGGGCATGGTAGGGACTTCCCTTAGCCTATTAATTCGTGCTGAGTTGGGTAACCCTGGTTCTTTAATTGGTGACGACCAAATTTATAACGTTATTGTGACGGCGCATGCGTTTATTATGATTTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGTAATTGGCTGGTTCCCCTTATATTAGGTGCCCCTGATATGGCTTTCCCACGAATAAATAATATAAGATTTTGGTTGTTACCCCCGTCTTTAACTTTGCTGATTTCTAGTAGAATTGTGGATGTAGGGGCTGGCACTGGTTGGACGGTTTATCCTCCATTAGCTGCTAATATCGCCCACGGTGGTTCTTCAGTTGACTTTGCTATTTTCTCATTACATTTAGCTGGGGTTTCTTCTATTTTAGGTGCAGTTAACTTCATTACAACTGTCGTTAATATGCGCAGCCCGGGTATAACGTTAGACCGCATGCCATTATTTGTCTGATCTGTAGTAATTACAGCTGTGTTATTATTATTATCTTTACCAGTCTTAGCTGGGGCAATCACAATACTGTTAACTGATCGTAATCTGAATACTTCATTTTTTGATCCG------------------------------------';
+# my $str2 = 'ACTCTGTATTTTATTTTTGGTGCTTGGTCGGGTATGGTGGGCACTTCTCTTAGTTTGTTAATTCGGGCTGAGTTGGGTAATCCTGGCTCACTTATTGGGGATGACCAGATTTATAACGTTATTGTTACTGCTCATGCGTTTATTATAATCTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGGAATTGGCTTGTACCCCTTATGTTAGGTGCCCCAGACATGGCTTTCCCTCGTATAAATAATATAAGTTTTTGGTTGTTGCCCCCGTCTTTGACTCTCTTGGTTTCAAGTAGAATCGTAGATGTAGGTGCGGGTACTGGTTGGACAGTTTACCCGCCTCTGGCAGCTAATATTGCCCACGGCGGGTCTTCTGTAGATTTTGCCATTTTTTCATTGCATCTAGCAGGGGTTTCTTCGATCTTAGGGGCTGTTAATTTTATTACAACTGTGGTGAATATACGTAGACCTGGTATAACCTTGGATCGAATGCCTCTATTTGTATGGTCCGTAGTAATTACAGCGGTGTTACTTTTGTTATCTTTACCAGTTTTAGCAGGGGCTATTACTATACTCCTGACTGACCGTAACCTAAACACCTCATTCTTCGACCCCGCGGGAGGAGGGGATCCTATTTTGTACCAACATCTC';
 
-# my $str1 = 'AAAAPAATTTCCGG';
-# my $str2 = 'AAGCQAATTTCCGG';
-my ($weights,$unweighted) = Sequence::Bootstrap::bootstrap_weights(length($str1));
-##################################################################
-# Start benchmark
-my $t0 = Benchmark->new;
-my $k2p1 = 0;
-##################################################################
+# my @unpacked_str1 = unpack("C*", $str1);
+# my @unpacked_str2 = unpack("C*", $str2);
+# my $str1 = 'ATCGACAACG';
+# my $str2 = 'ATCGGTCTGT';
+# my ($weights,$unweighted) = Sequence::Bootstrap::bootstrap_weights(length($str1));
+# use Benchmark qw(cmpthese timethese);
 
-for(1..1000) {
-	my ($K2P, $transitions, $transversions, $comparisons) = k2p_bootstrap(\$str1, \$str2, length($str1), $weights);
-}
+# my $bench = timethese($ARGV[1], {
 
-my $t2 = Benchmark->new;
-my $time2 = timediff($t2, $t0);
-print "\n";
-print timestr($time2)."\n";
+  # substr => sub {
+   # my ($K2P, $transitions, $transversions, $comparisons) = k2p_bootstrap($str1, $str2, length($str1), @$weights);
+  # },
 
-exit;
+  # unpack => sub {
+   # my ($K2P, $transitions, $transversions, $comparisons) = k2p_bootstrap_unpack($str1, $str2, length($str1), @$weights);
+  # },
+
+
+# } );
+
+# cmpthese $bench;
+
+
+# for(1..1) {
+	# my ($K2P, $transitions, $transversions, $comparisons) = k2p_bootstrap($str1, $str2, length($str1), @$weights);
+# }
+# for(1..1) {
+	# my ($K2P, $transitions, $transversions, $comparisons) = k2p_bootstrap_unpack($str1, $str2, length($str1), @$weights);
+# }
+# exit;
+# my $t2 = Benchmark->new;
+# my $time2 = timediff($t2, $t0);
+# print "\n";
+# print timestr($time2)."\n";
+
+# exit;
 # srand(1);
 # my $weights = '';
 # for (0..100) {
@@ -367,6 +388,8 @@ sub cluster_algorithm {
 	foreach my $seq (@unique_sequence_array) {
 		$original_seq_hash_ref->{$seq->id}->{'gapped_seq'} = $seq->seq();
 		$original_seq_hash_ref->{$seq->id}->{'filtered_seq'} = $seq->object_id();
+		my @unpacked = unpack("C*", $seq->seq());
+		$original_seq_hash_ref->{$seq->id}->{'unpacked_seq'} = \@unpacked;
 	}
 	@unique_sequence_array = (); # Flush
 	##################################################################
@@ -385,20 +408,14 @@ sub cluster_algorithm {
 	my $num_unique_seqs 		= keys %seq_hash1;
 	%original_seq_hash 			= (); # Flush
 	for my $seq_id1 ( sort keys %seq_hash1 ) {
-		my $max_bases_compared = 0;
-		my $seq1 = $seq_hash1_ref->{$seq_id1}->{'filtered_seq'};
-		my $seq1_gapped = $seq_hash1_ref->{$seq_id1}->{'gapped_seq'};
-		my $seq1_length = fast_seq_length($seq1_gapped);
 		for my $seq_id2 ( sort keys %seq_hash2 ) {
 			next if $seq_id1 eq $seq_id2;
-			my $seq2_gapped = $seq_hash1_ref->{$seq_id2}->{'gapped_seq'};
-			my $search_type = 1;
 			my ($transitions,	$transversions,		$bases_compared,
 				$k2p_distance) = 0;
-			c_k2p_bootstrap(	$seq1,				$seq2_gapped,		$critical_value,
-								$cutoff,			$max_seq_length,
-								$transitions,		$transversions,		$bases_compared,
-								$k2p_distance,		$character_weights);
+			($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bootstrap(	$seq_hash1_ref->{$seq_id1}->{'gapped_seq'},
+																							$seq_hash1_ref->{$seq_id2}->{'gapped_seq'}, 
+																							$max_seq_length, @$character_weights);
+																						
 			next if($bases_compared < $minimum_sequence_length);
 			if ($k2p_distance <= $cutoff) {
 				$seq_to_delete = $seq_id1;
@@ -410,7 +427,12 @@ sub cluster_algorithm {
 		}
 		$seq_i++;
 	}
+	# my $t2 = Benchmark->new;
+	# my $time2 = timediff($t2, $t0);
+	# print "\n";
+	# print timestr($time2)."\n";
 
+	# exit;
 	print "\n" if $doing_bootstrap == $bootstrap_flag;
 	print "Done deleting.\n" if $doing_bootstrap == $bootstrap_flag;
 	my $remaining_otu = keys %seq_hash1;
@@ -452,35 +474,23 @@ sub cluster_algorithm {
 		my $query_seq_was_matched 	= 0;
 		my $closest_match 			= '';
 		my $lowest_distance 		= 2;
-		my $lowest_min 				= 2;
-		my $lowest_max 				= 2;
 		my $lowest_bases_compared 	= 0;
-		my $seq1_filtered 			= $query_seq->object_id();
-		my $seq1_gapped				= $query_seq->seq();
 		foreach my $otu_seq (@otu_seqs_array) {
-			my $seq2_gapped = $otu_seq->seq();
-			my  ($transitions,	$transversions,		$bases_compared,
-				$current_dist,	$variance,			$stderror,
-				$mink2p,		$maxk2p,			$p_stderror,
-				$p_min,			$p_max,				$p_dist
-				) = 0;
-			my $calculation_rounding = "%.5f";
-			if($seq1_gapped eq $seq2_gapped) {
+			my ($k2p_distance, $transitions,$transversions,$bases_compared) = 0;
+			if($query_seq->seq() eq $otu_seq->seq()) {
 				# $mink2p = 0;
 				# $maxk2p = 0;
 				# $stderror = 0;
-				# $current_dist = 0;
+				# $k2p_distance = 0;
 				push(@{$query_results_hash{$query_seq->id}},$otu_seq->id);
 				$query_seq_was_matched++;
 				next;
 			} else {
-				c_k2p_bootstrap($seq1_filtered,		$seq2_gapped,		$critical_value,
-								$cutoff, 			$max_seq_length,
-								$transitions,		$transversions,		$bases_compared,
-								$current_dist,		$character_weights);
-				
-				if($current_dist < $lowest_distance) {
-					$lowest_distance 		= $current_dist;
+				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bootstrap(	$query_seq->seq(), $otu_seq->seq(),
+																								$max_seq_length, @$character_weights);
+
+				if($k2p_distance < $lowest_distance) {
+					$lowest_distance 		= $k2p_distance;
 					$closest_match 			= $otu_seq->id;
 					$lowest_bases_compared 	= $bases_compared;
 				}
@@ -489,7 +499,7 @@ sub cluster_algorithm {
 
 			# If minimum distance is less than cutoff and statistical method is employed, 
 			# add the match to the match array for this query sequence.
-			if ($current_dist <= $cutoff) {
+			if ($k2p_distance <= $cutoff) {
 				push(@{$query_results_hash{$query_seq->id}},$otu_seq->id);
 				$query_seq_was_matched++;
 			}
@@ -508,7 +518,6 @@ sub cluster_algorithm {
 	}
 	push(@otu_seqs_array,@new_otu_seqs);
 	# close(MATCHES);
-
 	# OTU summary and content file names
 	my $otu_i = 1;
 	my $string_space = '';
@@ -519,7 +528,6 @@ sub cluster_algorithm {
 	##################################################################
 	
 		print OTU_SUMMARY "OTU Results: ".($cutoff*100)."% cutoff\n";
-		# print OTU_SUMMARY "User: Bryan White\n";
 		print OTU_SUMMARY "\tAlignment: ".$alignment_file."\n";
 		print OTU_SUMMARY "\tSequences: ".$number_query_seqs."\n";
 		print OTU_SUMMARY "\tMinimum seq. length: ".$minimum_sequence_length."\n";
@@ -533,7 +541,7 @@ sub cluster_algorithm {
 		print "\n";
 	
 		my $last_otu_seq = '';
-		$string_space = "%-60s %-5s %-11s %-30s  %-30s %-33s %-33s %-30s %-12s %-12s %-17s %-100s\n";
+		$string_space = "%-60s %-5s %-11s %-30s  %-30s %-33s %-33s %-12s %-12s %-17s %-100s\n";
 
 		printf	$string_space,
 				"[OTU #] OTU Ref. ID",
@@ -543,7 +551,6 @@ sub cluster_algorithm {
 				"Avg. Dist SE: (Min - Max)",
 				"Avg. Comparisons SE: (Min - Max)",
 				"Avg. Length SE: (Min - Max)",		
-				"Avg. SE SE: (Min - Max)",
 				"[Sub-groups]",
 				"[Link Depth]",
 				"[Link Strength %]",
@@ -558,7 +565,6 @@ sub cluster_algorithm {
 				"Avg. Dist SE: (Min - Max)".$delimiter.
 				"Avg. Comparisons SE: (Min - Max)".$delimiter.
 				"Avg. Length SE: (Min - Max)".$delimiter.
-				"Avg. SE SE: (Min - Max)".$delimiter.
 				"[Sub-groups]".$delimiter.
 				"[Link Depth]".$delimiter.
 				"[Link Strength %]".$delimiter.
@@ -571,7 +577,6 @@ sub cluster_algorithm {
 				"Avg. Dist".$delimiter."Dist SE ".$delimiter."Min Dist".$delimiter."Max".$delimiter.
 				"Avg. Comparisons".$delimiter." Comparisons SE".$delimiter."Min comparisons".$delimiter."Max comparisons".$delimiter.
 				"Avg. Length".$delimiter."Length SE".$delimiter."Min length".$delimiter."Max length".$delimiter.
-				"Avg. SE".$delimiter. "SE SE".$delimiter."Min SE".$delimiter."Max SE".$delimiter.
 				"Sub-groups".$delimiter.
 				"Link Depth".$delimiter.
 				"Link Strength Percent".$delimiter.
@@ -710,7 +715,7 @@ sub cluster_algorithm {
 			my @seq_lengths = ();
 			foreach my $query_seq_id (@unique_overall_query_matches) {
 				my @query_seq = grep { $_->id eq $query_seq_id } @query_seqs_array;
-				$current_otu_sequences{$query_seq[0]->seq()} = $query_seq[0]->object_id();
+				$current_otu_sequences{$query_seq[0]->seq()} = $query_seq[0]->id();
 				$current_otu_seqs_and_id{$query_seq_id} = $query_seq[0]->seq();
 				$exemplars_hash{$query_seq[0]->id} = $query_seq[0]->seq();
 				my $current_seq_length = fast_seq_length($query_seq[0]->seq());
@@ -744,7 +749,8 @@ sub cluster_algorithm {
 					}
 				}
 			}
-			my $first_exemplar_seq_gapped = $exemplars_hash{$printed_exemplars[0]};
+			my $first_exemplar_seq_gapped 	= $exemplars_hash{$printed_exemplars[0]};
+			my $first_examplar_id			= $printed_exemplars[0];
 			%exemplars_hash 		= (); # Flush
 			@exemplar_keys 			= (); # Flush
 			@sorted_seq_lengths 	= (); # Flush
@@ -755,18 +761,13 @@ sub cluster_algorithm {
 			# Use first exemplar to find nearest neighbor.
 			my $nn_id = '';
 			my $nn_dist = 100;
-			my $nn_min = 0;
-			my $nn_max = 0;
 			my $nn_sequence = '';
 			foreach my $otu_seq (@otu_seqs_array) { # For each OTU
 				next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
-				my $neighbor_seq_filtered = $otu_seq->object_id;
-				my ($transitions,	$transversions,		$bases_compared,
-					$k2p_distance) = 0;
-				c_k2p_bootstrap(	$neighbor_seq_filtered,	$first_exemplar_seq_gapped,		$critical_value,
-									$cutoff, 				$max_seq_length,
-									$transitions,			$transversions,		$bases_compared,
-									$k2p_distance,			$character_weights);
+				my ($k2p_distance, $transitions, $transversions, $bases_compared ) = 0;
+				
+				($k2p_distance, $transitions, $transversions,	$bases_compared ) = k2p_bootstrap(	$otu_seq->seq(),$first_exemplar_seq_gapped,
+																									$max_seq_length, @$character_weights);																							
 				next if $bases_compared < $minimum_sequence_length;
 				if($k2p_distance < $nn_dist) {
 					$nn_dist = $k2p_distance;
@@ -787,29 +788,19 @@ sub cluster_algorithm {
 			my %unique_alleles			= ();
 			my %distinct_alleles		= ();
 			my @distances 				= ();
-			my @std_errors				= ();
 			my @deflated_dists			= ();
-			my @deflated_stderrors		= ();
 			my $num_unique_oqm 			= keys %current_otu_sequences;
 			my $matrix_count 			= ($num_unique_oqm*$num_unique_oqm-$num_unique_oqm)/2;
 			my $maximum_dist			= 0;
 			my $minimum_possible_max	= 0;
 			my $unique_oqm_i 			= 1;
 			for my $seq1_gapped ( sort keys %current_otu_sequences ) {
-				my $seq1_filtered = $current_otu_sequences{$seq1_gapped};
 				for my $seq2_gapped ( sort keys %current_otu_sequences ) {
 					$unique_alleles{$seq1_gapped} = 'a';
 					$unique_alleles{$seq2_gapped} = 'a';
-					my ($transitions,	$transversions,		$bases_compared,
-						$k2p_distance,	$variance,			$stderror,
-						$mink2p,		$maxk2p,			$p_stderror,
-						$p_min,			$p_max,				$p_dist
-						) = 0;
-					my $search_type = 3;
-					c_k2p_bootstrap(	$seq1_filtered,			$seq2_gapped,		$critical_value,
-										$cutoff, 				$max_seq_length,
-										$transitions,			$transversions,		$bases_compared,
-										$k2p_distance,			$character_weights);
+					my ($k2p_distance, $transitions, $transversions, $bases_compared) = 0;
+					($k2p_distance, $transitions, $transversions,	$bases_compared ) = k2p_bootstrap(	$seq1_gapped,$seq2_gapped,
+																										$max_seq_length, @$character_weights);
 									
 					if ($bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
 					if($k2p_distance > 0) {
@@ -818,7 +809,6 @@ sub cluster_algorithm {
 						$distinct_alleles{$seq2_gapped} = 'a';
 					}
 					push(@distances, $k2p_distance);
-					push(@std_errors, $stderror);
 					push(@num_comparisons, $bases_compared);
 					last if $unique_oqm_i == $matrix_count;
 					$unique_oqm_i++;
@@ -853,10 +843,6 @@ sub cluster_algorithm {
 			my $min_distance 			= 0;
 			my $max_distance			= 0;
 			my $se_distance				= 0;
-			my $mean_stderrors			= 0; # Standard errors stats
-			my $min_stderrors			= 0;
-			my $max_stderrors			= 0;
-			my $se_stderrors			= 0;
 			my $percent_dominant_allele	= 100; # Allele stats
 			my $num_unique_alleles		= 0;
 			my $num_distinct_alleles	= 0;
@@ -880,9 +866,7 @@ sub cluster_algorithm {
 			}
 			my $rounding 					= "%.3f";
 			my $distances_stat 				= Statistics::Descriptive::Full->new();
-			my $stderrors_stat 				= Statistics::Descriptive::Full->new();
 			my $deflated_distances_stat 	= Statistics::Descriptive::Full->new();
-			my $deflated_std_errors_stat	= Statistics::Descriptive::Full->new();
 			my $allele_stats			 	= Statistics::Descriptive::Full->new();
 			if(scalar(@distances) > 0) {
 				$distances_stat->add_data(@distances);
@@ -932,11 +916,10 @@ sub cluster_algorithm {
 					"".$mean_distance."% SE: ".$se_distance."% (".$min_distance."% - ".$max_distance."%) ",
 					"".$mean_number_comparisons." SE: ".$se_number_comparisons." (".$min_number_comparisons." - ".$max_number_comparisons.")",
 					"".$mean_sequence_length." SE: ".$se_sequence_length." (".$min_sequence_length." - ".$max_sequence_length.")",
-					"".$mean_stderrors."% SE: ".$se_stderrors."% (".$min_stderrors."% - ".$max_stderrors."%) ",
 					"[".scalar(@unique_otu_links)."]",
 					"[".$link_depth."]",
 					"[".$link_strength_string."]",
-					"".$nn_id." -> ".$nn_dist."% (".$nn_min."% - ".$nn_max."%)";
+					"".$nn_id." -> ".$nn_dist."%";
 			print OTU_SUMMARY
 					"[".$otu_i."] ".filter_one_id($otu_seq->id).$delimiter.
 					$bootstrap_percentage.$delimiter.
@@ -945,11 +928,10 @@ sub cluster_algorithm {
 					"".$mean_distance."% SE: ".$se_distance."% (".$min_distance."% - ".$max_distance."%) ".$delimiter.
 					"".$mean_number_comparisons." SE: ".$se_number_comparisons." (".$min_number_comparisons." - ".$max_number_comparisons.")".$delimiter.
 					"".$mean_sequence_length." SE: ".$se_sequence_length." (".$min_sequence_length." - ".$max_sequence_length.")".$delimiter.
-					"".$mean_stderrors."% SE: ".$se_stderrors."% (".$min_stderrors."% - ".$max_stderrors."%) ".$delimiter.
 					"[".scalar(@unique_otu_links)."]".$delimiter.
 					"[".$link_depth."]".$delimiter.
 					"[".$link_strength_string."]".$delimiter.
-					"".$nn_id." -> ".$nn_dist."% (".$nn_min."% - ".$nn_max."%)".$delimiter."\n";
+					"".$nn_id." -> ".$nn_dist."%\n";
 			print OTU_EXCEL
 					$otu_i.$delimiter.filter_one_id($otu_seq->id).$delimiter.
 					$bootstrap_percentage.$delimiter.
@@ -958,11 +940,10 @@ sub cluster_algorithm {
 					$mean_distance.$delimiter.$se_distance.$delimiter.$min_distance.$delimiter.$max_distance.$delimiter.
 					$mean_number_comparisons.$delimiter.$se_number_comparisons.$delimiter.$min_number_comparisons.$delimiter.$max_number_comparisons.$delimiter.
 					$mean_sequence_length.$delimiter.$se_sequence_length.$delimiter.$min_sequence_length.$delimiter.$max_sequence_length.$delimiter.
-					$mean_stderrors.$delimiter.$se_stderrors.$delimiter.$min_stderrors.$delimiter.$max_stderrors.$delimiter.
 					scalar(@unique_otu_links).$delimiter.
 					$link_depth.$delimiter.
 					$link_strength_string.$delimiter.
-					$nn_id.$delimiter.$nn_dist.$delimiter.$nn_min.$delimiter.$nn_max.$delimiter."\n";
+					$nn_id.$delimiter.$nn_dist.$delimiter."\n";
 
 			##################################################################
 			foreach my $unique_overall_name (@unique_overall_names) {

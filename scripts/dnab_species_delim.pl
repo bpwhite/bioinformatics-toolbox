@@ -62,7 +62,7 @@ my $k2p1 = 0;
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
 									option_defs => {'-aln1' 		=> '', 			# List file name
 													'-cutoff' 		=> 0.02, 		# Sequence limit
-													'-tags' 		=> 1, 			# Taxa limit
+													'-tags' 		=> 0, 			# Taxa limit
 													'-min-length' 	=> 350, 		# User email
 													'-stat' 		=> 'analytical',# Output file prefix
 													'-bsreps'		=> 0,			# Number of BS reps to perform. 0 for no bootstrap
@@ -389,7 +389,6 @@ sub cluster_algorithm {
 	my $original_seq_hash_ref 	= \%original_seq_hash;
 	foreach my $seq (@unique_sequence_array) {
 		$original_seq_hash_ref->{$seq->id}->{'gapped_seq'} = $seq->seq();
-		$original_seq_hash_ref->{$seq->id}->{'filtered_seq'} = $seq->object_id();
 	}
 	@unique_sequence_array = (); # Flush
 	##################################################################
@@ -415,7 +414,6 @@ sub cluster_algorithm {
 			($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bootstrap(	\$seq_hash1_ref->{$seq_id1}->{'gapped_seq'},
 																							\$seq_hash1_ref->{$seq_id2}->{'gapped_seq'}, 
 																							$max_seq_length, $character_weights);
-																						
 			next if($bases_compared < $minimum_sequence_length);
 			if ($k2p_distance <= $cutoff) {
 				$seq_to_delete = $seq_id1;
@@ -706,16 +704,18 @@ sub cluster_algorithm {
 			unlink $output_path.$current_otu_output;
 			open(OTU_FASTA, '>>'.$output_path.$current_otu_output);
 			my @seq_lengths = ();
+			my $query_seq;
+			my $filtered_otu_id;
+			my $filtered_query_id;
 			foreach my $query_seq_id (@unique_overall_query_matches) {
-				my $query_seq = $non_unique_sequences{$query_seq_id};
+				$query_seq = $non_unique_sequences{$query_seq_id};
 				$current_otu_sequences{$query_seq} = $query_seq_id;
 				$current_otu_seqs_and_id{$query_seq_id} = $query_seq;
 				$exemplars_hash{$query_seq_id} = $query_seq;
-				my $current_seq_length = fast_seq_length($query_seq);
-				push(@seq_lengths,$current_seq_length);
-				my $filtered_otu_id = filter_one_id($otu_seq->id);
-				my $filtered_query_id = filter_one_id($query_seq_id);
-				
+				# my $current_seq_length = fast_seq_length($query_seq);
+				push(@seq_lengths,fast_seq_length($query_seq));
+				$filtered_otu_id = filter_one_id($otu_seq->id);
+				$filtered_query_id = filter_one_id($query_seq_id);
 				print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
 				print OTU_FASTA '>['.$otu_i.']_'.$query_seq_id."\n";
 				print OTU_FASTA $query_seq."\n";
@@ -755,10 +755,9 @@ sub cluster_algorithm {
 			my $nn_id = '';
 			my $nn_dist = 100;
 			my $nn_sequence = '';
+			my ($k2p_distance, $transitions, $transversions, $bases_compared ) = 0;
 			foreach my $otu_seq (@otu_seqs_array) { # For each OTU
 				next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
-				my ($k2p_distance, $transitions, $transversions, $bases_compared ) = 0;
-				
 				($k2p_distance, $transitions, $transversions,	$bases_compared ) = k2p_bootstrap(	\$otu_seq->seq(),\$first_exemplar_seq_gapped,
 																									$max_seq_length, $character_weights);																							
 				next if $bases_compared < $minimum_sequence_length;
@@ -781,13 +780,12 @@ sub cluster_algorithm {
 			my %unique_alleles			= ();
 			my %distinct_alleles		= ();
 			my @distances 				= ();
-			my @deflated_dists			= ();
 			my $num_unique_oqm 			= keys %current_otu_sequences;
 			my $matrix_count 			= ($num_unique_oqm*$num_unique_oqm-$num_unique_oqm)/2;
 			my $maximum_dist			= 0;
 			my $minimum_possible_max	= 0;
 			my $unique_oqm_i 			= 1;
-			my ($k2p_distance, $transitions, $transversions, $bases_compared) = 0;
+			# my ($k2p_distance, $transitions, $transversions, $bases_compared) = 0;
 			for my $seq1_gapped ( sort keys %current_otu_sequences ) {
 				for my $seq2_gapped ( sort keys %current_otu_sequences ) {
 					$unique_alleles{$seq1_gapped} = 'a';
@@ -815,8 +813,9 @@ sub cluster_algorithm {
 			
 			##################################################################
 			# Compute overall sub-morpho names
+			my $current_name;
 			foreach my $unique_o_q_match1 (@unique_overall_query_matches) {
-				my $current_name 	= filter_one_id($unique_o_q_match1);
+				$current_name 		= filter_one_id($unique_o_q_match1);
 				$current_name 		= convert_id_to_name($current_name);
 				push(@overall_names,$current_name);
 			}

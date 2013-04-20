@@ -280,6 +280,7 @@ if ($use_tags == 1) {
 # 3. Remove sequences less than length cutoff
 # 4. Replace ambiguous characters with gaps (-)
 my %unique_sequences = (); # Don't flush
+my %non_unique_sequences = ();
 my @query_seqs_array = ();
 my $max_seq_length = 0;
 my $alignment_length = 0;
@@ -311,6 +312,7 @@ foreach my $seq (@original_sequence_array) {
 	$seq->description($seq_degapped);
 	$seq->object_id($filtered_seq);
 	$unique_sequences{$seq->seq()} = $seq->id;
+	$non_unique_sequences{$seq->id} = $seq->seq;
 	push(@query_seqs_array,$seq);
 }
 ##################################################################
@@ -388,8 +390,6 @@ sub cluster_algorithm {
 	foreach my $seq (@unique_sequence_array) {
 		$original_seq_hash_ref->{$seq->id}->{'gapped_seq'} = $seq->seq();
 		$original_seq_hash_ref->{$seq->id}->{'filtered_seq'} = $seq->object_id();
-		my @unpacked = unpack("C*", $seq->seq());
-		$original_seq_hash_ref->{$seq->id}->{'unpacked_seq'} = \@unpacked;
 	}
 	@unique_sequence_array = (); # Flush
 	##################################################################
@@ -407,14 +407,14 @@ sub cluster_algorithm {
 	my $remaining_unique_seqs 	= keys %original_seq_hash;
 	my $num_unique_seqs 		= keys %seq_hash1;
 	%original_seq_hash 			= (); # Flush
+	my ($transitions,	$transversions,		$bases_compared,
+		$k2p_distance) = 0;
 	for my $seq_id1 ( sort keys %seq_hash1 ) {
 		for my $seq_id2 ( sort keys %seq_hash2 ) {
 			next if $seq_id1 eq $seq_id2;
-			my ($transitions,	$transversions,		$bases_compared,
-				$k2p_distance) = 0;
-			($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bootstrap(	$seq_hash1_ref->{$seq_id1}->{'gapped_seq'},
-																							$seq_hash1_ref->{$seq_id2}->{'gapped_seq'}, 
-																							$max_seq_length, @$character_weights);
+			($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bootstrap(	\$seq_hash1_ref->{$seq_id1}->{'gapped_seq'},
+																							\$seq_hash1_ref->{$seq_id2}->{'gapped_seq'}, 
+																							$max_seq_length, $character_weights);
 																						
 			next if($bases_compared < $minimum_sequence_length);
 			if ($k2p_distance <= $cutoff) {
@@ -427,12 +427,6 @@ sub cluster_algorithm {
 		}
 		$seq_i++;
 	}
-	# my $t2 = Benchmark->new;
-	# my $time2 = timediff($t2, $t0);
-	# print "\n";
-	# print timestr($time2)."\n";
-
-	# exit;
 	print "\n" if $doing_bootstrap == $bootstrap_flag;
 	print "Done deleting.\n" if $doing_bootstrap == $bootstrap_flag;
 	my $remaining_otu = keys %seq_hash1;
@@ -475,8 +469,8 @@ sub cluster_algorithm {
 		my $closest_match 			= '';
 		my $lowest_distance 		= 2;
 		my $lowest_bases_compared 	= 0;
+		my ($k2p_distance, $transitions,$transversions,$bases_compared) = 0;
 		foreach my $otu_seq (@otu_seqs_array) {
-			my ($k2p_distance, $transitions,$transversions,$bases_compared) = 0;
 			if($query_seq->seq() eq $otu_seq->seq()) {
 				# $mink2p = 0;
 				# $maxk2p = 0;
@@ -486,8 +480,8 @@ sub cluster_algorithm {
 				$query_seq_was_matched++;
 				next;
 			} else {
-				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bootstrap(	$query_seq->seq(), $otu_seq->seq(),
-																								$max_seq_length, @$character_weights);
+				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bootstrap(	\$query_seq->seq(), \$otu_seq->seq(),
+																								$max_seq_length, $character_weights);
 
 				if($k2p_distance < $lowest_distance) {
 					$lowest_distance 		= $k2p_distance;
@@ -504,7 +498,6 @@ sub cluster_algorithm {
 				$query_seq_was_matched++;
 			}
 		}
-		
 		# If strict method or no valid minimum match was found, add the closest match to the array.
 		if($query_seq_was_matched  == 0) {
 			# if($lowest_min < $cutoff) {
@@ -714,18 +707,18 @@ sub cluster_algorithm {
 			open(OTU_FASTA, '>>'.$output_path.$current_otu_output);
 			my @seq_lengths = ();
 			foreach my $query_seq_id (@unique_overall_query_matches) {
-				my @query_seq = grep { $_->id eq $query_seq_id } @query_seqs_array;
-				$current_otu_sequences{$query_seq[0]->seq()} = $query_seq[0]->id();
-				$current_otu_seqs_and_id{$query_seq_id} = $query_seq[0]->seq();
-				$exemplars_hash{$query_seq[0]->id} = $query_seq[0]->seq();
-				my $current_seq_length = fast_seq_length($query_seq[0]->seq());
+				my $query_seq = $non_unique_sequences{$query_seq_id};
+				$current_otu_sequences{$query_seq} = $query_seq_id;
+				$current_otu_seqs_and_id{$query_seq_id} = $query_seq;
+				$exemplars_hash{$query_seq_id} = $query_seq;
+				my $current_seq_length = fast_seq_length($query_seq);
 				push(@seq_lengths,$current_seq_length);
 				my $filtered_otu_id = filter_one_id($otu_seq->id);
-				my $filtered_query_id = filter_one_id($query_seq[0]->id());
+				my $filtered_query_id = filter_one_id($query_seq_id);
 				
 				print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
 				print OTU_FASTA '>['.$otu_i.']_'.$query_seq_id."\n";
-				print OTU_FASTA $query_seq[0]->seq()."\n";
+				print OTU_FASTA $query_seq."\n";
 			}
 			close(OTU_FASTA);
 			##################################################################
@@ -766,8 +759,8 @@ sub cluster_algorithm {
 				next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
 				my ($k2p_distance, $transitions, $transversions, $bases_compared ) = 0;
 				
-				($k2p_distance, $transitions, $transversions,	$bases_compared ) = k2p_bootstrap(	$otu_seq->seq(),$first_exemplar_seq_gapped,
-																									$max_seq_length, @$character_weights);																							
+				($k2p_distance, $transitions, $transversions,	$bases_compared ) = k2p_bootstrap(	\$otu_seq->seq(),\$first_exemplar_seq_gapped,
+																									$max_seq_length, $character_weights);																							
 				next if $bases_compared < $minimum_sequence_length;
 				if($k2p_distance < $nn_dist) {
 					$nn_dist = $k2p_distance;
@@ -794,13 +787,13 @@ sub cluster_algorithm {
 			my $maximum_dist			= 0;
 			my $minimum_possible_max	= 0;
 			my $unique_oqm_i 			= 1;
+			my ($k2p_distance, $transitions, $transversions, $bases_compared) = 0;
 			for my $seq1_gapped ( sort keys %current_otu_sequences ) {
 				for my $seq2_gapped ( sort keys %current_otu_sequences ) {
 					$unique_alleles{$seq1_gapped} = 'a';
 					$unique_alleles{$seq2_gapped} = 'a';
-					my ($k2p_distance, $transitions, $transversions, $bases_compared) = 0;
-					($k2p_distance, $transitions, $transversions,	$bases_compared ) = k2p_bootstrap(	$seq1_gapped,$seq2_gapped,
-																										$max_seq_length, @$character_weights);
+					($k2p_distance, $transitions, $transversions,	$bases_compared ) = k2p_bootstrap(	\$seq1_gapped,\$seq2_gapped,
+																										$max_seq_length, $character_weights);
 									
 					if ($bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
 					if($k2p_distance > 0) {

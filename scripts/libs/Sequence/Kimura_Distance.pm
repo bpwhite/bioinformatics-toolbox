@@ -16,9 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use strict;
 use warnings;
-use Memoize;
-memoize('unpack_seq');
-
 use Exporter;
 
 our @ISA= qw( Exporter );
@@ -79,8 +76,8 @@ sub k2p_bootstrap {
 	my $seq1 		= shift;
 	my $seq2 		= shift;
 	my $length 		= shift;
-	my @weights_arr = @_;
-
+	my $weights		= shift;
+	
 	# XOR values for each transition/transversion
 	# Transitions
 	# A->G = 6
@@ -90,46 +87,46 @@ sub k2p_bootstrap {
 	# A->T = 21
 	# C->G = 4
 	# G->T = 19
-	my @unpacked_seq1 = unpack("C*", $seq1);
-	my @unpacked_seq2 = unpack("C*", $seq2);
+	my @unpacked_seq1 = unpack("C*", $$seq1);
+	my @unpacked_seq2 = unpack("C*", $$seq2);
 	my $transitions 		= 0;
 	my $transversions 		= 0;
 	my $num_comparisons 	= 0;
 	my $pair = '';
 	for (my $i = 0; $i < $length; $i++) {
 		if ($unpacked_seq1[$i] == $unpacked_seq2[$i]) {
-			$num_comparisons += $weights_arr[$i];
+			$num_comparisons += @{$weights}[$i];
 		} else {
 			$pair = $unpacked_seq1[$i]^$unpacked_seq2[$i];
 			# Transitions
 			if($pair 		== 6) { # A->G
-				$transitions += $weights_arr[$i];
-				$num_comparisons += $weights_arr[$i];
+				$transitions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
 			}
 			elsif($pair 	== 23){ # C->T	
-				$transitions += $weights_arr[$i];
-				$num_comparisons += $weights_arr[$i];
+				$transitions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
 			} 
 			# Transversions
 			elsif($pair 	== 21){ # A->T
-				$transversions += $weights_arr[$i];
-				$num_comparisons += $weights_arr[$i];
+				$transversions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
 			}
 			elsif($pair 	== 2){ 	# A->C
-				$transversions += $weights_arr[$i];
-				$num_comparisons += $weights_arr[$i];
+				$transversions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
 			}
 			elsif($pair 	== 4){ 	# C->G
-				$transversions += $weights_arr[$i];
-				$num_comparisons += $weights_arr[$i];
+				$transversions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
 			}
 			elsif($pair 	== 19){ # C->T
-				$transversions += $weights_arr[$i];
-				$num_comparisons += $weights_arr[$i];
+				$transversions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
 			}
 		}
 	}
-
+	
 	my $P = $transitions/$num_comparisons;
 	my $Q = $transversions/$num_comparisons;
 	my $w1 = 1-2*$P-$Q;
@@ -139,5 +136,18 @@ sub k2p_bootstrap {
 	return($K2P, $transitions, $transversions, $num_comparisons);
 }
 
+sub calc_k2p {
+	my $transitions 	= shift;
+	my $transversions 	= shift;
+	my $num_comparisons = shift;
+	
+	my $P = $transitions/$num_comparisons;
+	my $Q = $transversions/$num_comparisons;
+	my $w1 = 1-2*$P-$Q;
+	my $w2 = 1-2*$Q;
+	my $K2P = -log($w1)/2-log($w2)/4;
+
+	return($K2P, $transitions, $transversions, $num_comparisons);
+}
 
 1;

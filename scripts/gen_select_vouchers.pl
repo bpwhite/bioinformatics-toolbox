@@ -15,15 +15,9 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-#!/usr/bin/perl
-
-# DBI is the standard database interface for Perl
-# DBD is the Perl module that we use to connect to the MySQL database
 use FindBin;
 use lib "$FindBin::Bin/libs/";
 use General::Arguments;
-
 
 use DBI;
 
@@ -38,16 +32,20 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 														'-password'		=> '',				# User password	
 														'-table'		=> '',				# Table to input data to
 														'-voucher-list'	=> '',				# CSV file to upload
+														'-outp'			=> 'output',		# Output prefix
+														'-max-length'	=> '3000',			# Maximum sequence length allowed
 													}
 													);
 
-my $database 	=  $params->options->{'-database'};
-my $location 	=  $params->options->{'-location'};
-my $port		=  $params->options->{'-port'};
-my $user 		=  $params->options->{'-user'};
-my $password 	=  $params->options->{'-password'};
-my $table 		=  $params->options->{'-table'};
-my $voucher_file=  $params->options->{'-voucher-list'};
+my $database 		= $params->options->{'-database'};
+my $location 		= $params->options->{'-location'};
+my $port			= $params->options->{'-port'};
+my $user 			= $params->options->{'-user'};
+my $password 		= $params->options->{'-password'};
+my $table 			= $params->options->{'-table'};
+my $voucher_file	= $params->options->{'-voucher-list'};
+my $output_prefix	= $params->options->{'-outp'};
+my $max_seq_length	= $params->options->{'-max-length'};
 
 print "Opening $voucher_file \n";
 open VOUCHER, "< $voucher_file";
@@ -58,12 +56,18 @@ my $dsn = "DBI:mysql:database=$database;host=$location;port=$port";
 my $dbh = DBI->connect($dsn, $user, $password);
 
 # my @gene_list = ("COI", "16S", "18S", "28S", "CYTB");
-my @gene_list = ("COI", "16S");
+my @required_gene_list 	= ("COI", "16S");
+my @gene_list 			= ("COI", "16S");
+
+foreach my $query_gene (@gene_list) {
+	my $current_file = $output_prefix.'_'.$query_gene.'.fas';
+	unlink ($current_file);
+}
 
 my $line_counter = 0;
-foreach my $line (@voucher_list) {
+foreach my $voucher_line (@voucher_list) {
 	# print $line."\n";
-	$line =~ s/\n//g; # Strip newlines
+	$voucher_line =~ s/\n//g; # Strip newlines
 	# print $line."\n";
 	my ($query_primary_key, $taxon_query, $taxon_id, $accession,
 		$seq_query, $seqs_found, $description, $gene,
@@ -72,9 +76,40 @@ foreach my $line (@voucher_list) {
 		$jrn_volume, $jrn_issue, $jrn_pages, $jrn_pubdate, $nuc_seq,
 		$prot_seq, $primers, $codon_start, $collection_date, $voucher_id, 
 		$collected_by, $identified_by, $organelle, $location, $lat_lon);
+	
+	my $incomplete_gene_set = 0;
+	foreach my $query_gene (@required_gene_list) {
+		my $query = "SELECT * FROM column_names WHERE seq_query LIKE \"\%".$query_gene."\%\" AND voucher_id = \"".$voucher_line."\"";
+		my $statement = $dbh->prepare($query);
+		$statement->execute() or die "$@\n";
+		if(($statement->rows == 0)) {
+			$incomplete_gene_set = 1;
+			last;
+		}
+		$statement->bind_col(22, \$nuc_seq);
+		while($statement->fetch()) {
+			if(length($nuc_seq) > $max_seq_length) {
+				$incomplete_gene_set = 1;
+				last;
+			}
+			last;
+		}
+		# $statement->bind_col(1, \$query_primary_key);
+		# print $query_primary_key."\n";
+		# exit;
+		# 
+		# print $nuc_seq."\n";
+		# print length($nuc_seq)."\n";
+		# exit;
 
+	}
+	if($incomplete_gene_set == 1) {
+		next;
+	}
+	
+	# Has a complete gene set.
 	foreach my $query_gene (@gene_list) {
-		my $query = "SELECT * FROM column_names WHERE seq_query LIKE \"\%".$query_gene."\%\" AND voucher_id = \"".$line."\"";
+		my $query = "SELECT * FROM column_names WHERE seq_query LIKE \"\%".$query_gene."\%\" AND voucher_id = \"".$voucher_line."\"";
 	
 		my $statement = $dbh->prepare($query);
 		$statement->execute() or die "$@\n";
@@ -112,20 +147,25 @@ foreach my $line (@voucher_list) {
 		$statement->bind_col(31, \$location);
 		$statement->bind_col(32, \$lat_lon);
 		
+		# if(($statement->rows == 0) && ($query_gene eq $gene_list[0])) {
+			# Must have first gene or will skip this voucher.
+			# last;
+		# }
+		# Open file for append
+		my $current_file = $output_prefix.'_'.$query_gene.'.fas';
+		open (FASTAFILE, '>>'.$current_file)  or die "Could not append to $current_file\n";
 		if($statement->rows == 0) {
-			print $query_gene."\n";
+			print FASTAFILE ">$query_gene|$voucher_line\n---\n";
+			close FASTAFILE;
 			next;
 		}
-		if(($statement->rows == 0) && ($query_gene eq $gene_list[0])) {
-			# Must have first gene.
-			last;
-		}
-		# LOOP THROUGH RESULTS
 		while($statement->fetch()) {
-		   print ">$query_gene|$voucher_id\n$nuc_seq\n";
+		   print FASTAFILE ">$query_gene|$voucher_line\n$nuc_seq\n";
+		   last;
 		}
-
+		close FASTAFILE;
 	}
+	# exit if $line_counter == 10;
 	$line_counter++;
 }
 

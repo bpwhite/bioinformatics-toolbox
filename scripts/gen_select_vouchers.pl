@@ -56,8 +56,8 @@ my $dsn = "DBI:mysql:database=$database;host=$location;port=$port";
 my $dbh = DBI->connect($dsn, $user, $password);
 
 # my @gene_list = ("COI", "16S", "18S", "28S", "CYTB");
-my @required_gene_list 	= ("COI", "16S");
-my @gene_list 			= ("COI", "16S");
+my @required_gene_list 	= ("COI", "28S");
+my @gene_list 			= ("COI", "28S");
 
 foreach my $query_gene (@gene_list) {
 	my $current_file = $output_prefix.'_'.$query_gene.'.fas';

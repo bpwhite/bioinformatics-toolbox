@@ -27,6 +27,7 @@ sub k2p_bootstrap {
 	my $length 		= shift;
 	my $weights		= shift;
 	
+	$$seq1 =~ s/-/*/g;
 	# XOR values for each transition/transversion
 	# Transitions
 	# A->G = 6

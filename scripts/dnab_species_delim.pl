@@ -304,7 +304,9 @@ foreach my $seq (@original_sequence_array) {
 	$seq_degapped =~ s/\s+//g;
 	
 	# Set max sequence length (Alignment length)
-	if(length($seq_degapped) > $max_seq_length) { $max_seq_length = length($seq_degapped) } ;
+	# if(length($seq_degapped) > $max_seq_length) { $max_seq_length = length($seq_degapped) } ;
+	if(length($seq_gapped) > $max_seq_length) { $max_seq_length = length($seq_gapped) } ;
+
 	$alignment_length = length($seq_gapped);
 	my $filtered_seq = $seq_gapped;
 	$filtered_seq =~ s/-/*/g;
@@ -411,12 +413,15 @@ sub cluster_algorithm {
 	for my $seq_id1 ( sort keys %seq_hash1 ) {
 		for my $seq_id2 ( sort keys %seq_hash2 ) {
 			next if $seq_id1 eq $seq_id2;
+			# print $max_seq_length."\n";
+			# exit;
 			($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bootstrap(	\$seq_hash1_ref->{$seq_id1}->{'gapped_seq'},
 																							\$seq_hash1_ref->{$seq_id2}->{'gapped_seq'}, 
 																							$max_seq_length, $character_weights);
 			next if($bases_compared < $minimum_sequence_length);
 			if ($k2p_distance <= $cutoff) {
 				$seq_to_delete = $seq_id1;
+				# print (keys %seq_hash1)."\n";
 				delete $seq_hash1_ref->{$seq_to_delete};
 				delete $seq_hash2_ref->{$seq_to_delete};
 				$seq_to_delete = "";

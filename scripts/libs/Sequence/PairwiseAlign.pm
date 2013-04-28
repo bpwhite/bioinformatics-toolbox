@@ -37,6 +37,8 @@ sub alignseqs {
 	my $output_file = 'out_alnseqs.fas';
 	
 	unlink $aln_file;
+	unlink $output_file;
+	# unlink '1';
 	open (ALN, '>'.$aln_file);
 	my $seq_counter = 0;
 	foreach my $seq (@seqs) {
@@ -45,10 +47,11 @@ sub alignseqs {
 		$seq_counter++;
 	}
 	close ALN;
-
-	# system('mafft '.$aln_file.' > out_'.$aln_file);
-	system("mafft --preservecase $aln_file > $output_file > nul 2>1");
 	
+	# system('mafft '.$aln_file.' > out_'.$aln_file);
+	# system("mafft --preservecase $aln_file > $output_file > nul 2>");
+	system("mafft --quiet --retree 1 --maxiterate 0 --preservecase $aln_file > $output_file");
+
 	my $seqio  = Bio::SeqIO->new(-file => $output_file, '-format' => 'Fasta');
 	my @aligned_seqs;
 	while( my $seq = $seqio->next_seq() ) {
@@ -57,6 +60,6 @@ sub alignseqs {
 	
 	unlink $aln_file;
 	unlink $output_file;
-	unlink '1';
+	# unlink '1';
 	return @aligned_seqs;
 }

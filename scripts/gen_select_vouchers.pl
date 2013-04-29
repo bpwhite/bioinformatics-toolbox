@@ -134,9 +134,9 @@ for (my $bs_reps_i = 0; $bs_reps_i < $bs_reps; $bs_reps_i++) {
 			}
 			# $statement->bind_col(22, \$nuc_seq);
 			$statement->bind_col(1, \$nuc_seq);
-			$query_hash{$query} = $nuc_seq;
-			
 			while($statement->fetch()) {
+				$nuc_seq =~ s/n//g;
+				$nuc_seq =~ s/N//g;
 				if((length($nuc_seq) > $max_seq_length) || (length($nuc_seq) < $minimum_seq_length)) {
 					$incomplete_gene_set = 1;
 					last;
@@ -235,5 +235,4 @@ for (my $bs_reps_i = 0; $bs_reps_i < $bs_reps; $bs_reps_i++) {
 		$voucher_counter++;
 		$bs_sample_created++;
 	}
-
 }

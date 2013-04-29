@@ -76,7 +76,7 @@ sub k2p_bootstrap {
 			}
 		}
 	}
-	
+	if($num_comparisons <= 0) { return (2,$transitions,$transversions,$num_comparisons) };
 	my $P = $transitions/$num_comparisons;
 	my $Q = $transversions/$num_comparisons;
 	my $w1 = 1-2*$P-$Q;

@@ -34,7 +34,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 														'-table'		=> '',				# Table to input data to
 														'-voucher-list'	=> '',				# CSV file to upload
 														'-outp'			=> 'output',		# Output prefix
-														'-max-length'	=> '3000',			# Maximum sequence length allowed
+														'-max-length'	=> '2000',			# Maximum sequence length allowed
 														'-bsreps'		=> '1',				# Number of bootstrap replicates to output
 														'-bsrep-size'	=> '1000',			# Default bs rep size
 													}
@@ -168,7 +168,7 @@ for (my $bs_reps_i = 0; $bs_reps_i < $bs_reps; $bs_reps_i++) {
 		# Has a complete gene set.
 		foreach my $query_gene (@gene_list) {
 			# my $query = "SELECT * FROM column_names WHERE seq_query LIKE \"\%".$query_gene."\%\" AND voucher_id = \"".$voucher_line."\"";
-			my $query = "SELECT nuc_seq FROM column_names WHERE seq_query LIKE \"\%".$query_gene."\%\" AND voucher_id = \"".$current_voucher."\"";
+			my $query = "SELECT nuc_seq, binom FROM column_names WHERE seq_query LIKE \"\%".$query_gene."\%\" AND voucher_id = \"".$current_voucher."\"";
 		
 			my $statement = $dbh->prepare($query);
 			$statement->execute() or die "$@\n";
@@ -198,6 +198,7 @@ for (my $bs_reps_i = 0; $bs_reps_i < $bs_reps; $bs_reps_i++) {
 			
 			# $statement->bind_col(22, \$nuc_seq);
 			$statement->bind_col(1, \$nuc_seq);
+			$statement->bind_col(2, \$binom);
 
 			# $statement->bind_col(23, \$prot_seq);
 			# $statement->bind_col(24, \$primers);
@@ -225,7 +226,7 @@ for (my $bs_reps_i = 0; $bs_reps_i < $bs_reps; $bs_reps_i++) {
 				next;
 			}
 			while($statement->fetch()) {
-			   print FASTAFILE ">$query_gene|$current_voucher\n$aligned_current_seq\n";
+			   print FASTAFILE ">$query_gene|$current_voucher|$binom\n$aligned_current_seq\n";
 			   last;
 			}
 			close FASTAFILE;

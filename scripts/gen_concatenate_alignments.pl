@@ -16,13 +16,10 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use FindBin;
+use lib "$FindBin::Bin/libs/";
+use General::Arguments;
 
-use Bio::TreeIO;
-use Bio::Tree::Tree;
-use Bio::Tree::TreeFunctionsI;
-use Bio::Tree::Node;
-use Statistics::Descriptive;
-use Math::Random::MT qw(srand rand);
 use strict;
 use warnings;
 
@@ -36,7 +33,7 @@ my $id_position = 1;
 my $replace_hyphens = 'no';
 
 # Get the master list
-my $master_alignment = "bopD_aln.fas";
+my $master_alignment = "aligned_COI_16S_combined_4_COI_1.fas";
 my $master_seqio  = Bio::SeqIO->new(-file => $master_alignment , '-format' => 'Fasta');
 my @master_list = ();
 while((my $master_seqobj = $master_seqio->next_seq())) {
@@ -58,6 +55,8 @@ foreach my $master_order_id (@master_list) {
 	print "Concatenating ".$master_order_id."\n";
 	my $alignment_i = 1;
 	foreach my $alignment (@alignments) {
+		print $alignment."\n";
+		next;
 		my $seqio  = Bio::SeqIO->new(-file => $alignment , '-format' => 'Fasta');
 		my @delimited_master = split(/\|/,$master_order_id);
 

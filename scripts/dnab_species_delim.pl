@@ -329,6 +329,8 @@ my %bootstrap_hash = ();
 share(%bootstrap_hash);
 my $bootstrap_counter = 0;
 share($bootstrap_counter);
+my @bootstrap_values = ();
+share(@bootstrap_values);
 
 my $reps_per_thread = int $bootstrap_reps/$num_threads;
 my $remainder_reps 	= $bootstrap_reps % $num_threads;
@@ -697,8 +699,10 @@ sub cluster_algorithm {
 		##################################################################
 			
 			my $bootstrap_percentage = 0;
-			$bootstrap_percentage = $bootstrap_hash{$otu_digest}/$bootstrap_reps if($bootstrap_reps > 0);
-			$bootstrap_percentage = sprintf("%.3f",$bootstrap_percentage)*100;
+			my $raw_bootstrap_percentage = 0;
+			$raw_bootstrap_percentage = $bootstrap_hash{$otu_digest}/$bootstrap_reps if($bootstrap_reps > 0);
+			$bootstrap_percentage = sprintf("%.3f",$raw_bootstrap_percentage)*100;
+			push(@bootstrap_values, $raw_bootstrap_percentage);
 			##################################################################
 			# Collect the sequences for the current OTU into this array, current_otu_sequences
 			# Output the OTU content (match) results
@@ -1049,6 +1053,18 @@ sub cluster_algorithm {
 }
 
 print "BS Counter ".$bootstrap_counter."\n" if(defined($bootstrap_counter));
+
+my $bs_rounding		= "%.5f";
+my $bs_stats 		= Statistics::Descriptive::Full->new();
+my $mean_bs_values 	= 0;
+if(scalar(@bootstrap_values) > 0) {
+	$bs_stats->add_data(@bootstrap_values);
+	$mean_bs_values = sprintf($bs_rounding,$bs_stats->mean())*100;
+}
+foreach my $bs_value (@bootstrap_values) {
+	print $bs_value."\n";
+}
+print "Average Bootstrap Support: $mean_bs_values\n";
 
 my $t1 = Benchmark->new;
 my $time = timediff($t1, $t0);

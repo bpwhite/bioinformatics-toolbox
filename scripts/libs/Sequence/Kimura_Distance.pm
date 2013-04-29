@@ -81,6 +81,7 @@ sub k2p_bootstrap {
 	my $Q = $transversions/$num_comparisons;
 	my $w1 = 1-2*$P-$Q;
 	my $w2 = 1-2*$Q;
+	if(($w1 <= 0) || ($w2 <= 0)) { return (2,$transitions,$transversions,$num_comparisons) };
 	my $K2P = -log($w1)/2-log($w2)/4;
 
 	return($K2P, $transitions, $transversions, $num_comparisons);

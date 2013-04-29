@@ -35,8 +35,13 @@ my $folder			= $params->options->{'-folder'};
 
 my @alignments = <$folder/*.fas>;
 
-foreach my $alignment (@alignments) {
-	my $output_file = 'aligned_'.$alignment;
-	system("mafft --quiet --retree 1 --maxiterate 0 --preservecase $alignment > $folder/$output_file");
-
+foreach my $alignment_path (@alignments) {
+	print $alignment_path."\n";
+	my @alignment_file_split = split("/",$alignment_path);
+	my $alignment_file = $alignment_file_split[-1];
+	my $output_file = $folder.'/'.$output_prefix.'_'.$alignment_file;
+	print $output_file."\n";
+	my $mafft_string = "mafft --auto --preservecase --adjustdirection $alignment_path > $output_file";
+	print "Calling $mafft_string\n";
+	system($mafft_string);
 }

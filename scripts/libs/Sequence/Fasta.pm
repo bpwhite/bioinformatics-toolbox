@@ -27,15 +27,13 @@ sub fix_fasta {
 	open F, "< $f" or die "Can't open $f : $!";
 	my @fasta = <F>;
 	close F;
-	
-	for(my $i = 0; $i < 10; $i++) {
-		foreach my $line (@fasta) {
-			if($line =~ /^>/) {
-				$line =~ s/ /_/; # replace whitespace with _
-			}
+
+	foreach my $line (@fasta) {
+		if($line =~ /^>/) {
+			$line =~ s/ /_/g; # replace whitespace with _
 		}
 	}
-
+	
 	unlink $f;
 	open (MYFILE, '>>'.$f);
 	foreach my $line(@fasta) {

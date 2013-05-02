@@ -93,89 +93,6 @@ my $delimiter = ",";
 # my $str1 = '*****ATATTTTATTTTCGGCGCTTGGGCGGGCATGGTAGGGACTTCCCTTAGCCTATTAATTCGTGCTGAGTTGGGTAACCCTGGTTCTTTAATTGGTGACGACCAAATTTATAACGTTATTGTGACGGCGCATGCGTTTATTATGATTTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGTAATTGGCTGGTTCCCCTTATATTAGGTGCCCCTGATATGGCTTTCCCACGAATAAATAATATAAGATTTTGGTTGTTACCCCCGTCTTTAACTTTGCTGATTTCTAGTAGAATTGTGGATGTAGGGGCTGGCACTGGTTGGACGGTTTATCCTCCATTAGCTGCTAATATCGCCCACGGTGGTTCTTCAGTTGACTTTGCTATTTTCTCATTACATTTAGCTGGGGTTTCTTCTATTTTAGGTGCAGTTAACTTCATTACAACTGTCGTTAATATGCGCAGCCCGGGTATAACGTTAGACCGCATGCCATTATTTGTCTGATCTGTAGTAATTACAGCTGTGTTATTATTATTATCTTTACCAGTCTTAGCTGGGGCAATCACAATACTGTTAACTGATCGTAATCTGAATACTTCATTTTTTGATCCG------------------------------------';
 # my $str2 = 'ACTCTGTATTTTATTTTTGGTGCTTGGTCGGGTATGGTGGGCACTTCTCTTAGTTTGTTAATTCGGGCTGAGTTGGGTAATCCTGGCTCACTTATTGGGGATGACCAGATTTATAACGTTATTGTTACTGCTCATGCGTTTATTATAATCTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGGAATTGGCTTGTACCCCTTATGTTAGGTGCCCCAGACATGGCTTTCCCTCGTATAAATAATATAAGTTTTTGGTTGTTGCCCCCGTCTTTGACTCTCTTGGTTTCAAGTAGAATCGTAGATGTAGGTGCGGGTACTGGTTGGACAGTTTACCCGCCTCTGGCAGCTAATATTGCCCACGGCGGGTCTTCTGTAGATTTTGCCATTTTTTCATTGCATCTAGCAGGGGTTTCTTCGATCTTAGGGGCTGTTAATTTTATTACAACTGTGGTGAATATACGTAGACCTGGTATAACCTTGGATCGAATGCCTCTATTTGTATGGTCCGTAGTAATTACAGCGGTGTTACTTTTGTTATCTTTACCAGTTTTAGCAGGGGCTATTACTATACTCCTGACTGACCGTAACCTAAACACCTCATTCTTCGACCCCGCGGGAGGAGGGGATCCTATTTTGTACCAACATCTC';
 
-# my @unpacked_str1 = unpack("C*", $str1);
-# my @unpacked_str2 = unpack("C*", $str2);
-# my $str1 = 'ATCGACAACG';
-# my $str2 = 'ATCGGTCTGT';
-# my ($weights,$unweighted) = Sequence::Bootstrap::bootstrap_weights(length($str1));
-# use Benchmark qw(cmpthese timethese);
-
-# my $bench = timethese($ARGV[1], {
-
-  # substr => sub {
-   # my ($K2P, $transitions, $transversions, $comparisons) = k2p_bootstrap($str1, $str2, length($str1), @$weights);
-  # },
-
-  # unpack => sub {
-   # my ($K2P, $transitions, $transversions, $comparisons) = k2p_bootstrap_unpack($str1, $str2, length($str1), @$weights);
-  # },
-
-
-# } );
-
-# cmpthese $bench;
-
-
-# for(1..1) {
-	# my ($K2P, $transitions, $transversions, $comparisons) = k2p_bootstrap($str1, $str2, length($str1), @$weights);
-# }
-# for(1..1) {
-	# my ($K2P, $transitions, $transversions, $comparisons) = k2p_bootstrap_unpack($str1, $str2, length($str1), @$weights);
-# }
-# exit;
-# my $t2 = Benchmark->new;
-# my $time2 = timediff($t2, $t0);
-# print "\n";
-# print timestr($time2)."\n";
-
-# exit;
-# srand(1);
-# my $weights = '';
-# for (0..100) {
-	# $weights = Sequence::Bootstrap::bootstrap_weights(length($str1));
-
-	# print $weights."\n\n\n";
-# }
-# exit;
-# my $max_comparisons = length($str1);
-# my ($weights,$unweighted) = Sequence::Bootstrap::bootstrap_weights(length($str1));
-# $weights =$weights;
-
-# print $max_comparisons."\n";
-# my $critical_value2 = 1.25;
-# my $max_seq_length = 350;
-# my ($transitions,	$transversions,		$bases_compared,
-	# $k2p_distance,	$variance,			$stderror,
-	# $mink2p,		$maxk2p,			$p_stderror,
-	# $p_min,			$p_max,				$p_dist
-	# ) = 0;
-# my $search_type = 1;
-# c_kimura_distance(	$str1,				$str2,				$critical_value2,
-					# $cutoff, 			$search_type, 		$max_comparisons,
-					# $transitions,		$transversions,		$bases_compared,
-					# $k2p_distance,		$variance,			$stderror,
-					# $mink2p,			$maxk2p);
-# my $k2p_no_bs = $k2p_distance;
-# $k2p_distance = 0;
-
- # ($transitions,	$transversions,		$bases_compared,
-	# $k2p_distance,	$variance,			$stderror,
-	# $mink2p,		$maxk2p,			$p_stderror,
-	# $p_min,			$p_max,				$p_dist
-	# ) = 0;
-# c_k2p_bootstrap(	$str1,				$str2,				$critical_value2,
-					# $cutoff, 			$search_type, 		$max_comparisons,
-					# $transitions,		$transversions,		$bases_compared,
-					# $k2p_distance,		$variance,			$stderror,
-					# $mink2p,			$maxk2p, $weights);
-# my $k2p_bs = $k2p_distance;
-
-# print $k2p_no_bs." => ".$k2p_bs."\n";
-# exit;
-
-
-# bit_Test();
-
 
 # exit;
 ##################################################################
@@ -232,6 +149,10 @@ my $alignin = Bio::AlignIO->new(-format => 'fasta',
 my $original_aln = $alignin->next_aln;
 ##################################################################
 
+my $coverage = .95;
+alignment_coverage($original_aln, $coverage);
+
+exit;
 
 ##################################################################
 # Tag sequences

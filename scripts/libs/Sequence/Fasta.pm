@@ -50,4 +50,49 @@ sub clean_file_name {
 
 	return $new_file_name;
 }
+
+sub alignment_coverage {
+# Reduces an alignment to only positions that are covered by a certain percentage
+	my $alignment 		= shift;
+	my $coverage_pcnt 	= shift;
+	
+	
+	my %position_counter = ();
+	my $min_coverage = 0;
+	my $current_seq = 0;
+	foreach my $seq ($alignment->each_seq) {
+		my $seq_string = $seq->seq;
+		if($current_seq == 0) {
+			print length($seq_string)."\n";
+			$min_coverage = int length($seq_string)*$coverage_pcnt;
+		}
+		
+		$seq_string = '---AAGGCCTT';
+		my @unpacked_seq = unpack("C*", $seq_string);
+		my $current_position = 0;
+		foreach my $letter (@unpacked_seq) {
+			# print $letter."\n";
+			if($letter != 45) {
+				$position_counter{$current_position}++;
+			}
+			$current_position++;
+		}
+		$current_seq++;
+		# exit;
+	}
+	print $min_coverage."\n";
+	my @valid_positions = ();
+	for my $position ( sort keys %position_counter ) {
+		print $position." => ".$position_counter{$position}."\n";
+		if ($position_counter{$position} >= $min_coverage) {
+			push(@valid_positions, $position);
+		}
+	}
+	print "Reducing alignment to ".($coverage_pcnt*100)."% covered positions only.\n";
+	print scalar(@valid_positions)." positions remain.\n";
+	exit;
+	return $alignment;
+}
+
+
 1;

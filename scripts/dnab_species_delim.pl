@@ -67,6 +67,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-stat' 		=> 'analytical',# Output file prefix
 													'-bsreps'		=> 0,			# Number of BS reps to perform. 0 for no bootstrap
 													'-threads'		=> 1,			# Number of threads to use.
+													'-coverage'		=> 1,			# Reduce to certain % coverage. Use all positions by default.
 													}
 													);
 													
@@ -80,6 +81,8 @@ my $minimum_sequence_length = $params->options->{'-min-length'};
 my $statistical_method = $params->options->{'-stat'};
 my $num_threads = $params->options->{'-threads'};
 my $bootstrap_reps = $params->options->{'-bsreps'};
+my $coverage_pcnt = $params->options->{'-coverage'};
+
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
 if ($bootstrap_reps > 0) {
@@ -93,8 +96,6 @@ my $delimiter = ",";
 # my $str1 = '*****ATATTTTATTTTCGGCGCTTGGGCGGGCATGGTAGGGACTTCCCTTAGCCTATTAATTCGTGCTGAGTTGGGTAACCCTGGTTCTTTAATTGGTGACGACCAAATTTATAACGTTATTGTGACGGCGCATGCGTTTATTATGATTTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGTAATTGGCTGGTTCCCCTTATATTAGGTGCCCCTGATATGGCTTTCCCACGAATAAATAATATAAGATTTTGGTTGTTACCCCCGTCTTTAACTTTGCTGATTTCTAGTAGAATTGTGGATGTAGGGGCTGGCACTGGTTGGACGGTTTATCCTCCATTAGCTGCTAATATCGCCCACGGTGGTTCTTCAGTTGACTTTGCTATTTTCTCATTACATTTAGCTGGGGTTTCTTCTATTTTAGGTGCAGTTAACTTCATTACAACTGTCGTTAATATGCGCAGCCCGGGTATAACGTTAGACCGCATGCCATTATTTGTCTGATCTGTAGTAATTACAGCTGTGTTATTATTATTATCTTTACCAGTCTTAGCTGGGGCAATCACAATACTGTTAACTGATCGTAATCTGAATACTTCATTTTTTGATCCG------------------------------------';
 # my $str2 = 'ACTCTGTATTTTATTTTTGGTGCTTGGTCGGGTATGGTGGGCACTTCTCTTAGTTTGTTAATTCGGGCTGAGTTGGGTAATCCTGGCTCACTTATTGGGGATGACCAGATTTATAACGTTATTGTTACTGCTCATGCGTTTATTATAATCTTTTTTATAGTGATACCAATTATAATCGGTGGATTTGGGAATTGGCTTGTACCCCTTATGTTAGGTGCCCCAGACATGGCTTTCCCTCGTATAAATAATATAAGTTTTTGGTTGTTGCCCCCGTCTTTGACTCTCTTGGTTTCAAGTAGAATCGTAGATGTAGGTGCGGGTACTGGTTGGACAGTTTACCCGCCTCTGGCAGCTAATATTGCCCACGGCGGGTCTTCTGTAGATTTTGCCATTTTTTCATTGCATCTAGCAGGGGTTTCTTCGATCTTAGGGGCTGTTAATTTTATTACAACTGTGGTGAATATACGTAGACCTGGTATAACCTTGGATCGAATGCCTCTATTTGTATGGTCCGTAGTAATTACAGCGGTGTTACTTTTGTTATCTTTACCAGTTTTAGCAGGGGCTATTACTATACTCCTGACTGACCGTAACCTAAACACCTCATTCTTCGACCCCGCGGGAGGAGGGGATCCTATTTTGTACCAACATCTC';
 
-
-# exit;
 ##################################################################
 # Parameters
 
@@ -149,10 +150,7 @@ my $alignin = Bio::AlignIO->new(-format => 'fasta',
 my $original_aln = $alignin->next_aln;
 ##################################################################
 
-my $coverage = .95;
-alignment_coverage($original_aln, $coverage);
-
-exit;
+$original_aln = alignment_coverage($original_aln, $coverage_pcnt);
 
 ##################################################################
 # Tag sequences
@@ -202,6 +200,10 @@ if ($use_tags == 1) {
 # 4. Replace ambiguous characters with gaps (-)
 my %unique_sequences = (); # Don't flush
 my %non_unique_sequences = ();
+
+my %unpacked_sequences = ();
+my %unpacked_filtered_sequences = ();
+
 my @query_seqs_array = ();
 my $max_seq_length = 0;
 my $alignment_length = 0;
@@ -234,8 +236,16 @@ foreach my $seq (@original_sequence_array) {
 	$seq->seq($seq_gapped);
 	$seq->description($seq_degapped);
 	$seq->object_id($filtered_seq);
+	
+	# Unpack sequences
+	my @unpacked_seq = unpack("C*", $seq_gapped);
+	$unpacked_sequences{$seq_gapped} = \@unpacked_seq;
+	my @unpacked_filtered_seq = unpack("C*", $filtered_seq);
+	$unpacked_filtered_sequences{$seq_gapped} = \@unpacked_filtered_seq;
+	
 	$unique_sequences{$seq->seq()} = $seq->id;
 	$non_unique_sequences{$seq->id} = $seq->seq;
+	
 	push(@query_seqs_array,$seq);
 }
 ##################################################################
@@ -336,11 +346,9 @@ sub cluster_algorithm {
 	for my $seq_id1 ( sort keys %seq_hash1 ) {
 		for my $seq_id2 ( sort keys %seq_hash2 ) {
 			next if $seq_id1 eq $seq_id2;
-			# print $max_seq_length."\n";
-			# exit;
-			($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bootstrap(	\$seq_hash1_ref->{$seq_id1}->{'gapped_seq'},
-																							\$seq_hash1_ref->{$seq_id2}->{'gapped_seq'}, 
-																							$max_seq_length, $character_weights);
+			($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bs_prefiltered(	\$unpacked_sequences{$seq_hash1_ref->{$seq_id1}->{'gapped_seq'}},
+																								\$unpacked_filtered_sequences{$seq_hash1_ref->{$seq_id2}->{'gapped_seq'}}, 
+																								$max_seq_length, $character_weights);
 			next if($bases_compared < $minimum_sequence_length);
 			if ($k2p_distance <= $cutoff) {
 				$seq_to_delete = $seq_id1;
@@ -398,24 +406,21 @@ sub cluster_algorithm {
 		my ($k2p_distance, $transitions,$transversions,$bases_compared) = 0;
 		foreach my $otu_seq (@otu_seqs_array) {
 			if($query_seq->seq() eq $otu_seq->seq()) {
-				# $mink2p = 0;
-				# $maxk2p = 0;
-				# $stderror = 0;
-				# $k2p_distance = 0;
 				push(@{$query_results_hash{$query_seq->id}},$otu_seq->id);
 				$query_seq_was_matched++;
 				next;
 			} else {
-				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bootstrap(	\$query_seq->seq(), \$otu_seq->seq(),
-																								$max_seq_length, $character_weights);
-
-				if($k2p_distance < $lowest_distance) {
-					$lowest_distance 		= $k2p_distance;
-					$closest_match 			= $otu_seq->id;
-					$lowest_bases_compared 	= $bases_compared;
-				}
+				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bs_prefiltered(	\$unpacked_sequences{$query_seq->seq()},
+																									\$unpacked_filtered_sequences{$otu_seq->seq()}, 
+																									$max_seq_length, $character_weights);
 				next if $bases_compared < $minimum_sequence_length;
-			}
+				
+				if($k2p_distance < $lowest_distance) {
+						$lowest_distance 		= $k2p_distance;
+						$closest_match 			= $otu_seq->id;
+						$lowest_bases_compared 	= $bases_compared;
+					}
+				}
 
 			# If minimum distance is less than cutoff and statistical method is employed, 
 			# add the match to the match array for this query sequence.
@@ -426,7 +431,7 @@ sub cluster_algorithm {
 		}
 		# If strict method or no valid minimum match was found, add the closest match to the array.
 		if($query_seq_was_matched  == 0) {
-			# if($lowest_min < $cutoff) {
+			# if($lowest_distance < $cutoff) {
 				push(@{$query_results_hash{$query_seq->id}},$closest_match);
 			# } else {
 				# push(@new_otu_seqs,$query_seq);
@@ -435,7 +440,8 @@ sub cluster_algorithm {
 		}
 		$query_seq_i++;
 	}
-	push(@otu_seqs_array,@new_otu_seqs);
+	# push(@otu_seqs_array,@new_otu_seqs);
+	
 	# close(MATCHES);
 	# OTU summary and content file names
 	my $otu_i = 1;
@@ -688,8 +694,9 @@ sub cluster_algorithm {
 			my ($k2p_distance, $transitions, $transversions, $bases_compared ) = 0;
 			foreach my $otu_seq (@otu_seqs_array) { # For each OTU
 				next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
-				($k2p_distance, $transitions, $transversions,	$bases_compared ) = k2p_bootstrap(	\$otu_seq->seq(),\$first_exemplar_seq_gapped,
-																									$max_seq_length, $character_weights);																							
+				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bs_prefiltered(	\$unpacked_sequences{$otu_seq->seq()},
+																									\$unpacked_filtered_sequences{$first_exemplar_seq_gapped}, 
+																									$max_seq_length, $character_weights);																								
 				next if $bases_compared < $minimum_sequence_length;
 				if($k2p_distance < $nn_dist) {
 					$nn_dist = $k2p_distance;
@@ -720,9 +727,9 @@ sub cluster_algorithm {
 				for my $seq2_gapped ( sort keys %current_otu_sequences ) {
 					$unique_alleles{$seq1_gapped} = 'a';
 					$unique_alleles{$seq2_gapped} = 'a';
-					($k2p_distance, $transitions, $transversions,	$bases_compared ) = k2p_bootstrap(	\$seq1_gapped,\$seq2_gapped,
-																										$max_seq_length, $character_weights);
-									
+					($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bs_prefiltered(	\$unpacked_sequences{$seq1_gapped},
+																										\$unpacked_filtered_sequences{$seq2_gapped}, 
+																										$max_seq_length, $character_weights);				
 					if ($bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
 					if($k2p_distance > 0) {
 						# Store distinct allele sequences greater than 0 dist.
@@ -981,9 +988,6 @@ my $mean_bs_values 	= 0;
 if(scalar(@bootstrap_values) > 0) {
 	$bs_stats->add_data(@bootstrap_values);
 	$mean_bs_values = sprintf($bs_rounding,$bs_stats->mean())*100;
-}
-foreach my $bs_value (@bootstrap_values) {
-	print $bs_value."\n";
 }
 print "Average Bootstrap Support: $mean_bs_values\n";
 

@@ -18,8 +18,10 @@ use strict;
 use warnings;
 use Exporter;
 
+use Data::Dumper;
+
 our @ISA= qw( Exporter );
-our @EXPORT_OK = qw(k2p_bootstrap k2p_no_bs);
+our @EXPORT_OK = qw(k2p_bootstrap k2p_no_bs k2p_bs_prefiltered);
 
 sub k2p_bootstrap {
 	my $seq1 		= shift;
@@ -27,7 +29,8 @@ sub k2p_bootstrap {
 	my $length 		= shift;
 	my $weights		= shift;
 	
-	$$seq1 =~ s/-/*/g;
+	my $filtered_seq1 = $$seq1;
+	$filtered_seq1 =~ s/-/*/g;
 	# XOR values for each transition/transversion
 	# Transitions
 	# A->G = 6
@@ -37,7 +40,7 @@ sub k2p_bootstrap {
 	# A->T = 21
 	# C->G = 4
 	# G->T = 19
-	my @unpacked_seq1 = unpack("C*", $$seq1);
+	my @unpacked_seq1 = unpack("C*", $filtered_seq1);
 	my @unpacked_seq2 = unpack("C*", $$seq2);
 	my $transitions 		= 0;
 	my $transversions 		= 0;
@@ -151,6 +154,70 @@ sub k2p_no_bs{
 	return($K2P, $transitions, $transversions, $num_comparisons);
 }
 
+sub k2p_bs_prefiltered {
+	my $seq1 		= shift;
+	my $seq2 		= shift;
+	my $length 		= shift;
+	my $weights		= shift;
+	
+	# XOR values for each transition/transversion
+	# Transitions
+	# A->G = 6
+	# C->T = 23
+	# Transversions
+	# A->C = 2
+	# A->T = 21
+	# C->G = 4
+	# G->T = 19
+	
+	my $transitions 		= 0;
+	my $transversions 		= 0;
+	my $num_comparisons 	= 0;
+	my $pair = '';
+	for (my $i = 0; $i < $length; $i++) {
+		if ($$seq1->[$i] == $$seq2->[$i]) {
+			$num_comparisons += @{$weights}[$i];
+		} else {
+			$pair = $$seq1->[$i] ^ $$seq2->[$i];
+			# Transitions
+			if($pair 		== 6) { # A->G
+				$transitions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
+			}
+			elsif($pair 	== 23){ # C->T	
+				$transitions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
+			} 
+			# Transversions
+			elsif($pair 	== 21){ # A->T
+				$transversions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
+			}
+			elsif($pair 	== 2){ 	# A->C
+				$transversions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
+			}
+			elsif($pair 	== 4){ 	# C->G
+				$transversions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
+			}
+			elsif($pair 	== 19){ # C->T
+				$transversions += @{$weights}[$i];
+				$num_comparisons += @{$weights}[$i];
+			}
+		}
+	}
+	if($num_comparisons <= 0) { return (2,$transitions,$transversions,$num_comparisons) };
+	my $P = $transitions/$num_comparisons;
+	my $Q = $transversions/$num_comparisons;
+	my $w1 = 1-2*$P-$Q;
+	my $w2 = 1-2*$Q;
+	if(($w1 <= 0) || ($w2 <= 0)) { return (2,$transitions,$transversions,$num_comparisons) };
+	my $K2P = -log($w1)/2-log($w2)/4;
+
+	return($K2P, $transitions, $transversions, $num_comparisons);
+}
+
 sub calc_k2p {
 	my $transitions 	= shift;
 	my $transversions 	= shift;
@@ -162,7 +229,18 @@ sub calc_k2p {
 	my $w2 = 1-2*$Q;
 	my $K2P = -log($w1)/2-log($w2)/4;
 
-	return($K2P, $transitions, $transversions, $num_comparisons);
+	return($K2P);
 }
 
+sub solve_min_tv {
+	my $alignment_length = shift;
+	my $cutoff = shift;
+	
+	my $min_transitions = 0;
+	my $min_transversions = 0;
+	for (my $i = 0; $i <= $alignment_length; $i++) {
+	
+		my $k2p_distance = calc_k2p($i,0, $alignment_length);
+	}
+}
 1;

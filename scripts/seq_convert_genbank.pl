@@ -57,9 +57,10 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 
 my $taxa_file = $params->options->{'-list'};
 my @taxa_list = ();
+
 if ($params->options->{'-term'}) {
 	push(@taxa_list, $params->options->{'-term'});
-	$params->options->{'-outp'} = $params->options->{'-term'};
+	# $params->options->{'-outp'} = $params->options->{'-term'};
 } else {
 	open (TAXALIST, '<'.$taxa_file);
 	@taxa_list = <TAXALIST>;
@@ -73,6 +74,8 @@ my $endl = "\n";
 my $suppress_output = 'yes';
 foreach my $taxa (@taxa_list) {
 	$taxa =~ s/\n//g; # replace newlines
+	$taxa =~ s/ /_/g; # replace whitespace
+
 	my ($results) = download_target_taxa($taxa,$taxa_counter,$suppress_output,$params);
 	push(@overall_results, @$results);
 	$taxa_counter++;

@@ -56,41 +56,44 @@ sub alignment_coverage {
 	my $alignment 		= shift;
 	my $coverage_pcnt 	= shift;
 	
-	
 	my %position_counter = ();
 	my $min_coverage = 0;
 	my $current_seq = 0;
+	my $num_seqs = scalar($alignment->each_seq);
 	foreach my $seq ($alignment->each_seq) {
 		my $seq_string = $seq->seq;
 		if($current_seq == 0) {
-			print length($seq_string)."\n";
-			$min_coverage = int length($seq_string)*$coverage_pcnt;
+			$min_coverage = int $num_seqs*$coverage_pcnt;
 		}
-		
-		$seq_string = '---AAGGCCTT';
 		my @unpacked_seq = unpack("C*", $seq_string);
 		my $current_position = 0;
 		foreach my $letter (@unpacked_seq) {
-			# print $letter."\n";
 			if($letter != 45) {
 				$position_counter{$current_position}++;
+				$current_position++;
+			} else {
+				$current_position++;
 			}
-			$current_position++;
 		}
 		$current_seq++;
-		# exit;
 	}
-	print $min_coverage."\n";
 	my @valid_positions = ();
 	for my $position ( sort keys %position_counter ) {
-		print $position." => ".$position_counter{$position}."\n";
 		if ($position_counter{$position} >= $min_coverage) {
 			push(@valid_positions, $position);
 		}
 	}
+	foreach my $seq ($alignment->each_seq) {
+		my $new_seq = '';
+		my @split_seq = split("",$seq->seq);
+		my $letter_i = 0;
+		foreach my $valid (@valid_positions) {
+			$new_seq .= $split_seq[$valid];
+		}
+		$seq->seq($new_seq);
+	}
 	print "Reducing alignment to ".($coverage_pcnt*100)."% covered positions only.\n";
 	print scalar(@valid_positions)." positions remain.\n";
-	exit;
 	return $alignment;
 }
 

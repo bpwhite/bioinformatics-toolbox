@@ -67,14 +67,11 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-stat' 		=> 'analytical',# Output file prefix
 													'-bsreps'		=> 0,			# Number of BS reps to perform. 0 for no bootstrap
 													'-threads'		=> 1,			# Number of threads to use.
-													'-coverage'		=> 1,			# Reduce to certain % coverage. Use all positions by default.
+													'-coverage'		=> 0,			# Reduce to certain % coverage. Use all positions by default.
+													'-shortcut-freq'=> 0.25,		# Size of each partition for the k2p shortcut
 													}
 													);
-													
 my $alignment_file = $params->options->{'-aln1'};
-
-my $minimum_phylo_alleles = 10;
-
 my $use_tags = $params->options->{'-tags'};
 my $cutoff = $params->options->{'-cutoff'};
 my $minimum_sequence_length = $params->options->{'-min-length'};
@@ -82,6 +79,7 @@ my $statistical_method = $params->options->{'-stat'};
 my $num_threads = $params->options->{'-threads'};
 my $bootstrap_reps = $params->options->{'-bsreps'};
 my $coverage_pcnt = $params->options->{'-coverage'};
+my $shortcut_freq = $params->options->{'-shortcut-freq'};
 
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
@@ -149,7 +147,8 @@ my $alignin = Bio::AlignIO->new(-format => 'fasta',
 								-file   => $alignment_file );
 my $original_aln = $alignin->next_aln;
 ##################################################################
-
+# Reduce alignment so that only positions that are covered by the
+# minimum number of nucleotides are used.
 $original_aln = alignment_coverage($original_aln, $coverage_pcnt);
 
 ##################################################################
@@ -248,6 +247,12 @@ foreach my $seq (@original_sequence_array) {
 	
 	push(@query_seqs_array,$seq);
 }
+##################################################################
+# Optimize k2p shortcut for minimum transitions/transversion
+# that will go over the cutoff.
+# max transitions, transversions
+my ($max_ts, $max_tv) = solve_min_tsv($max_seq_length, $cutoff);
+my $shortcut_partition = $max_seq_length * $shortcut_freq;
 ##################################################################
 # If we're not boostrapping, skip ahead.
 if ($doing_bootstrap == $bootstrap_flag) {
@@ -348,7 +353,8 @@ sub cluster_algorithm {
 			next if $seq_id1 eq $seq_id2;
 			($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bs_prefiltered(	\$unpacked_sequences{$seq_hash1_ref->{$seq_id1}->{'gapped_seq'}},
 																								\$unpacked_filtered_sequences{$seq_hash1_ref->{$seq_id2}->{'gapped_seq'}}, 
-																								$max_seq_length, $character_weights);
+																								$max_seq_length, $character_weights,
+																								$shortcut_partition, $max_ts, $max_tv);
 			next if($bases_compared < $minimum_sequence_length);
 			if ($k2p_distance <= $cutoff) {
 				$seq_to_delete = $seq_id1;
@@ -401,7 +407,7 @@ sub cluster_algorithm {
 	foreach my $query_seq (@query_seqs_array) {
 		my $query_seq_was_matched 	= 0;
 		my $closest_match 			= '';
-		my $lowest_distance 		= 2;
+		my $lowest_distance 		= 3;
 		my $lowest_bases_compared 	= 0;
 		my ($k2p_distance, $transitions,$transversions,$bases_compared) = 0;
 		foreach my $otu_seq (@otu_seqs_array) {
@@ -412,15 +418,10 @@ sub cluster_algorithm {
 			} else {
 				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bs_prefiltered(	\$unpacked_sequences{$query_seq->seq()},
 																									\$unpacked_filtered_sequences{$otu_seq->seq()}, 
-																									$max_seq_length, $character_weights);
+																									$max_seq_length, $character_weights,
+																									$shortcut_partition, $max_ts, $max_tv);
 				next if $bases_compared < $minimum_sequence_length;
-				
-				if($k2p_distance < $lowest_distance) {
-						$lowest_distance 		= $k2p_distance;
-						$closest_match 			= $otu_seq->id;
-						$lowest_bases_compared 	= $bases_compared;
-					}
-				}
+			}
 
 			# If minimum distance is less than cutoff and statistical method is employed, 
 			# add the match to the match array for this query sequence.
@@ -431,12 +432,21 @@ sub cluster_algorithm {
 		}
 		# If strict method or no valid minimum match was found, add the closest match to the array.
 		if($query_seq_was_matched  == 0) {
-			# if($lowest_distance < $cutoff) {
-				push(@{$query_results_hash{$query_seq->id}},$closest_match);
-			# } else {
-				# push(@new_otu_seqs,$query_seq);
-				# push(@{$query_results_hash{$query_seq->id}},$query_seq->id);
-			# }
+			$lowest_distance = 3;
+			foreach my $otu_seq (@otu_seqs_array) {
+				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bs(	\$unpacked_sequences{$query_seq->seq()},
+																						\$unpacked_filtered_sequences{$otu_seq->seq()}, 
+																						$max_seq_length, $character_weights);
+				next if $bases_compared < $minimum_sequence_length;
+				
+				if($k2p_distance < $lowest_distance) {
+						$lowest_distance 		= $k2p_distance;
+						$closest_match 			= $otu_seq->id;
+						$lowest_bases_compared 	= $bases_compared;
+				}
+			}
+			push(@{$query_results_hash{$query_seq->id}},$closest_match);
+
 		}
 		$query_seq_i++;
 	}
@@ -599,21 +609,21 @@ sub cluster_algorithm {
 		my @sorted_ids = sort @unique_overall_query_matches;
 		my $otu_id_string = join ",", @sorted_ids;
 		my $otu_digest = sha1_base64($otu_id_string);
-
-		# foreach my $id (@unique_overall_query_matches) {
-			# if ($id =~ m/COI/) {
-				# print $id."\n";
-				# exit;
-			# }
+		
+		# if ($otu_i == 4) {
+			# print scalar(@sorted_ids)."\n";
 		# }
 		if ($doing_bootstrap != $bootstrap_flag) {
 			# print $otu_digest."\n";
 			# print "BS Rep: ".$bootstrap_counter."\n";
 			if (exists($bootstrap_hash{$otu_digest})) {
+				
+				# print $otu_digest."\n";
 				# print "A\n";
 				$bootstrap_hash{$otu_digest}++;
 				$bootstrap_counter++;
 			} else {
+				# print $otu_digest."\n";
 				# print "B\n";
 				$bootstrap_hash{$otu_digest} = 1;
 				$bootstrap_counter++;
@@ -627,6 +637,8 @@ sub cluster_algorithm {
 			
 			my $bootstrap_percentage = 0;
 			my $raw_bootstrap_percentage = 0;
+			# print $otu_digest."\n";
+			# print $bootstrap_hash{$otu_digest}."\n";
 			$raw_bootstrap_percentage = $bootstrap_hash{$otu_digest}/$bootstrap_reps if($bootstrap_reps > 0);
 			$bootstrap_percentage = sprintf("%.3f",$raw_bootstrap_percentage)*100;
 			push(@bootstrap_values, $raw_bootstrap_percentage);
@@ -694,9 +706,9 @@ sub cluster_algorithm {
 			my ($k2p_distance, $transitions, $transversions, $bases_compared ) = 0;
 			foreach my $otu_seq (@otu_seqs_array) { # For each OTU
 				next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
-				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bs_prefiltered(	\$unpacked_sequences{$otu_seq->seq()},
-																									\$unpacked_filtered_sequences{$first_exemplar_seq_gapped}, 
-																									$max_seq_length, $character_weights);																								
+				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(\$unpacked_sequences{$otu_seq->seq()},
+																						\$unpacked_filtered_sequences{$first_exemplar_seq_gapped}, 
+																						$max_seq_length);																								
 				next if $bases_compared < $minimum_sequence_length;
 				if($k2p_distance < $nn_dist) {
 					$nn_dist = $k2p_distance;
@@ -727,9 +739,9 @@ sub cluster_algorithm {
 				for my $seq2_gapped ( sort keys %current_otu_sequences ) {
 					$unique_alleles{$seq1_gapped} = 'a';
 					$unique_alleles{$seq2_gapped} = 'a';
-					($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bs_prefiltered(	\$unpacked_sequences{$seq1_gapped},
-																										\$unpacked_filtered_sequences{$seq2_gapped}, 
-																										$max_seq_length, $character_weights);				
+					($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(\$unpacked_sequences{$seq1_gapped},
+																							\$unpacked_filtered_sequences{$seq2_gapped}, 
+																							$max_seq_length);				
 					if ($bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
 					if($k2p_distance > 0) {
 						# Store distinct allele sequences greater than 0 dist.

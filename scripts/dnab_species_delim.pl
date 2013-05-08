@@ -59,29 +59,32 @@ my $k2p1 = 0;
 ##################################################################
 
 
-my $params = General::Arguments->new(	arguments_v => \@ARGV,
-									option_defs => {'-aln1' 			=> '', 			# List file name
-													'-cutoff' 			=> 0.02, 		# Sequence limit
-													'-tags' 			=> 0, 			# Taxa limit
-													'-min-length' 		=> 350, 		# User email
-													'-stat' 			=> 'analytical',# Output file prefix
-													'-bsreps'			=> 0,			# Number of BS reps to perform. 0 for no bootstrap
-													'-threads'			=> 1,			# Number of threads to use.
-													'-coverage'			=> 0,			# Reduce to certain % coverage. Use all positions by default.
-													'-shortcut-freq'	=> 0.25,		# Size of each partition for the k2p shortcut
-													'-greedy-matching'	=> 0,			# Don't do exhaustive cluster linking
-													}
-													);
-my $alignment_file = $params->options->{'-aln1'};
-my $use_tags = $params->options->{'-tags'};
-my $cutoff = $params->options->{'-cutoff'};
+my $params = General::Arguments->new(	
+	arguments_v => \@ARGV,
+	option_defs => {'-aln1' 				=> '', 			# List file name
+					'-cutoff' 				=> 0.02, 		# Sequence limit
+					'-tags' 				=> 0, 			# Taxa limit
+					'-min-length' 			=> 350, 		# User email
+					'-stat' 				=> 'analytical',# Output file prefix
+					'-bsreps'				=> 0,			# Number of BS reps to perform. 0 for no bootstrap
+					'-threads'				=> 1,			# Number of threads to use.
+					'-coverage'				=> 0,			# Reduce to certain % coverage. Use all positions by default.
+					'-shortcut-freq'		=> 0.25,		# Size of each partition for the k2p shortcut
+					'-greedy-matching'		=> 0,			# Don't do exhaustive cluster linking
+					'-print-dist-matrix' 	=> 0,			# Print distance matrix
+					}
+					);
+my $alignment_file 			= $params->options->{'-aln1'};
+my $use_tags 				= $params->options->{'-tags'};
+my $cutoff 					= $params->options->{'-cutoff'};
 my $minimum_sequence_length = $params->options->{'-min-length'};
-my $statistical_method = $params->options->{'-stat'};
-my $num_threads = $params->options->{'-threads'};
-my $bootstrap_reps = $params->options->{'-bsreps'};
-my $coverage_pcnt = $params->options->{'-coverage'};
-my $shortcut_freq = $params->options->{'-shortcut-freq'};
-my $greedy_matching = $params->options->{'-greedy-matching'};
+my $statistical_method 	= $params->options->{'-stat'};
+my $num_threads 		= $params->options->{'-threads'};
+my $bootstrap_reps 		= $params->options->{'-bsreps'};
+my $coverage_pcnt 		= $params->options->{'-coverage'};
+my $shortcut_freq 		= $params->options->{'-shortcut-freq'};
+my $greedy_matching 	= $params->options->{'-greedy-matching'};
+my $print_dist_matrix 	= $params->options->{'-print-dist-matrix'};
 
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
@@ -1044,46 +1047,48 @@ if ($doing_bootstrap == $bootstrap_flag) {
 
 	close(OTU_SUMMARY);
 }
-my $seq_counter = 0;
-my ($k2p_distance, $transitions,$transversions,$bases_compared) = 0;
-my %distance_uniques = ();
 
-my $otu_dist_matrix = $output_prefix.'_otu_dist_matrix.csv';
-unlink $output_path.$otu_dist_matrix;
-open(OTU_MATRIX, '>>'.$output_path.$otu_dist_matrix);
-print "Printing overall distance matrix.\n";
-print OTU_MATRIX ",OTU_ID, ,";
-for my $sample_id1 (sort keys %$otu_assignments_ref) {
-	print OTU_MATRIX filter_one_id($sample_id1).",";
-}
-print OTU_MATRIX "\n";
-for my $sample_id1 (sort keys %$otu_assignments_ref) {
-	print OTU_MATRIX $seq_counter.",",filter_one_id($otu_assignments_ref->{$sample_id1}->{'otu_id'}).",".$sample_id1.",";
-	for my $sample_id2 (sort keys %$otu_assignments_ref) {
-		# print OTU_MATRIX ;
-		# my @otu_pair = ();
-		# push(@otu_pair, $sample_id1, $sample_id2);
-		# @otu_pair = sort @otu_pair;
-		# my $concat_otu_pair = $otu_pair[0].$otu_pair[1];
-		# if (exists $distance_uniques{$concat_otu_pair}) {
-			# next;
-		# } else {
-			# $distance_uniques{$concat_otu_pair} = 'a';
-		($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(	\$unpacked_sequences{$otu_assignments_ref->{$sample_id1}->{'seq'}},
-																					\$unpacked_filtered_sequences{$otu_assignments_ref->{$sample_id2}->{'seq'}},
-																					$max_seq_length);
-		if($bases_compared < $minimum_sequence_length) {
-			print OTU_MATRIX "2,";
-		} else {
-			print OTU_MATRIX $k2p_distance.",";
-		}
-		# }
+if ($print_dist_matrix == 1) {
+	my $seq_counter = 0;
+	my ($k2p_distance, $transitions,$transversions,$bases_compared) = 0;
+	my %distance_uniques = ();
+
+	my $otu_dist_matrix = $output_prefix.'_otu_dist_matrix.csv';
+	unlink $output_path.$otu_dist_matrix;
+	open(OTU_MATRIX, '>>'.$output_path.$otu_dist_matrix);
+	print "Printing overall distance matrix.\n";
+	print OTU_MATRIX ",OTU_ID, ,";
+	for my $sample_id1 (sort keys %$otu_assignments_ref) {
+		print OTU_MATRIX filter_one_id($sample_id1).",";
 	}
-	$seq_counter++;
 	print OTU_MATRIX "\n";
+	for my $sample_id1 (sort keys %$otu_assignments_ref) {
+		print OTU_MATRIX $seq_counter.",",filter_one_id($otu_assignments_ref->{$sample_id1}->{'otu_id'}).",".$sample_id1.",";
+		for my $sample_id2 (sort keys %$otu_assignments_ref) {
+			# print OTU_MATRIX ;
+			# my @otu_pair = ();
+			# push(@otu_pair, $sample_id1, $sample_id2);
+			# @otu_pair = sort @otu_pair;
+			# my $concat_otu_pair = $otu_pair[0].$otu_pair[1];
+			# if (exists $distance_uniques{$concat_otu_pair}) {
+				# next;
+			# } else {
+				# $distance_uniques{$concat_otu_pair} = 'a';
+			($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(	\$unpacked_sequences{$otu_assignments_ref->{$sample_id1}->{'seq'}},
+																						\$unpacked_filtered_sequences{$otu_assignments_ref->{$sample_id2}->{'seq'}},
+																						$max_seq_length);
+			if($bases_compared < $minimum_sequence_length) {
+				print OTU_MATRIX "2,";
+			} else {
+				print OTU_MATRIX $k2p_distance.",";
+			}
+			# }
+		}
+		$seq_counter++;
+		print OTU_MATRIX "\n";
+	}
+	print "Done with matrix.\n";
 }
-print "Done with matrix.\n";
-
 ########################################################################################################
 ## Begin subs																						   #
 ########################################################################################################

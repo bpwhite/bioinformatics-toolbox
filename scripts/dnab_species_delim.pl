@@ -46,6 +46,7 @@ use POSIX qw(ceil);
 use File::Copy;
 use Math::Random::MT::Perl qw(srand rand irand);
 use Digest::SHA qw(sha1 sha1_base64);
+use Term::Spinner;
 
 use threads;
 use threads::shared;
@@ -78,13 +79,13 @@ my $alignment_file 			= $params->options->{'-aln1'};
 my $use_tags 				= $params->options->{'-tags'};
 my $cutoff 					= $params->options->{'-cutoff'};
 my $minimum_sequence_length = $params->options->{'-min-length'};
-my $statistical_method 	= $params->options->{'-stat'};
-my $num_threads 		= $params->options->{'-threads'};
-my $bootstrap_reps 		= $params->options->{'-bsreps'};
-my $coverage_pcnt 		= $params->options->{'-coverage'};
-my $shortcut_freq 		= $params->options->{'-shortcut-freq'};
-my $greedy_matching 	= $params->options->{'-greedy-matching'};
-my $print_dist_matrix 	= $params->options->{'-print-dist-matrix'};
+my $statistical_method 		= $params->options->{'-stat'};
+my $num_threads 			= $params->options->{'-threads'};
+my $bootstrap_reps 			= $params->options->{'-bsreps'};
+my $coverage_pcnt 			= $params->options->{'-coverage'};
+my $shortcut_freq 			= $params->options->{'-shortcut-freq'};
+my $greedy_matching 		= $params->options->{'-greedy-matching'};
+my $print_dist_matrix 		= $params->options->{'-print-dist-matrix'};
 
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
@@ -438,6 +439,7 @@ sub cluster_algorithm {
 				$query_seq_was_matched++;
 				last if $greedy_matching == 1;
 			}
+			
 		}
 		# If strict method or no valid minimum match was found, add the closest match to the array.
 		if($query_seq_was_matched  == 0) {
@@ -1062,6 +1064,7 @@ if ($print_dist_matrix == 1) {
 		print OTU_MATRIX filter_one_id($sample_id1).",";
 	}
 	print OTU_MATRIX "\n";
+	my $dist_spinner = Term::Spinner->new();
 	for my $sample_id1 (sort keys %$otu_assignments_ref) {
 		print OTU_MATRIX $seq_counter.",",filter_one_id($otu_assignments_ref->{$sample_id1}->{'otu_id'}).",".$sample_id1.",";
 		for my $sample_id2 (sort keys %$otu_assignments_ref) {
@@ -1082,8 +1085,10 @@ if ($print_dist_matrix == 1) {
 			} else {
 				print OTU_MATRIX $k2p_distance.",";
 			}
+			
 			# }
 		}
+		$dist_spinner->advance();
 		$seq_counter++;
 		print OTU_MATRIX "\n";
 	}

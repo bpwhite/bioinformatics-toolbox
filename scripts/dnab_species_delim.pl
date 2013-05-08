@@ -60,15 +60,16 @@ my $k2p1 = 0;
 
 
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
-									option_defs => {'-aln1' 		=> '', 			# List file name
-													'-cutoff' 		=> 0.02, 		# Sequence limit
-													'-tags' 		=> 0, 			# Taxa limit
-													'-min-length' 	=> 350, 		# User email
-													'-stat' 		=> 'analytical',# Output file prefix
-													'-bsreps'		=> 0,			# Number of BS reps to perform. 0 for no bootstrap
-													'-threads'		=> 1,			# Number of threads to use.
-													'-coverage'		=> 0,			# Reduce to certain % coverage. Use all positions by default.
-													'-shortcut-freq'=> 0.25,		# Size of each partition for the k2p shortcut
+									option_defs => {'-aln1' 			=> '', 			# List file name
+													'-cutoff' 			=> 0.02, 		# Sequence limit
+													'-tags' 			=> 0, 			# Taxa limit
+													'-min-length' 		=> 350, 		# User email
+													'-stat' 			=> 'analytical',# Output file prefix
+													'-bsreps'			=> 0,			# Number of BS reps to perform. 0 for no bootstrap
+													'-threads'			=> 1,			# Number of threads to use.
+													'-coverage'			=> 0,			# Reduce to certain % coverage. Use all positions by default.
+													'-shortcut-freq'	=> 0.25,		# Size of each partition for the k2p shortcut
+													'-greedy-matching'	=> 0,			# Don't do exhaustive cluster linking
 													}
 													);
 my $alignment_file = $params->options->{'-aln1'};
@@ -80,6 +81,7 @@ my $num_threads = $params->options->{'-threads'};
 my $bootstrap_reps = $params->options->{'-bsreps'};
 my $coverage_pcnt = $params->options->{'-coverage'};
 my $shortcut_freq = $params->options->{'-shortcut-freq'};
+my $greedy_matching = $params->options->{'-greedy-matching'};
 
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
@@ -202,6 +204,9 @@ my %non_unique_sequences = ();
 
 my %unpacked_sequences = ();
 my %unpacked_filtered_sequences = ();
+
+my %otu_assignments = ();
+my $otu_assignments_ref = \%otu_assignments;
 
 my @query_seqs_array = ();
 my $max_seq_length = 0;
@@ -422,36 +427,49 @@ sub cluster_algorithm {
 																									$shortcut_partition, $max_ts, $max_tv);
 				next if $bases_compared < $minimum_sequence_length;
 			}
-
+				
 			# If minimum distance is less than cutoff and statistical method is employed, 
 			# add the match to the match array for this query sequence.
 			if ($k2p_distance <= $cutoff) {
 				push(@{$query_results_hash{$query_seq->id}},$otu_seq->id);
 				$query_seq_was_matched++;
+				last if $greedy_matching == 1;
 			}
 		}
 		# If strict method or no valid minimum match was found, add the closest match to the array.
 		if($query_seq_was_matched  == 0) {
-			$lowest_distance = 3;
-			foreach my $otu_seq (@otu_seqs_array) {
-				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bs(	\$unpacked_sequences{$query_seq->seq()},
-																						\$unpacked_filtered_sequences{$otu_seq->seq()}, 
-																						$max_seq_length, $character_weights);
-				next if $bases_compared < $minimum_sequence_length;
-				
-				if($k2p_distance < $lowest_distance) {
-						$lowest_distance 		= $k2p_distance;
-						$closest_match 			= $otu_seq->id;
-						$lowest_bases_compared 	= $bases_compared;
-				}
-			}
-			push(@{$query_results_hash{$query_seq->id}},$closest_match);
-
+			# if($match_type == 1) {
+				# $lowest_distance = 3;
+				# foreach my $otu_seq (@otu_seqs_array) {
+					# ($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_bs(	\$unpacked_sequences{$query_seq->seq()},
+																							# \$unpacked_filtered_sequences{$otu_seq->seq()}, 
+																							# $max_seq_length, $character_weights);
+					# next if $bases_compared < $minimum_sequence_length;
+					
+					# if($k2p_distance < $lowest_distance) {
+							# $lowest_distance 		= $k2p_distance;
+							# $closest_match 			= $otu_seq->id;
+							# $lowest_bases_compared 	= $bases_compared;
+					# }
+				# }
+				# push(@{$query_results_hash{$query_seq->id}},$closest_match);
+			# } else {
+				# push(@otu_seqs_array,$query_seq);
+			# }
+			# print scalar(@otu_seqs_array)."\n";
+			# print scalar(@new_otu_seqs)."\n";
+			# push(@new_otu_seqs, $query_seq);
+			push(@{$query_results_hash{$query_seq->id}},$query_seq->id);
+			push(@otu_seqs_array, $query_seq);
 		}
 		$query_seq_i++;
 	}
+	# print "Searched: ".scalar(@query_seqs_array)."\n";
+	# print "Matched: ".scalar(@matched_seqs)."\n";
+	# exit;
 	# push(@otu_seqs_array,@new_otu_seqs);
-	
+	# foreach my $seq (@otu_seqs_array) {
+		
 	# close(MATCHES);
 	# OTU summary and content file names
 	my $otu_i = 1;
@@ -515,7 +533,7 @@ sub cluster_algorithm {
 				"Sub-groups".$delimiter.
 				"Link Depth".$delimiter.
 				"Link Strength Percent".$delimiter.
-				"Nearest Neighbor".$delimiter."Dist".$delimiter."Min".$delimiter."Max".$delimiter."\n";
+				"Nearest Neighbor".$delimiter."Dist".$delimiter."\n";
 
 	##################################################################
 	# End Bootstrap Check ############################################
@@ -660,6 +678,8 @@ sub cluster_algorithm {
 				$current_otu_sequences{$query_seq} = $query_seq_id;
 				$current_otu_seqs_and_id{$query_seq_id} = $query_seq;
 				$exemplars_hash{$query_seq_id} = $query_seq;
+				$otu_assignments_ref->{$query_seq_id}->{'otu_id'} = $otu_seq->id;
+				$otu_assignments_ref->{$query_seq_id}->{'seq'} = $query_seq;
 				# my $current_seq_length = fast_seq_length($query_seq);
 				push(@seq_lengths,fast_seq_length($query_seq));
 				$filtered_otu_id = filter_one_id($otu_seq->id);
@@ -1024,6 +1044,45 @@ if ($doing_bootstrap == $bootstrap_flag) {
 
 	close(OTU_SUMMARY);
 }
+my $seq_counter = 0;
+my ($k2p_distance, $transitions,$transversions,$bases_compared) = 0;
+my %distance_uniques = ();
+
+my $otu_dist_matrix = $output_prefix.'_otu_dist_matrix.csv';
+unlink $output_path.$otu_dist_matrix;
+open(OTU_MATRIX, '>>'.$output_path.$otu_dist_matrix);
+print "Printing overall distance matrix.\n";
+print OTU_MATRIX ",OTU_ID, ,";
+for my $sample_id1 (sort keys %$otu_assignments_ref) {
+	print OTU_MATRIX filter_one_id($sample_id1).",";
+}
+print OTU_MATRIX "\n";
+for my $sample_id1 (sort keys %$otu_assignments_ref) {
+	print OTU_MATRIX $seq_counter.",",filter_one_id($otu_assignments_ref->{$sample_id1}->{'otu_id'}).",".$sample_id1.",";
+	for my $sample_id2 (sort keys %$otu_assignments_ref) {
+		# print OTU_MATRIX ;
+		# my @otu_pair = ();
+		# push(@otu_pair, $sample_id1, $sample_id2);
+		# @otu_pair = sort @otu_pair;
+		# my $concat_otu_pair = $otu_pair[0].$otu_pair[1];
+		# if (exists $distance_uniques{$concat_otu_pair}) {
+			# next;
+		# } else {
+			# $distance_uniques{$concat_otu_pair} = 'a';
+		($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(	\$unpacked_sequences{$otu_assignments_ref->{$sample_id1}->{'seq'}},
+																					\$unpacked_filtered_sequences{$otu_assignments_ref->{$sample_id2}->{'seq'}},
+																					$max_seq_length);
+		if($bases_compared < $minimum_sequence_length) {
+			print OTU_MATRIX "2,";
+		} else {
+			print OTU_MATRIX $k2p_distance.",";
+		}
+		# }
+	}
+	$seq_counter++;
+	print OTU_MATRIX "\n";
+}
+print "Done with matrix.\n";
 
 ########################################################################################################
 ## Begin subs																						   #

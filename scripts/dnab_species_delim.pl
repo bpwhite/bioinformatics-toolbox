@@ -65,7 +65,7 @@ my $params = General::Arguments->new(
 	option_defs => {'-aln1' 				=> '', 			# List file name
 					'-cutoff' 				=> 0.02, 		# Sequence limit
 					'-tags' 				=> 0, 			# Taxa limit
-					'-min-length' 			=> 350, 		# User email
+					'-min-length' 			=> 50, 			# Minimum sequence length
 					'-stat' 				=> 'analytical',# Output file prefix
 					'-bsreps'				=> 0,			# Number of BS reps to perform. 0 for no bootstrap
 					'-threads'				=> 1,			# Number of threads to use.
@@ -73,6 +73,9 @@ my $params = General::Arguments->new(
 					'-shortcut-freq'		=> 0.25,		# Size of each partition for the k2p shortcut
 					'-greedy-matching'		=> 0,			# Don't do exhaustive cluster linking
 					'-print-dist-matrix' 	=> 0,			# Print distance matrix
+					'-ran-splice'			=> 0,			# Randomly splice the alignment
+					'-otu-count'			=> 0,			# Just count OTU's and exit.
+					'-skip-intra-dist'		=> 0,			# Skip calculating intra-OTU dist
 					}
 					);
 my $alignment_file 			= $params->options->{'-aln1'};
@@ -86,6 +89,9 @@ my $coverage_pcnt 			= $params->options->{'-coverage'};
 my $shortcut_freq 			= $params->options->{'-shortcut-freq'};
 my $greedy_matching 		= $params->options->{'-greedy-matching'};
 my $print_dist_matrix 		= $params->options->{'-print-dist-matrix'};
+my $ran_splice		 		= $params->options->{'-ran-splice'};
+my $otu_count_only			= $params->options->{'-otu-count'};
+my $skip_intra_dist			= $params->options->{'-skip-intra-dist'};
 
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
@@ -153,10 +159,18 @@ my $alignin = Bio::AlignIO->new(-format => 'fasta',
 								-file   => $alignment_file );
 my $original_aln = $alignin->next_aln;
 ##################################################################
+# Alignment processing
 # Reduce alignment so that only positions that are covered by the
 # minimum number of nucleotides are used.
 $original_aln = alignment_coverage($original_aln, $coverage_pcnt);
-
+if($ran_splice == 1) {
+	my $orig_aln_length = 0;
+	foreach my $seq ($original_aln->each_seq) {
+		$orig_aln_length = $seq->length();
+		last;
+	}
+	$original_aln = random_splice_alignment($original_aln, 100, $orig_aln_length);
+}
 ##################################################################
 # Tag sequences
 my @original_sequence_array = ();
@@ -237,7 +251,7 @@ foreach my $seq (@original_sequence_array) {
 	# Set max sequence length (Alignment length)
 	# if(length($seq_degapped) > $max_seq_length) { $max_seq_length = length($seq_degapped) } ;
 	if(length($seq_gapped) > $max_seq_length) { $max_seq_length = length($seq_gapped) } ;
-
+	
 	$alignment_length = length($seq_gapped);
 	my $filtered_seq = $seq_gapped;
 	$filtered_seq =~ s/-/*/g;
@@ -260,6 +274,7 @@ foreach my $seq (@original_sequence_array) {
 # Optimize k2p shortcut for minimum transitions/transversion
 # that will go over the cutoff.
 # max transitions, transversions
+print "Final alignment length: $max_seq_length.\n";
 my ($max_ts, $max_tv) = solve_min_tsv($max_seq_length, $cutoff);
 my $shortcut_partition = $max_seq_length * $shortcut_freq;
 ##################################################################
@@ -316,6 +331,7 @@ sub overseer {
 	}
 }
 
+my $otu_i = 1;
 sub cluster_algorithm {
 	##################################################################
 	my $character_weights 	= shift;
@@ -477,7 +493,7 @@ sub cluster_algorithm {
 		
 	# close(MATCHES);
 	# OTU summary and content file names
-	my $otu_i = 1;
+	
 	my $string_space = '';
 
 	if ($doing_bootstrap == $bootstrap_flag) {
@@ -760,25 +776,27 @@ sub cluster_algorithm {
 			my $minimum_possible_max	= 0;
 			my $unique_oqm_i 			= 1;
 			# my ($k2p_distance, $transitions, $transversions, $bases_compared) = 0;
-			for my $seq1_gapped ( sort keys %current_otu_sequences ) {
-				for my $seq2_gapped ( sort keys %current_otu_sequences ) {
-					$unique_alleles{$seq1_gapped} = 'a';
-					$unique_alleles{$seq2_gapped} = 'a';
-					($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(\$unpacked_sequences{$seq1_gapped},
-																							\$unpacked_filtered_sequences{$seq2_gapped}, 
-																							$max_seq_length);				
-					if ($bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
-					if($k2p_distance > 0) {
-						# Store distinct allele sequences greater than 0 dist.
-						$distinct_alleles{$seq1_gapped} = 'a';
-						$distinct_alleles{$seq2_gapped} = 'a';
+			if($skip_intra_dist == 0) {
+				for my $seq1_gapped ( sort keys %current_otu_sequences ) {
+					for my $seq2_gapped ( sort keys %current_otu_sequences ) {
+						$unique_alleles{$seq1_gapped} = 'a';
+						$unique_alleles{$seq2_gapped} = 'a';
+						($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(\$unpacked_sequences{$seq1_gapped},
+																								\$unpacked_filtered_sequences{$seq2_gapped}, 
+																								$max_seq_length);				
+						if ($bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
+						if($k2p_distance > 0) {
+							# Store distinct allele sequences greater than 0 dist.
+							$distinct_alleles{$seq1_gapped} = 'a';
+							$distinct_alleles{$seq2_gapped} = 'a';
+						}
+						push(@distances, $k2p_distance);
+						push(@num_comparisons, $bases_compared);
+						last if $unique_oqm_i == $matrix_count;
+						$unique_oqm_i++;
 					}
-					push(@distances, $k2p_distance);
-					push(@num_comparisons, $bases_compared);
 					last if $unique_oqm_i == $matrix_count;
-					$unique_oqm_i++;
 				}
-				last if $unique_oqm_i == $matrix_count;
 			}
 			##################################################################
 			## End intra-OTU distance calculations
@@ -1017,6 +1035,11 @@ sub cluster_algorithm {
 	}
 }
 
+if($otu_count_only == 1) {
+	print $otu_i.','.$max_seq_length;
+	exit;
+}
+
 print "BS Counter ".$bootstrap_counter."\n" if(defined($bootstrap_counter));
 
 my $bs_rounding		= "%.5f";
@@ -1054,7 +1077,7 @@ if ($print_dist_matrix == 1) {
 	my $seq_counter = 0;
 	my ($k2p_distance, $transitions,$transversions,$bases_compared) = 0;
 	my %distance_uniques = ();
-
+	my $max_distance = 0.50;
 	my $otu_dist_matrix = $output_prefix.'_otu_dist_matrix.csv';
 	unlink $output_path.$otu_dist_matrix;
 	open(OTU_MATRIX, '>>'.$output_path.$otu_dist_matrix);
@@ -1081,8 +1104,9 @@ if ($print_dist_matrix == 1) {
 																						\$unpacked_filtered_sequences{$otu_assignments_ref->{$sample_id2}->{'seq'}},
 																						$max_seq_length);
 			if($bases_compared < $minimum_sequence_length) {
-				print OTU_MATRIX "2,";
+				print OTU_MATRIX "0.5,";
 			} else {
+				$k2p_distance = $max_distance if $k2p_distance > $max_distance;
 				print OTU_MATRIX $k2p_distance.",";
 			}
 			

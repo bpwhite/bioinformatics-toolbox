@@ -34,7 +34,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													);
 my $check_list 				= $params->options->{'-check-list'};
 my $delim_summary_file 		= $params->options->{'-delim-summary'};
-my $delim_results_file 	= $params->options->{'-delim-results'};
+my $delim_results_file 		= $params->options->{'-delim-results'};
 my $delim_alignment_file 	= $params->options->{'-delim-aligment'};
 
 open (TAXALIST, '<'.$check_list);
@@ -45,9 +45,9 @@ open (DELIM, '<'.$delim_summary_file);
 my @delim_summary_lines = <DELIM>;
 close(DELIM);
 
-open (DELIM, '<'.$delim_results_file);
-my @delim_results_lines = <DELIM>;
-close(DELIM);
+# open (DELIM, '<'.$delim_results_file);
+# my @delim_results_lines = <DELIM>;
+# close(DELIM);
 
 # open (DELIM, '<',.$delim_alignment_file);
 # my @delim_lines = <DELIM>;
@@ -55,7 +55,7 @@ close(DELIM);
 
 clean_file_lines(\@check_list_lines);
 clean_file_lines(\@delim_summary_lines);
-clean_file_lines(\@delim_results_lines);
+# clean_file_lines(\@delim_results_lines);
 
 my %unique_check_list = ();
 foreach my $line (@check_list_lines) {
@@ -89,12 +89,12 @@ for my $taxa ( sort keys %unique_check_list ) {
 	if($found_delim == 0) {
 		# print "\tNot found.\n";
 		print "\t$taxa,";
-		for(0..$delim_fields) {
+		for(0..($delim_fields-1)) {
 			print "NA,";
 		}
 		print "\n";
 	}
-	my @current_results = grep { $_ == $taxa } @delim_results_lines;
+	# my @current_results = grep { $_ == $taxa } @delim_results_lines;
 }
 
 sub clean_file_lines {

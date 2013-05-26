@@ -97,5 +97,25 @@ sub alignment_coverage {
 	return $alignment;
 }
 
+sub random_splice_alignment {
+	my $alignment	= shift;
+	my $splice_min 	= shift;
+	my $splice_max	= shift;
+	
+	my $splice_size = abs int rand ($splice_max);
+	$splice_size = $splice_min if $splice_size < $splice_min;
+	
+	my $splice_start = abs int rand ($splice_max);
+	$splice_start = ($splice_max - $splice_size) if ($splice_start + $splice_size) > $splice_max;
+	
+	my $splice_end = $splice_size + $splice_start;
+	
+	print "Splicing Size: $splice_size => Start: $splice_start => End: $splice_end\n";
+	foreach my $seq ($alignment->each_seq) {
+		my $new_seq = $seq->subseq($splice_start,$splice_end);
+		$seq->seq($new_seq);
+	}
+	return $alignment;
+}
 
 1;

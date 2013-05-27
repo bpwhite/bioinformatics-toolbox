@@ -169,7 +169,7 @@ if($ran_splice == 1) {
 		$orig_aln_length = $seq->length();
 		last;
 	}
-	$original_aln = random_splice_alignment($original_aln, 100, $orig_aln_length);
+	$original_aln = random_splice_alignment($original_aln, 75, $orig_aln_length);
 }
 ##################################################################
 # Tag sequences
@@ -331,7 +331,7 @@ sub overseer {
 	}
 }
 
-my $otu_i = 1;
+
 sub cluster_algorithm {
 	##################################################################
 	my $character_weights 	= shift;
@@ -569,9 +569,8 @@ sub cluster_algorithm {
 	my $num_exemplars = 0;
 
 	my %morpho_name_hash = ();
-	my $morpho_name_hash_ref = \%morpho_name_hash;
 	my @otu_morpho_lumps = ();
-
+	my $otu_i = 1;
 	foreach my $otu_seq (@otu_seqs_array) { # For each OTU
 		next if $otu_seq->id ~~ @found_links_OTUs; # Skip found OTU's
 		my @overall_query_matches = (); # Store all of the query matches from
@@ -937,6 +936,11 @@ sub cluster_algorithm {
 						$unique_name_abundance++;
 					}
 				}
+				if(exists($morpho_name_hash{$unique_overall_name})) {
+					$morpho_name_hash{$unique_overall_name}++;
+				} else {
+					$morpho_name_hash{$unique_overall_name} = 1;
+				}
 				print "\t->".$unique_overall_name." [".$unique_name_abundance."]\n";
 				print OTU_SUMMARY "         -->".$unique_overall_name." [".$unique_name_abundance."]".$delimiter."\n";
 				# print "\tp-value: ".$p_value."\n\t# clusters: ".$ml_clusters."\n\tcluster range: ".$ml_clusters_conf."\n\t# entities: ".$ml_entities."\n\tentities range: ".$ml_entities_conf."\n";
@@ -968,7 +972,7 @@ sub cluster_algorithm {
 				next;
 			} else {
 				print OTU_SUMMARY "\t".$orig_query_seq->id." Sequence Length: ".fast_seq_length($orig_query_seq->seq())."\n";
-				print "\t".$orig_query_seq->id." Sequence Length: ".fast_seq_length($orig_query_seq->seq())."\n";
+				# print "\t".$orig_query_seq->id." Sequence Length: ".fast_seq_length($orig_query_seq->seq())."\n";
 			}
 		}
 
@@ -977,50 +981,16 @@ sub cluster_algorithm {
 		print "\n\n";
 		print "Identification Sucess:\n\n";
 		## Identification analysis
-		my %id_analysis_morpho_ids = ();
-		my %id_analysis_otu_ids = ();
-		my %id_analysis_gmyc_ids = ();
-		# Build keys for each type of ID (morpho, otu, gmyc)
-		for my $specimen_id (sort keys %$morpho_name_hash_ref) {
-			$id_analysis_morpho_ids{convert_id_to_name($specimen_id)} = 1;
-			$id_analysis_otu_ids{$morpho_name_hash_ref->{$specimen_id}->{'otu_id'}} = 1;
-		}
-		my @otu_morpho_correspondence = ();
-		my @gmyc_morpho_correspondence = ();
-		for my $morpho_id (sort keys %id_analysis_morpho_ids) {
-			my @current_morpho_otu_ids = ();
-			my @current_morpho_gmyc_ids = ();
-			for my $specimen_id (sort keys %$morpho_name_hash_ref) {
-				my $current_morpho_name = convert_id_to_name($specimen_id);
-				if ($current_morpho_name eq $morpho_id) {
-					push(@current_morpho_otu_ids, $morpho_name_hash_ref->{$specimen_id}->{'otu_id'});
-				}
+		my $identification_rounding = "%.4f";
+		my $num_morpho_names = keys %morpho_name_hash;
+		my $num_one_to_one_morpho = 0;
+		for my $unique_morpho_name (sort keys %morpho_name_hash) {
+			if($morpho_name_hash{$unique_morpho_name} == 1) {
+				$num_one_to_one_morpho++;
 			}
-			my %current_unique_otu_ids = map {$_,1} @current_morpho_otu_ids;
-			my $number_otu_ids = keys %current_unique_otu_ids;
-			push(@otu_morpho_correspondence,$number_otu_ids);
-			# print $morpho_id."\n";
-			# print "\tOTU: \n";
-			# for my $unique_otu (sort keys %current_unique_otu_ids) {
-				# print "\t\t".$unique_otu."\n";
-			# }
-			# print "\tGMYC: \n";
-			# for my $unique_gmyc (sort keys %current_unique_gmyc_ids) {
-				# print "\t\t".$unique_gmyc."\n";
-			# }
 		}
-		my %unique_otu_correspondences = map {$_,1} @otu_morpho_correspondence;
-		my $identification_rounding = "%.1f";
-		print "Morpho Correspondence Success rates: \n";
-		print "\tOTU: # IDs, % Correspondence\n";
-		for my $unique_otu_correspondences (sort keys %unique_otu_correspondences) {
-			my @current_correspondences = grep { $_ == $unique_otu_correspondences } @otu_morpho_correspondence;
-			my $percent_correspondence = scalar(@current_correspondences)/scalar(@otu_morpho_correspondence)*100;
-			$percent_correspondence = sprintf($identification_rounding,$percent_correspondence);
-			print "\t\t".$unique_otu_correspondences.") ".$percent_correspondence."\n";
-		}
-
-
+		my $one_to_one_ratio = sprintf($identification_rounding,$num_one_to_one_morpho/$num_morpho_names);
+		print "% 1:1 Morpho ratio: $one_to_one_ratio\n";
 		my %unique_otu_morpho_lumps = map {$_,1} @otu_morpho_lumps;
 		print "\tOTU Lumping Rate: # Morpho, % Lumping\n";
 		for my $unique_otu_morpho_lumps (sort keys %unique_otu_morpho_lumps) {
@@ -1029,48 +999,56 @@ sub cluster_algorithm {
 			$percent_correspondence = sprintf($identification_rounding,$percent_correspondence);
 			print "\t\t".$unique_otu_morpho_lumps.") ".$percent_correspondence."\n";
 		}
+
+		print "BS Counter ".$bootstrap_counter."\n" if(defined($bootstrap_counter));
+
+		my $bs_rounding		= "%.5f";
+		my $bs_stats 		= Statistics::Descriptive::Full->new();
+		my $mean_bs_values 	= 0;
+		if(scalar(@bootstrap_values) > 0) {
+			$bs_stats->add_data(@bootstrap_values);
+			$mean_bs_values = sprintf($bs_rounding,$bs_stats->mean())*100;
+		}
+		print "Average Bootstrap Support: $mean_bs_values\n";
+
+		my $t1 = Benchmark->new;
+		my $time = timediff($t1, $t0);
+		print "\n";
+		print timestr($time)."\n";
+		
+		
+		print OTU_SUMMARY "\n";
+		print OTU_SUMMARY timestr($time).$delimiter."\n";
+
+		print OTU_SUMMARY "[OTU #] OTU Ref. ID:			Reference ID\n";
+		print OTU_SUMMARY "[# Morpho]:					# of morphological identifications\n";
+		print OTU_SUMMARY "[Abundance:					Alleles]	# of sequences: # of unique alleles\n";
+		print OTU_SUMMARY "Avg. Dist: Max (Adjusted):	# Average K2P Maximum K2P (Minimum Possible K2P)\n";
+		print OTU_SUMMARY "Upper Limit:					Upper limit of the widest confidence interval\n";
+		print OTU_SUMMARY "Avg. Length: (Min - Max):	Average sequence length (Minimum - Maximum)\n";
+		print OTU_SUMMARY "[Sub-groups]:				# of non-statistical sub-groups\n";
+		print OTU_SUMMARY "[Link Depth]:				Network depth that sub-groups are connected by\n";
+		print OTU_SUMMARY "[Link Strength %]:			Distribution of sequences within each sub-group\n";
+
+		close(OTU_SUMMARY);
+		
+		if($otu_count_only == 1) {
+			my $total_otu = $otu_i - 1;
+			print $total_otu.','.$max_seq_length;
+			exit;
+		}
 	##################################################################
 	# End Bootstrap Check ############################################
 	##################################################################
 	}
 }
 
-if($otu_count_only == 1) {
-	print $otu_i.','.$max_seq_length;
-	exit;
-}
 
-print "BS Counter ".$bootstrap_counter."\n" if(defined($bootstrap_counter));
 
-my $bs_rounding		= "%.5f";
-my $bs_stats 		= Statistics::Descriptive::Full->new();
-my $mean_bs_values 	= 0;
-if(scalar(@bootstrap_values) > 0) {
-	$bs_stats->add_data(@bootstrap_values);
-	$mean_bs_values = sprintf($bs_rounding,$bs_stats->mean())*100;
-}
-print "Average Bootstrap Support: $mean_bs_values\n";
 
-my $t1 = Benchmark->new;
-my $time = timediff($t1, $t0);
-print "\n";
-print timestr($time)."\n";
 
 if ($doing_bootstrap == $bootstrap_flag) {
-	print OTU_SUMMARY "\n";
-	print OTU_SUMMARY timestr($time).$delimiter."\n";
 
-	print OTU_SUMMARY "[OTU #] OTU Ref. ID:			Reference ID\n";
-	print OTU_SUMMARY "[# Morpho]:					# of morphological identifications\n";
-	print OTU_SUMMARY "[Abundance:					Alleles]	# of sequences: # of unique alleles\n";
-	print OTU_SUMMARY "Avg. Dist: Max (Adjusted):	# Average K2P Maximum K2P (Minimum Possible K2P)\n";
-	print OTU_SUMMARY "Upper Limit:					Upper limit of the widest confidence interval\n";
-	print OTU_SUMMARY "Avg. Length: (Min - Max):	Average sequence length (Minimum - Maximum)\n";
-	print OTU_SUMMARY "[Sub-groups]:				# of non-statistical sub-groups\n";
-	print OTU_SUMMARY "[Link Depth]:				Network depth that sub-groups are connected by\n";
-	print OTU_SUMMARY "[Link Strength %]:			Distribution of sequences within each sub-group\n";
-
-	close(OTU_SUMMARY);
 }
 
 if ($print_dist_matrix == 1) {

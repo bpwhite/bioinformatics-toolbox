@@ -115,7 +115,7 @@ sub random_splice_alignment {
 		my $new_seq = $seq->subseq($splice_start,$splice_end);
 		$seq->seq($new_seq);
 	}
-	return $alignment;
+	return ($alignment, $splice_start, $splice_end);
 }
 
 1;

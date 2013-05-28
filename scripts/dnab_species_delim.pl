@@ -74,7 +74,7 @@ my $params = General::Arguments->new(
 					'-greedy-matching'		=> 0,			# Don't do exhaustive cluster linking
 					'-print-dist-matrix' 	=> 0,			# Print distance matrix
 					'-ran-splice'			=> 0,			# Randomly splice the alignment
-					'-otu-count'			=> 0,			# Just count OTU's and exit.
+					'-pseudo-reps'			=> 0,			# Repeat analysis with some randomization. Not bootstrap.
 					'-skip-intra-dist'		=> 0,			# Skip calculating intra-OTU dist
 					}
 					);
@@ -90,7 +90,7 @@ my $shortcut_freq 			= $params->options->{'-shortcut-freq'};
 my $greedy_matching 		= $params->options->{'-greedy-matching'};
 my $print_dist_matrix 		= $params->options->{'-print-dist-matrix'};
 my $ran_splice		 		= $params->options->{'-ran-splice'};
-my $otu_count_only			= $params->options->{'-otu-count'};
+my $pseudo_reps				= $params->options->{'-pseudo-reps'};
 my $skip_intra_dist			= $params->options->{'-skip-intra-dist'};
 
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
@@ -128,30 +128,22 @@ my $output_prefix = $alignment_label.'_'.$cutoff.'_'.$minimum_sequence_length.'_
 my $output_path = $alignment_label."\\";
 ##################################################################
 
+
+
 ##################################################################
-# Check if output path exists, if not, create the output path.
 unless(-d ($output_path)) {
 	print "Creating output path: ".$output_path."\n";
 	mkdir $output_path;
 }
-my $otu_summary_file = $output_prefix.'_otu_summary.csv';
-my $otu_summary_excel = $output_prefix.'_otu_summary_excel.csv';
-unlink $output_path.$otu_summary_file;
-open(OTU_SUMMARY, '>>'.$output_path.$otu_summary_file);
-unlink $output_path.$otu_summary_excel;
-open(OTU_EXCEL, '>>'.$output_path.$otu_summary_excel);
-
-my $otu_results = $output_prefix.'_otu_results.csv';
-unlink $output_path.$otu_results;
-open(OTU_RESULTS, '>>'.$output_path.$otu_results);
-print OTU_RESULTS 'otu_seq,query_seq'."\n";
-
-
-my $otu_exemplars = $output_prefix.'_exemplars.fas';
-unlink $output_path.$otu_exemplars;
-open(EXEMPLARS, '>>'.$output_path.$otu_exemplars);
-##################################################################
-
+my $pseudo_reps_outp = $output_prefix.'_pseudo_reps.csv';
+unlink $output_path.$pseudo_reps_outp;
+open(PSEUDO_REPS, '>>'.$output_path.$pseudo_reps_outp);
+print PSEUDO_REPS "pseudo_rep,total_found_seqs,total_otu,max_seq_length,splice_start,splice_end,lumping_rate,one_to_one_ratio\n";
+close(PSEUDO_REPS);
+pseudo_reps:
+print "############\n";
+print "Pseudo rep: $pseudo_reps\n";
+print "############\n";
 ##################################################################
 # Import alignment
 print "Importing alignment file ".$alignment_file."...\n";
@@ -163,15 +155,41 @@ my $original_aln = $alignin->next_aln;
 # Reduce alignment so that only positions that are covered by the
 # minimum number of nucleotides are used.
 $original_aln = alignment_coverage($original_aln, $coverage_pcnt);
+##################################################################
+##################################################################
+# Apply the randomization for each pseudo rep.
+my ($splice_start, $splice_end) = 0;
 if($ran_splice == 1) {
 	my $orig_aln_length = 0;
 	foreach my $seq ($original_aln->each_seq) {
 		$orig_aln_length = $seq->length();
 		last;
 	}
-	$original_aln = random_splice_alignment($original_aln, 75, $orig_aln_length);
+	($original_aln, $splice_start, $splice_end) = random_splice_alignment($original_aln, 75, $orig_aln_length);
 }
+open(PSEUDO_REPS, '>>'.$output_path.$pseudo_reps_outp);
 ##################################################################
+
+##################################################################
+# Check if output path exists, if not, create the output path.
+
+my $otu_summary_file = $output_prefix.'_otu_summary.csv';
+my $otu_summary_excel = $output_prefix.'_otu_summary_excel.csv';
+unlink $output_path.$otu_summary_file;
+open(OTU_SUMMARY, '>'.$output_path.$otu_summary_file);
+unlink $output_path.$otu_summary_excel;
+open(OTU_EXCEL, '>'.$output_path.$otu_summary_excel);
+
+my $otu_results = $output_prefix.'_otu_results.csv';
+unlink $output_path.$otu_results;
+open(OTU_RESULTS, '>'.$output_path.$otu_results);
+print OTU_RESULTS 'otu_seq,query_seq'."\n";
+
+my $otu_exemplars = $output_prefix.'_exemplars.fas';
+unlink $output_path.$otu_exemplars;
+open(EXEMPLARS, '>'.$output_path.$otu_exemplars);
+##################################################################
+
 # Tag sequences
 my @original_sequence_array = ();
 my $current_tag = '';
@@ -960,7 +978,7 @@ sub cluster_algorithm {
 	##################################################################
 	# Bootstrap Check ################################################
 	##################################################################
-		close(EXEMPLARS);
+		my $total_found_seqs = scalar(@query_seqs_found);
 		print OTU_SUMMARY "\n";
 		print OTU_SUMMARY "Found ".scalar(@query_seqs_found)."\n";
 		print OTU_SUMMARY "Not matched :\n";
@@ -993,10 +1011,14 @@ sub cluster_algorithm {
 		print "% 1:1 Morpho ratio: $one_to_one_ratio\n";
 		my %unique_otu_morpho_lumps = map {$_,1} @otu_morpho_lumps;
 		print "\tOTU Lumping Rate: # Morpho, % Lumping\n";
+		my $lumping_rate = 0;
 		for my $unique_otu_morpho_lumps (sort keys %unique_otu_morpho_lumps) {
 			my @current_correspondences = grep { $_ == $unique_otu_morpho_lumps } @otu_morpho_lumps;
 			my $percent_correspondence = scalar(@current_correspondences)/scalar(@otu_morpho_lumps)*100;
 			$percent_correspondence = sprintf($identification_rounding,$percent_correspondence);
+			if($unique_otu_morpho_lumps == 1) {
+				$lumping_rate = $percent_correspondence/100;
+			}
 			print "\t\t".$unique_otu_morpho_lumps.") ".$percent_correspondence."\n";
 		}
 
@@ -1030,19 +1052,22 @@ sub cluster_algorithm {
 		print OTU_SUMMARY "[Link Depth]:				Network depth that sub-groups are connected by\n";
 		print OTU_SUMMARY "[Link Strength %]:			Distribution of sequences within each sub-group\n";
 
-		close(OTU_SUMMARY);
 		
-		if($otu_count_only == 1) {
+		
+		if($pseudo_reps >= 1) {
 			my $total_otu = $otu_i - 1;
-			print $total_otu.','.$max_seq_length;
-			exit;
+			print PSEUDO_REPS $pseudo_reps.','.$total_found_seqs.','.$total_otu.','.$max_seq_length.','.$splice_start.','.$splice_end.','.$lumping_rate.','.$one_to_one_ratio."\n";
+			$pseudo_reps--;
+			close(PSEUDO_REPS);
+			goto pseudo_reps;
 		}
 	##################################################################
 	# End Bootstrap Check ############################################
 	##################################################################
 	}
 }
-
+close(EXEMPLARS);
+close(OTU_SUMMARY);
 
 
 

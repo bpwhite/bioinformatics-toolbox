@@ -20,7 +20,12 @@ use warnings;
 use Exporter;
 
 our @ISA= qw( Exporter );
-our @EXPORT_OK = qw( fix_fasta clean_file_name );
+our @EXPORT_OK = qw( 	fix_fasta 
+						clean_file_name 
+						bootstrap_alignment 
+						random_splice_alignment 
+						fisher_yates_shuffle
+						);
 
 sub fix_fasta {
 	my ( $f ) = shift;
@@ -98,24 +103,73 @@ sub alignment_coverage {
 }
 
 sub random_splice_alignment {
-	my $alignment	= shift;
-	my $splice_min 	= shift;
-	my $splice_max	= shift;
+	my $alignment_ref	= shift;
+	my $splice_min 		= shift;
+	my $splice_max		= shift;
 	
 	my $splice_size = abs int rand ($splice_max);
-	$splice_size = $splice_min if $splice_size < $splice_min;
+	while($splice_size < $splice_min) {
+		$splice_size = abs int rand ($splice_max);
+	}
 	
 	my $splice_start = abs int rand ($splice_max);
 	$splice_start = ($splice_max - $splice_size) if ($splice_start + $splice_size) > $splice_max;
+	$splice_start = 1 if $splice_start < 1;
 	
 	my $splice_end = $splice_size + $splice_start;
 	
 	print "Splicing Size: $splice_size => Start: $splice_start => End: $splice_end\n";
-	foreach my $seq ($alignment->each_seq) {
+	foreach my $seq (@$alignment_ref) {
 		my $new_seq = $seq->subseq($splice_start,$splice_end);
 		$seq->seq($new_seq);
 	}
-	return ($alignment, $splice_start, $splice_end);
+	return ($alignment_ref, $splice_start, $splice_end);
+}
+
+sub specific_splice_alignment {
+	my $alignment_ref	= shift;
+	my $splice_start 	= shift;
+	my $splice_end		= shift;
+	
+	my $splice_size = $splice_end - $splice_start;
+	print "Splicing Size: $splice_size => Start: $splice_start => End: $splice_end\n";
+	foreach my $seq (@$alignment_ref) {
+		my $new_seq = $seq->subseq($splice_start,$splice_end);
+		$seq->seq($new_seq);
+	}
+	return $alignment_ref;
+}
+
+sub bootstrap_alignment {
+# Resample alignment with replacement
+	my $alignment_ref	= shift;
+	my $sample_size		= shift;
+	
+	my $num_sequences = scalar @$alignment_ref;
+	my @subsampled_alignment = ();
+	my @rand_numbers = ();
+	for(my $i = 0; $i < $sample_size; $i++) {
+		my $random_number = int(rand($num_sequences));
+		push(@rand_numbers, $random_number);
+	}
+	foreach my $random_number (@rand_numbers) {
+		# print $alignment_ref->[$random_number]->seq."\n";
+		push(@subsampled_alignment, $alignment_ref->[$random_number]);
+	}
+	
+	my $subsampled_alignment_ref = \@subsampled_alignment;
+	return $subsampled_alignment_ref;
+	
+}
+
+sub fisher_yates_shuffle {
+# Shuffle alignment
+    my $array_ref = shift;
+    my $i = @$array_ref;
+    while ( --$i ) {
+        my $j = int rand( $i+1 );
+        @$array_ref[$i,$j] = @$array_ref[$j,$i];
+    }
 }
 
 1;

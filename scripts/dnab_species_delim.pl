@@ -47,6 +47,8 @@ use File::Copy;
 use Math::Random::MT::Perl qw(srand rand irand);
 use Digest::SHA qw(sha1 sha1_base64);
 use Term::Spinner;
+use Data::Dumper;
+use Storable qw(dclone);
 
 use threads;
 use threads::shared;
@@ -65,7 +67,7 @@ my $params = General::Arguments->new(
 	option_defs => {'-aln1' 				=> '', 			# List file name
 					'-cutoff' 				=> 0.02, 		# Sequence limit
 					'-tags' 				=> 0, 			# Taxa limit
-					'-min-length' 			=> 50, 			# Minimum sequence length
+					'-min-length' 			=> 25, 			# Minimum sequence length
 					'-stat' 				=> 'analytical',# Output file prefix
 					'-bsreps'				=> 0,			# Number of BS reps to perform. 0 for no bootstrap
 					'-threads'				=> 1,			# Number of threads to use.
@@ -76,6 +78,9 @@ my $params = General::Arguments->new(
 					'-ran-splice'			=> 0,			# Randomly splice the alignment
 					'-pseudo-reps'			=> 0,			# Repeat analysis with some randomization. Not bootstrap.
 					'-skip-intra-dist'		=> 0,			# Skip calculating intra-OTU dist
+					'-bootstrap'			=> 0,			# Bootstrap the alignment
+					'-bootstrap-size'		=> 500,			# Sample size for bootstrap, default 500
+					'-specific-splice'		=> 0,			# Splice a specific portion of the alignment
 					}
 					);
 my $alignment_file 			= $params->options->{'-aln1'};
@@ -92,14 +97,16 @@ my $print_dist_matrix 		= $params->options->{'-print-dist-matrix'};
 my $ran_splice		 		= $params->options->{'-ran-splice'};
 my $pseudo_reps				= $params->options->{'-pseudo-reps'};
 my $skip_intra_dist			= $params->options->{'-skip-intra-dist'};
+my $bootstrap_aln			= $params->options->{'-bootstrap'};
+my $bootstrap_size			= $params->options->{'-bootstrap-size'};
+my $specific_splice			= $params->options->{'-specific-splice'};
+
 
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
 if ($bootstrap_reps > 0) {
 	$doing_bootstrap = 1;
 }
-
-my $phylogenetic_length_cutoff = 350;
 my $delimiter = ",";
 
 # srand();
@@ -128,8 +135,6 @@ my $output_prefix = $alignment_label.'_'.$cutoff.'_'.$minimum_sequence_length.'_
 my $output_path = $alignment_label."\\";
 ##################################################################
 
-
-
 ##################################################################
 unless(-d ($output_path)) {
 	print "Creating output path: ".$output_path."\n";
@@ -140,10 +145,6 @@ unlink $output_path.$pseudo_reps_outp;
 open(PSEUDO_REPS, '>>'.$output_path.$pseudo_reps_outp);
 print PSEUDO_REPS "pseudo_rep,total_found_seqs,total_otu,max_seq_length,splice_start,splice_end,lumping_rate,one_to_one_ratio\n";
 close(PSEUDO_REPS);
-pseudo_reps:
-print "############\n";
-print "Pseudo rep: $pseudo_reps\n";
-print "############\n";
 ##################################################################
 # Import alignment
 print "Importing alignment file ".$alignment_file."...\n";
@@ -155,19 +156,50 @@ my $original_aln = $alignin->next_aln;
 # Reduce alignment so that only positions that are covered by the
 # minimum number of nucleotides are used.
 $original_aln = alignment_coverage($original_aln, $coverage_pcnt);
+my @starting_sequence_array = ();
+foreach my $seq ($original_aln->each_seq) {
+	push(@starting_sequence_array,$seq);
+}
+
+my @copy_original_sequence_array = @starting_sequence_array;
+pseudo_reps:
+if ($pseudo_reps != 0) {
+	print "############\n";
+	print "Pseudo rep: $pseudo_reps\n";
+	print "############\n";
+}
+my @original_sequence_array = ();
+@original_sequence_array = @{ dclone(\@copy_original_sequence_array) };
+my $original_sequence_array_ref = \@original_sequence_array;
 ##################################################################
+
 ##################################################################
 # Apply the randomization for each pseudo rep.
-my ($splice_start, $splice_end) = 0;
+my $splice_start 	= 0;
+my $splice_end 		= 0;
 if($ran_splice == 1) {
 	my $orig_aln_length = 0;
-	foreach my $seq ($original_aln->each_seq) {
+	foreach my $seq (@original_sequence_array) {
 		$orig_aln_length = $seq->length();
 		last;
 	}
-	($original_aln, $splice_start, $splice_end) = random_splice_alignment($original_aln, 75, $orig_aln_length);
+	($original_sequence_array_ref, $splice_start, $splice_end) = random_splice_alignment($original_sequence_array_ref, 25, $orig_aln_length);
+}
+
+if($specific_splice ne '0') {
+	my @splice_split = split(":",$specific_splice);
+	$splice_start = $splice_split[0];
+	$splice_end = $splice_split[1];
+	$original_sequence_array_ref = specific_splice_alignment($original_sequence_array_ref, $splice_start, $splice_end);
 }
 open(PSEUDO_REPS, '>>'.$output_path.$pseudo_reps_outp);
+
+if($bootstrap_aln == 1) {
+	
+	$original_sequence_array_ref = bootstrap_alignment($original_sequence_array_ref, $bootstrap_size);
+	@original_sequence_array = @$original_sequence_array_ref;
+}
+
 ##################################################################
 
 ##################################################################
@@ -191,12 +223,12 @@ open(EXEMPLARS, '>'.$output_path.$otu_exemplars);
 ##################################################################
 
 # Tag sequences
-my @original_sequence_array = ();
+
 my $current_tag = '';
 if ($use_tags == 1) {
 	print "Tagging...\n";
 	# For each sequence, if the sequence is a >TAG|NAME, begin tagging
-	foreach my $seq ($original_aln->each_seq) {
+	foreach my $seq (@original_sequence_array) {
 		if($seq->id =~ m/TAG/) {
 			my @delimited_tag = split(/\|/,$seq->id);
 			$current_tag = $delimited_tag[1];
@@ -220,14 +252,10 @@ if ($use_tags == 1) {
 		$new_id .= $current_tag;
 		$seq->id($new_id);
 		# print $seq->id."\n";
-		push(@original_sequence_array,$seq);
-	}
-} else {
-	# No tag, just build the initial sequence array.
-	foreach my $seq ($original_aln->each_seq) {
-		push(@original_sequence_array,$seq);
+		# push(@original_sequence_array,$seq);
 	}
 }
+
 ##################################################################
 
 ##################################################################
@@ -1059,6 +1087,9 @@ sub cluster_algorithm {
 			print PSEUDO_REPS $pseudo_reps.','.$total_found_seqs.','.$total_otu.','.$max_seq_length.','.$splice_start.','.$splice_end.','.$lumping_rate.','.$one_to_one_ratio."\n";
 			$pseudo_reps--;
 			close(PSEUDO_REPS);
+			if ($pseudo_reps == 0) {
+				return;
+			}
 			goto pseudo_reps;
 		}
 	##################################################################
@@ -1165,15 +1196,7 @@ sub fast_seq_length {
 }
 
 
-# randomly permutate @array in place
-sub fisher_yates_shuffle {
-    my $array = shift;
-    my $i = @$array;
-    while ( --$i ) {
-        my $j = int rand( $i+1 );
-        @$array[$i,$j] = @$array[$j,$i];
-    }
-}
+
 
 #################
 ## General subs
@@ -1257,4 +1280,5 @@ sub convert_id_to_name {
 		return $node_id;
 	}
 }
+
 

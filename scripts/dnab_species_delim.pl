@@ -195,7 +195,6 @@ if($specific_splice ne '0') {
 open(PSEUDO_REPS, '>>'.$output_path.$pseudo_reps_outp);
 
 if($bootstrap_aln == 1) {
-	
 	$original_sequence_array_ref = bootstrap_alignment($original_sequence_array_ref, $bootstrap_size);
 	@original_sequence_array = @$original_sequence_array_ref;
 }

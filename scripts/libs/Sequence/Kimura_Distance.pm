@@ -206,8 +206,8 @@ sub k2p_bs_prefiltered {
 			}
 		}
 		if (($i % $shortcut_part) == 0) {
-			if ( $transitions 	>= $max_ts) { return (2, $transitions,$transversions,$length) };
-			if ( $transversions >= $max_tv) { return (2, $transitions,$transversions,$length) };
+			if ( $transitions 	> $max_ts) { return (2, $transitions,$transversions,$length) };
+			if ( $transversions > $max_tv) { return (2, $transitions,$transversions,$length) };
 		}
 		
 	}

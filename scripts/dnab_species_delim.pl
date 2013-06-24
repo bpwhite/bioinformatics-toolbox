@@ -81,25 +81,29 @@ my $params = General::Arguments->new(
 					'-bootstrap'			=> 0,			# Bootstrap the alignment
 					'-bootstrap-size'		=> 500,			# Sample size for bootstrap, default 500
 					'-specific-splice'		=> 0,			# Splice a specific portion of the alignment
+					'-min-aln-length'		=> 500,			# Minimum sequence length to be included in the analysis
+					'-skip-nn'				=> 0,			# Don't search for nearest neighbor
 					}
 					);
-my $alignment_file 			= $params->options->{'-aln1'};
-my $use_tags 				= $params->options->{'-tags'};
-my $cutoff 					= $params->options->{'-cutoff'};
-my $minimum_sequence_length = $params->options->{'-min-length'};
-my $statistical_method 		= $params->options->{'-stat'};
-my $num_threads 			= $params->options->{'-threads'};
-my $bootstrap_reps 			= $params->options->{'-bsreps'};
-my $coverage_pcnt 			= $params->options->{'-coverage'};
-my $shortcut_freq 			= $params->options->{'-shortcut-freq'};
-my $greedy_matching 		= $params->options->{'-greedy-matching'};
-my $print_dist_matrix 		= $params->options->{'-print-dist-matrix'};
-my $ran_splice		 		= $params->options->{'-ran-splice'};
-my $pseudo_reps				= $params->options->{'-pseudo-reps'};
-my $skip_intra_dist			= $params->options->{'-skip-intra-dist'};
-my $bootstrap_aln			= $params->options->{'-bootstrap'};
-my $bootstrap_size			= $params->options->{'-bootstrap-size'};
-my $specific_splice			= $params->options->{'-specific-splice'};
+my $alignment_file 				= $params->options->{'-aln1'};
+my $use_tags 					= $params->options->{'-tags'};
+my $cutoff 						= $params->options->{'-cutoff'};
+my $minimum_sequence_length 	= $params->options->{'-min-length'};
+my $statistical_method 			= $params->options->{'-stat'};
+my $num_threads 				= $params->options->{'-threads'};
+my $bootstrap_reps 				= $params->options->{'-bsreps'};
+my $coverage_pcnt 				= $params->options->{'-coverage'};
+my $shortcut_freq 				= $params->options->{'-shortcut-freq'};
+my $greedy_matching 			= $params->options->{'-greedy-matching'};
+my $print_dist_matrix 			= $params->options->{'-print-dist-matrix'};
+my $ran_splice		 			= $params->options->{'-ran-splice'};
+my $pseudo_reps					= $params->options->{'-pseudo-reps'};
+my $skip_intra_dist				= $params->options->{'-skip-intra-dist'};
+my $bootstrap_aln				= $params->options->{'-bootstrap'};
+my $bootstrap_size				= $params->options->{'-bootstrap-size'};
+my $specific_splice				= $params->options->{'-specific-splice'};
+my $minimum_alignment_length	= $params->options->{'-min-aln-length'};
+my $skip_nn						= $params->options->{'-skip-nn'};
 
 
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
@@ -130,7 +134,6 @@ fix_bold_fasta($alignment_file);
 my @alignment_file_split = split(".fas",$alignment_file);
 my $alignment_label = $alignment_file_split[0];
 my $output_prefix = $alignment_label.'_'.$cutoff.'_'.$minimum_sequence_length.'_'.$statistical_method;
-
 
 my $output_path = $alignment_label."\\";
 ##################################################################
@@ -181,6 +184,7 @@ if($ran_splice == 1) {
 	my $orig_aln_length = 0;
 	foreach my $seq (@original_sequence_array) {
 		$orig_aln_length = $seq->length();
+		next if $orig_aln_length <= 0;
 		last;
 	}
 	($original_sequence_array_ref, $splice_start, $splice_end) = random_splice_alignment($original_sequence_array_ref, 25, $orig_aln_length);
@@ -268,6 +272,16 @@ my %non_unique_sequences = ();
 my %unpacked_sequences = ();
 my %unpacked_filtered_sequences = ();
 
+my $exclude_contaminants = 0;
+my $problem_seqs_file = '';
+my @problem_sequences = ();
+
+if ($exclude_contaminants) {
+	$problem_seqs_file = 'contaminated_algorithm_proof.txt';
+	open PROBLEM, "< $problem_seqs_file" or die "Can't open $problem_seqs_file : $!";
+	@problem_sequences = <PROBLEM>;
+	close PROBLEM;
+}
 my %otu_assignments = ();
 my $otu_assignments_ref = \%otu_assignments;
 
@@ -281,10 +295,12 @@ my %outgroup_seqs = ();
 foreach my $seq (@original_sequence_array) {
 	my $seq_gapped = $seq->seq();
 	my $seq_id = $seq->id();
+	
+	if ($seq_id ~~ @problem_sequences) { next; };
 	foreach my $ambiguous_character (@ambiguous_characters) {
 		$seq_gapped =~ s/$ambiguous_character/-/g;
 	}
-	if(fast_seq_length($seq_gapped) < $minimum_sequence_length) { next; };
+	if(fast_seq_length($seq_gapped) < $minimum_alignment_length) { next; };
 	if($seq_id =~ m/Outgroup/) {
 		$outgroup_seqs{$seq_gapped} = $seq_id;
 		next;
@@ -444,7 +460,7 @@ sub cluster_algorithm {
 	print "Rebuilding sequence arrays...\n" if $doing_bootstrap == $bootstrap_flag;
 	my $number_remaining_seqs = 0;
 	##################################################################
-
+	
 	##################################################################
 	# Rebuilt sequence object array for predicted OTU's
 	my @otu_seqs_array = ();
@@ -789,16 +805,18 @@ sub cluster_algorithm {
 			my $nn_dist = 100;
 			my $nn_sequence = '';
 			my ($k2p_distance, $transitions, $transversions, $bases_compared ) = 0;
-			foreach my $otu_seq (@otu_seqs_array) { # For each OTU
-				next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
-				($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(\$unpacked_sequences{$otu_seq->seq()},
-																						\$unpacked_filtered_sequences{$first_exemplar_seq_gapped}, 
-																						$max_seq_length);																								
-				next if $bases_compared < $minimum_sequence_length;
-				if($k2p_distance < $nn_dist) {
-					$nn_dist = $k2p_distance;
-					$nn_id = $otu_seq->id;
-					$nn_sequence = $otu_seq->seq();
+			if($skip_nn == 0) {
+				foreach my $otu_seq (@otu_seqs_array) { # For each OTU
+					next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
+					($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(\$unpacked_sequences{$otu_seq->seq()},
+																							\$unpacked_filtered_sequences{$first_exemplar_seq_gapped}, 
+																							$max_seq_length);																								
+					next if $bases_compared < $minimum_sequence_length;
+					if($k2p_distance < $nn_dist) {
+						$nn_dist = $k2p_distance;
+						$nn_id = $otu_seq->id;
+						$nn_sequence = $otu_seq->seq();
+					}
 				}
 			}
 			my $nn_rounding = "%.3f";
@@ -986,6 +1004,13 @@ sub cluster_algorithm {
 				} else {
 					$morpho_name_hash{$unique_overall_name} = 1;
 				}
+				if(scalar(@unique_overall_names) > 1) {
+					if(exists($morpho_name_hash{$unique_overall_name})) {
+						$morpho_name_hash{$unique_overall_name}++;
+					} else {
+						$morpho_name_hash{$unique_overall_name} = 2;
+					}
+				}
 				print "\t->".$unique_overall_name." [".$unique_name_abundance."]\n";
 				print OTU_SUMMARY "         -->".$unique_overall_name." [".$unique_name_abundance."]".$delimiter."\n";
 				# print "\tp-value: ".$p_value."\n\t# clusters: ".$ml_clusters."\n\tcluster range: ".$ml_clusters_conf."\n\t# entities: ".$ml_entities."\n\tentities range: ".$ml_entities_conf."\n";
@@ -1034,6 +1059,8 @@ sub cluster_algorithm {
 				$num_one_to_one_morpho++;
 			}
 		}
+		print $num_morpho_names."\n";
+		print $num_one_to_one_morpho."\n";
 		my $one_to_one_ratio = sprintf($identification_rounding,$num_one_to_one_morpho/$num_morpho_names);
 		print "% 1:1 Morpho ratio: $one_to_one_ratio\n";
 		my %unique_otu_morpho_lumps = map {$_,1} @otu_morpho_lumps;

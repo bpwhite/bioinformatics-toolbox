@@ -258,7 +258,6 @@ if ($use_tags == 1) {
 		# push(@original_sequence_array,$seq);
 	}
 }
-
 ##################################################################
 
 ##################################################################
@@ -296,21 +295,24 @@ foreach my $seq (@original_sequence_array) {
 	my $seq_gapped = $seq->seq();
 	my $seq_id = $seq->id();
 	
+	# print $seq_id."\n";
+	# print length($seq_gapped)."\n";
 	if ($seq_id ~~ @problem_sequences) { next; };
 	foreach my $ambiguous_character (@ambiguous_characters) {
 		$seq_gapped =~ s/$ambiguous_character/-/g;
 	}
-	if(fast_seq_length($seq_gapped) < $minimum_alignment_length) { next; };
-	if($seq_id =~ m/Outgroup/) {
-		$outgroup_seqs{$seq_gapped} = $seq_id;
-		next;
-	}
+	if(fast_seq_length($seq_gapped) < $minimum_alignment_length) { print fast_seq_length($seq_gapped)."\n"; next; };
+	# if($seq_id =~ m/Outgroup/) {
+		# $outgroup_seqs{$seq_gapped} = $seq_id;
+		# next;
+	# }
 	my $seq_degapped = $seq_gapped;
 	$seq_degapped =~ s/-/ /g;
 	$seq_degapped =~ s/\s+//g;
 	
 	# Set max sequence length (Alignment length)
 	# if(length($seq_degapped) > $max_seq_length) { $max_seq_length = length($seq_degapped) } ;
+	
 	if(length($seq_gapped) > $max_seq_length) { $max_seq_length = length($seq_gapped) } ;
 	
 	$alignment_length = length($seq_gapped);
@@ -336,6 +338,9 @@ foreach my $seq (@original_sequence_array) {
 # that will go over the cutoff.
 # max transitions, transversions
 print "Final alignment length: $max_seq_length.\n";
+# if($splice_start != 0) {
+	# $max_seq_length = $splice_end - $splice_start;
+# }
 my ($max_ts, $max_tv) = solve_min_tsv($max_seq_length, $cutoff);
 my $shortcut_partition = $max_seq_length * $shortcut_freq;
 ##################################################################

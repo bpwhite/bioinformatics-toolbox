@@ -83,6 +83,8 @@ my $params = General::Arguments->new(
 					'-specific-splice'		=> 0,			# Splice a specific portion of the alignment
 					'-min-aln-length'		=> 500,			# Minimum sequence length to be included in the analysis
 					'-skip-nn'				=> 0,			# Don't search for nearest neighbor
+					'-print-spliced-aln'	=> 0,			# Print a spliced alignment 
+					'-spliced-aln-size'		=> 135,			# Size of a spliced alignment
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -223,6 +225,10 @@ print OTU_RESULTS 'otu_seq,query_seq'."\n";
 my $otu_exemplars = $output_prefix.'_exemplars.fas';
 unlink $output_path.$otu_exemplars;
 open(EXEMPLARS, '>'.$output_path.$otu_exemplars);
+
+my $spliced_align = $output_prefix.'_spliced.fas';
+unlink $output_path.$spliced_align;
+open(SPLICED, '>'.$output_path.$spliced_align);
 ##################################################################
 
 # Tag sequences
@@ -301,7 +307,7 @@ foreach my $seq (@original_sequence_array) {
 	foreach my $ambiguous_character (@ambiguous_characters) {
 		$seq_gapped =~ s/$ambiguous_character/-/g;
 	}
-	if(fast_seq_length($seq_gapped) < $minimum_alignment_length) { print fast_seq_length($seq_gapped)."\n"; next; };
+	if(fast_seq_length($seq_gapped) < $minimum_alignment_length) { next; };
 	# if($seq_id =~ m/Outgroup/) {
 		# $outgroup_seqs{$seq_gapped} = $seq_id;
 		# next;
@@ -773,6 +779,20 @@ sub cluster_algorithm {
 				print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
 				print OTU_FASTA '>['.$otu_i.']_'.$query_seq_id."\n";
 				print OTU_FASTA $query_seq."\n";
+				
+				if($query_seq_id eq $otu_seq->id) {
+					print SPLICED ">".$query_seq_id."_".$otu_i."\n";
+					print SPLICED $query_seq."\n";
+				} else {
+					print SPLICED ">".$query_seq_id."_".$otu_i."\n";
+					print SPLICED splice_one_string_normal_dist($query_seq, 
+														135, # Mean splice size 
+														10,  # Std dev splice
+														5,  # Mean start gaps
+														2,  # Std dev start gaps
+														20   # Prob of short seq
+														)."\n";
+				}
 			}
 			close(OTU_FASTA);
 			##################################################################
@@ -1111,8 +1131,6 @@ sub cluster_algorithm {
 		print OTU_SUMMARY "[Link Depth]:				Network depth that sub-groups are connected by\n";
 		print OTU_SUMMARY "[Link Strength %]:			Distribution of sequences within each sub-group\n";
 
-		
-		
 		if($pseudo_reps >= 1) {
 			my $total_otu = $otu_i - 1;
 			print PSEUDO_REPS $pseudo_reps.','.$total_found_seqs.','.$total_otu.','.$max_seq_length.','.$splice_start.','.$splice_end.','.$lumping_rate.','.$one_to_one_ratio."\n";
@@ -1130,9 +1148,8 @@ sub cluster_algorithm {
 }
 close(EXEMPLARS);
 close(OTU_SUMMARY);
-
-
-
+close(OTU_RESULTS);
+close(SPLICED);
 
 if ($doing_bootstrap == $bootstrap_flag) {
 

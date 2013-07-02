@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use strict;
 use warnings;
+use Math::Random;
 
 use Exporter;
 
@@ -138,6 +139,30 @@ sub specific_splice_alignment {
 		$seq->seq($new_seq);
 	}
 	return $alignment_ref;
+}
+
+sub splice_one_string_normal_dist {
+	my $seq_string		 = shift;
+	my $splice_mean_size = shift;
+	my $splice_std_dev 	 = shift;
+	my $start_mean		 = shift;
+	my $start_std_dev	 = shift;
+	my $prob_short		 = shift;
+	
+	my $ran_length = int random_normal(1, $splice_mean_size, $splice_std_dev);
+	$ran_length = 1 if $ran_length < 0;
+	my $ran_start = int random_normal(1, $start_mean, $start_std_dev);
+	$ran_start = 0 if $ran_start < 0;
+	$ran_length = $ran_length - $ran_start;
+
+	my $short_roll = int rand 100;
+	if($short_roll <= $prob_short) {
+		my $spliced_seq = ('-' x $ran_start).substr($seq_string, $ran_start, $ran_length);
+		return $spliced_seq;
+	} else {
+		my $spliced_seq = substr($seq_string, 0, $splice_mean_size);
+		return $spliced_seq;
+	}	
 }
 
 sub bootstrap_alignment {

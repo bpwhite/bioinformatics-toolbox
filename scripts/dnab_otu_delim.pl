@@ -61,6 +61,23 @@ my $t0 = Benchmark->new;
 my $k2p1 = 0;
 ##################################################################
 
+print "
+******************************************************************
+
+Copyright (c) 2013, Bryan White, bpcwhite\@gmail.com
+
+GNU General Public License, Version 3, 29 June 2007
+
+This program comes with ABSOLUTELY NO WARRANTY; for details type.
+This is free software, and you are welcome to redistribute it
+under certain conditions. 
+
+A full copy of the GPL 3.0 license should be accompanied with any 
+distribution of this software.
+
+******************************************************************
+\n\n
+";
 
 my $params = General::Arguments->new(	
 	arguments_v => \@ARGV,
@@ -72,7 +89,7 @@ my $params = General::Arguments->new(
 					'-bsreps'				=> 0,			# Number of BS reps to perform. 0 for no bootstrap
 					'-threads'				=> 1,			# Number of threads to use.
 					'-coverage'				=> 0,			# Reduce to certain % coverage. Use all positions by default.
-					'-shortcut-freq'		=> 0.25,		# Size of each partition for the k2p shortcut
+					'-shortcut-freq'		=> 0.05,		# Size of each partition for the k2p shortcut
 					'-greedy-matching'		=> 0,			# Don't do exhaustive cluster linking
 					'-print-dist-matrix' 	=> 0,			# Print distance matrix
 					'-ran-splice'			=> 0,			# Randomly splice the alignment
@@ -81,10 +98,11 @@ my $params = General::Arguments->new(
 					'-bootstrap'			=> 0,			# Bootstrap the alignment
 					'-bootstrap-size'		=> 500,			# Sample size for bootstrap, default 500
 					'-specific-splice'		=> 0,			# Splice a specific portion of the alignment
-					'-min-aln-length'		=> 500,			# Minimum sequence length to be included in the analysis
+					'-min-aln-length'		=> 25,			# Minimum sequence length to be included in the analysis
 					'-skip-nn'				=> 0,			# Don't search for nearest neighbor
 					'-print-spliced-aln'	=> 0,			# Print a spliced alignment 
 					'-spliced-aln-size'		=> 135,			# Size of a spliced alignment
+					'-print-ref-seq'		=> 1,			# Print a reference sequence when printing short reads
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -106,7 +124,9 @@ my $bootstrap_size				= $params->options->{'-bootstrap-size'};
 my $specific_splice				= $params->options->{'-specific-splice'};
 my $minimum_alignment_length	= $params->options->{'-min-aln-length'};
 my $skip_nn						= $params->options->{'-skip-nn'};
-
+my $print_spliced_aln			= $params->options->{'-print-spliced-aln'};
+my $spliced_aln_size			= $params->options->{'-spliced-aln-size'};
+my $print_ref_seq				= $params->options->{'-print-ref-seq'};
 
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
@@ -148,7 +168,7 @@ unless(-d ($output_path)) {
 my $pseudo_reps_outp = $output_prefix.'_pseudo_reps.csv';
 unlink $output_path.$pseudo_reps_outp;
 open(PSEUDO_REPS, '>>'.$output_path.$pseudo_reps_outp);
-print PSEUDO_REPS "pseudo_rep,total_found_seqs,total_otu,max_seq_length,splice_start,splice_end,lumping_rate,one_to_one_ratio\n";
+print PSEUDO_REPS "pseudo_rep,total_found_seqs,total_otu,max_seq_length,splice_start,splice_end,lumping_rate,one_to_one_ratio,used_only_once\n";
 close(PSEUDO_REPS);
 ##################################################################
 # Import alignment
@@ -163,6 +183,7 @@ my $original_aln = $alignin->next_aln;
 $original_aln = alignment_coverage($original_aln, $coverage_pcnt);
 my @starting_sequence_array = ();
 foreach my $seq ($original_aln->each_seq) {
+	if(fast_seq_length($seq->seq) < $minimum_alignment_length) { next; };
 	push(@starting_sequence_array,$seq);
 }
 
@@ -296,7 +317,7 @@ my $alignment_length = 0;
 my @ambiguous_characters = ('N', 'R', 'Y', 'K', 
 							'M', 'S', 'W', 'B', 
 							'D', 'H');
-my %outgroup_seqs = ();
+my %ref_library_seqs = ();
 foreach my $seq (@original_sequence_array) {
 	my $seq_gapped = $seq->seq();
 	my $seq_id = $seq->id();
@@ -307,11 +328,12 @@ foreach my $seq (@original_sequence_array) {
 	foreach my $ambiguous_character (@ambiguous_characters) {
 		$seq_gapped =~ s/$ambiguous_character/-/g;
 	}
-	if(fast_seq_length($seq_gapped) < $minimum_alignment_length) { next; };
-	# if($seq_id =~ m/Outgroup/) {
-		# $outgroup_seqs{$seq_gapped} = $seq_id;
-		# next;
-	# }
+	# if(fast_seq_length($seq_gapped) < $minimum_alignment_length) { next; };
+	if($seq_id =~ m/REFSEQ/) {
+		$seq_id =~ s/_REFSEQ_//;
+		$seq->id($seq_id);
+		$ref_library_seqs{$seq_id} = '1';
+	}
 	my $seq_degapped = $seq_gapped;
 	$seq_degapped =~ s/-/ /g;
 	$seq_degapped =~ s/\s+//g;
@@ -454,12 +476,14 @@ sub cluster_algorithm {
 																								$shortcut_partition, $max_ts, $max_tv);
 			next if($bases_compared < $minimum_sequence_length);
 			if ($k2p_distance <= $cutoff) {
-				$seq_to_delete = $seq_id1;
 				# print (keys %seq_hash1)."\n";
-				delete $seq_hash1_ref->{$seq_to_delete};
-				delete $seq_hash2_ref->{$seq_to_delete};
-				$seq_to_delete = "";
-				last;
+				if(!exists($ref_library_seqs{$seq_id1})) {
+					$seq_to_delete = $seq_id1;
+					delete $seq_hash1_ref->{$seq_to_delete};
+					delete $seq_hash2_ref->{$seq_to_delete};
+					$seq_to_delete = "";
+					last;
+				}
 			}
 		}
 		$seq_i++;
@@ -641,6 +665,7 @@ sub cluster_algorithm {
 	my $num_exemplars = 0;
 
 	my %morpho_name_hash = ();
+	my %morpho_used_once = ();
 	my @otu_morpho_lumps = ();
 	my $otu_i = 1;
 	foreach my $otu_seq (@otu_seqs_array) { # For each OTU
@@ -749,7 +774,11 @@ sub cluster_algorithm {
 			my $raw_bootstrap_percentage = 0;
 			# print $otu_digest."\n";
 			# print $bootstrap_hash{$otu_digest}."\n";
-			$raw_bootstrap_percentage = $bootstrap_hash{$otu_digest}/$bootstrap_reps if($bootstrap_reps > 0);
+			if($bootstrap_reps > 0 && exists($bootstrap_hash{$otu_digest})) {
+				$raw_bootstrap_percentage = $bootstrap_hash{$otu_digest}/$bootstrap_reps;
+			} else {
+				$raw_bootstrap_percentage = 0;
+			}
 			$bootstrap_percentage = sprintf("%.3f",$raw_bootstrap_percentage)*100;
 			push(@bootstrap_values, $raw_bootstrap_percentage);
 			##################################################################
@@ -780,21 +809,39 @@ sub cluster_algorithm {
 				print OTU_FASTA '>['.$otu_i.']_'.$query_seq_id."\n";
 				print OTU_FASTA $query_seq."\n";
 				
-				if($query_seq_id eq $otu_seq->id) {
-					print SPLICED ">".$query_seq_id."_".$otu_i."\n";
-					print SPLICED $query_seq."\n";
-				} else {
-					print SPLICED ">".$query_seq_id."_".$otu_i."\n";
-					print SPLICED splice_one_string_normal_dist($query_seq, 
-														135, # Mean splice size 
-														10,  # Std dev splice
-														5,  # Mean start gaps
-														2,  # Std dev start gaps
-														20   # Prob of short seq
-														)."\n";
+				if($print_spliced_aln == 1) {
+					if($print_ref_seq == 1) {
+						if($query_seq_id eq $otu_seq->id) {
+							print SPLICED ">".$query_seq_id."_REFSEQ_\n";
+							print SPLICED $query_seq."\n";
+						} else {
+							print SPLICED ">".$query_seq_id."\n";
+							print SPLICED splice_one_string_normal_dist($query_seq, 
+																$spliced_aln_size, # Mean splice size 
+																10,  # Std dev splice
+																5,  # Mean start gaps
+																2,  # Std dev start gaps
+																20   # Prob of short seq
+																)."\n";
+						}
+					} else {
+							print SPLICED ">".$query_seq_id."\n";
+							print SPLICED splice_one_string_normal_dist($query_seq, 
+																$spliced_aln_size, # Mean splice size 
+																10,  # Std dev splice
+																5,  # Mean start gaps
+																2,  # Std dev start gaps
+																20   # Prob of short seq
+																)."\n";
+					}
 				}
+				# else {
+					# print SPLICED ">".$query_seq_id."\n";
+					# print SPLICED $query_seq."\n";
+				# }
 			}
 			close(OTU_FASTA);
+			
 			##################################################################
 			
 			##################################################################
@@ -1024,6 +1071,13 @@ sub cluster_algorithm {
 						$unique_name_abundance++;
 					}
 				}
+				# Check if name has been used once
+				if(exists($morpho_used_once{$unique_overall_name})) {
+					$morpho_used_once{$unique_overall_name}++;
+				} else {
+					$morpho_used_once{$unique_overall_name} = 1;
+				}
+				# Check for 1:1 ratio
 				if(exists($morpho_name_hash{$unique_overall_name})) {
 					$morpho_name_hash{$unique_overall_name}++;
 				} else {
@@ -1076,6 +1130,7 @@ sub cluster_algorithm {
 		print "\n\n";
 		print "Identification Sucess:\n\n";
 		## Identification analysis
+		# 1:1 Ratio
 		my $identification_rounding = "%.4f";
 		my $num_morpho_names = keys %morpho_name_hash;
 		my $num_one_to_one_morpho = 0;
@@ -1084,10 +1139,19 @@ sub cluster_algorithm {
 				$num_one_to_one_morpho++;
 			}
 		}
+		# Used only once
+		my $num_used_only_once = 0;
+		for my $unique_morpho_name (sort keys %morpho_used_once) {
+			if($morpho_used_once{$unique_morpho_name} == 1) {
+				$num_used_only_once++;
+			}
+		}
 		print $num_morpho_names."\n";
 		print $num_one_to_one_morpho."\n";
 		my $one_to_one_ratio = sprintf($identification_rounding,$num_one_to_one_morpho/$num_morpho_names);
+		my $used_only_once_ratio = sprintf($identification_rounding, $num_used_only_once/$num_morpho_names);
 		print "% 1:1 Morpho ratio: $one_to_one_ratio\n";
+		print "% Used only once: $used_only_once_ratio\n";
 		my %unique_otu_morpho_lumps = map {$_,1} @otu_morpho_lumps;
 		print "\tOTU Lumping Rate: # Morpho, % Lumping\n";
 		my $lumping_rate = 0;
@@ -1133,7 +1197,7 @@ sub cluster_algorithm {
 
 		if($pseudo_reps >= 1) {
 			my $total_otu = $otu_i - 1;
-			print PSEUDO_REPS $pseudo_reps.','.$total_found_seqs.','.$total_otu.','.$max_seq_length.','.$splice_start.','.$splice_end.','.$lumping_rate.','.$one_to_one_ratio."\n";
+			print PSEUDO_REPS $pseudo_reps.','.$total_found_seqs.','.$total_otu.','.$max_seq_length.','.$splice_start.','.$splice_end.','.$lumping_rate.','.$one_to_one_ratio.','.$used_only_once_ratio."\n";
 			$pseudo_reps--;
 			close(PSEUDO_REPS);
 			if ($pseudo_reps == 0) {

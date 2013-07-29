@@ -161,12 +161,12 @@ my $critical_value = 1.96; # Default
 my $intra_otu_distances = 1;
 
 fix_bold_fasta($alignment_file);
-
-my @alignment_file_split = split(".fas",$alignment_file);
+my @alignment_file_split = split(m/\./,$alignment_file);
 my $alignment_label = $alignment_file_split[0];
-my $output_prefix = $alignment_label.'_'.$cutoff.'_'.$minimum_sequence_length.'_'.$statistical_method;
 
-my $output_path = $alignment_label.$file_separator;
+my $output_prefix = $alignment_label.'_'.$cutoff.'_'.$minimum_sequence_length;
+
+my $output_path = $alignment_label.'_output'.$file_separator;
 ##################################################################
 
 ##################################################################

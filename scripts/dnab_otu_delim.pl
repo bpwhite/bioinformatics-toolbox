@@ -128,6 +128,15 @@ my $print_spliced_aln			= $params->options->{'-print-spliced-aln'};
 my $spliced_aln_size			= $params->options->{'-spliced-aln-size'};
 my $print_ref_seq				= $params->options->{'-print-ref-seq'};
 
+# Detect OS
+my $file_separator = "\\";
+if("$^O\n" =~ "Win") {
+	print "Windows\n";
+} else {
+	print "Unix\n";
+	$file_separator = "/";
+}
+
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
 if ($bootstrap_reps > 0) {
@@ -157,7 +166,7 @@ my @alignment_file_split = split(".fas",$alignment_file);
 my $alignment_label = $alignment_file_split[0];
 my $output_prefix = $alignment_label.'_'.$cutoff.'_'.$minimum_sequence_length.'_'.$statistical_method;
 
-my $output_path = $alignment_label."\\";
+my $output_path = $alignment_label.$file_separator;
 ##################################################################
 
 ##################################################################

@@ -1224,6 +1224,12 @@ close(OTU_SUMMARY);
 close(OTU_RESULTS);
 close(SPLICED);
 
+my $analysis_completed = $output_prefix.'_complete.txt';
+unlink $output_path.$analysis_completed;
+open(COMPLETE, '>'.$output_path.$analysis_completed);
+print COMPLETE 'Complete'."\n";
+close(COMPLETE);
+
 if ($doing_bootstrap == $bootstrap_flag) {
 
 }

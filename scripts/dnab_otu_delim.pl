@@ -173,7 +173,7 @@ unless(-d ($output_path)) {
 my $pseudo_reps_outp = $output_prefix.'_pseudo_reps.csv';
 unlink $output_path.$pseudo_reps_outp;
 open(PSEUDO_REPS, '>>'.$output_path.$pseudo_reps_outp);
-print PSEUDO_REPS "pseudo_rep,total_found_seqs,total_otu,max_seq_length,splice_start,splice_end,lumping_rate,one_to_one_ratio,used_only_once\n";
+print PSEUDO_REPS "pseudo_rep,total_found_seqs,total_morpho,total_otu,max_seq_length,splice_start,splice_end,lumping_rate,one_to_one_ratio,used_only_once\n";
 close(PSEUDO_REPS);
 ##################################################################
 # Import alignment
@@ -1153,6 +1153,7 @@ sub cluster_algorithm {
 		}
 		print $num_morpho_names."\n";
 		print $num_one_to_one_morpho."\n";
+		
 		my $one_to_one_ratio = sprintf($identification_rounding,$num_one_to_one_morpho/$num_morpho_names);
 		my $used_only_once_ratio = sprintf($identification_rounding, $num_used_only_once/$num_morpho_names);
 		print "% 1:1 Morpho ratio: $one_to_one_ratio\n";
@@ -1166,10 +1167,11 @@ sub cluster_algorithm {
 			$percent_correspondence = sprintf($identification_rounding,$percent_correspondence);
 			if($unique_otu_morpho_lumps == 1) {
 				$lumping_rate = $percent_correspondence/100;
+				$output_summary{'lumping_rate'} = $lumping_rate;
 			}
 			print "\t\t".$unique_otu_morpho_lumps.") ".$percent_correspondence."\n";
 		}
-
+		
 		print "BS Counter ".$bootstrap_counter."\n" if(defined($bootstrap_counter));
 
 		my $bs_rounding		= "%.5f";
@@ -1200,9 +1202,20 @@ sub cluster_algorithm {
 		print OTU_SUMMARY "[Link Depth]:				Network depth that sub-groups are connected by\n";
 		print OTU_SUMMARY "[Link Strength %]:			Distribution of sequences within each sub-group\n";
 
+		$output_summary{'pseudo_reps'} 			= $pseudo_reps;
+		$output_summary{'total_found_seqs'} 	= $total_found_seqs;
+		$output_summary{'total_otu'} 			= $total_otu;
+		$output_summary{'max_seq_length'} 		= $max_seq_length;
+		$output_summary{'splice_start'} 		= $splice_start;
+		$output_summary{'lumping_rate'} 		= $lumping_rate;
+		$output_summary{'one_to_one_ratio'}		= $one_to_one_ratio;
+		$output_summary{'used_only_once_ratio'} = $used_only_once_ratio;
+		$output_summary{'num_morpho_names'} 	= $num_morpho_names;
+
+		
 		if($pseudo_reps >= 1) {
 			my $total_otu = $otu_i - 1;
-			print PSEUDO_REPS $pseudo_reps.','.$total_found_seqs.','.$total_otu.','.$max_seq_length.','.$splice_start.','.$splice_end.','.$lumping_rate.','.$one_to_one_ratio.','.$used_only_once_ratio."\n";
+			print PSEUDO_REPS $pseudo_reps.','.$total_found_seqs.','.$num_morpho_names.','.$total_otu.','.$max_seq_length.','.$splice_start.','.$splice_end.','.$lumping_rate.','.$one_to_one_ratio.','.$used_only_once_ratio."\n";
 			$pseudo_reps--;
 			close(PSEUDO_REPS);
 			if ($pseudo_reps == 0) {

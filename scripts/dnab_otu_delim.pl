@@ -160,7 +160,7 @@ fix_bold_fasta($alignment_file);
 my @alignment_file_split = split(m/\./,$alignment_file);
 my $alignment_label = $alignment_file_split[0];
 
-my $output_prefix = $alignment_label.'_'.$cutoff.'_'.$minimum_sequence_length;
+my $output_prefix = $alignment_label;
 
 my $output_path = $alignment_label.'_output'.$file_separator;
 ##################################################################

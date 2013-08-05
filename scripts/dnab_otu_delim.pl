@@ -1235,8 +1235,6 @@ close(SPLICED);
 my $analysis_completed = $output_prefix.'_complete.txt';
 unlink $output_path.$analysis_completed;
 open(COMPLETE, '>'.$output_path.$analysis_completed);
-print COMPLETE 'Complete'."\n";
-
 while (my ($param,$value) = each (%output_summary)) {
 	print COMPLETE $param."=".$value."\n";
 }

@@ -607,7 +607,11 @@ sub cluster_algorithm {
 		print OTU_SUMMARY "\tSequences: ".$number_query_seqs."\n";
 		print OTU_SUMMARY "\tMinimum seq. length: ".$minimum_sequence_length."\n";
 		print OTU_SUMMARY "\n";
-
+		
+		$output_summary{'alignment_file'} 			= $alignment_file;
+		$output_summary{'sequences'} 				= $number_query_seqs;
+		$output_summary{'minimum_sequence_length'} 	= $minimum_sequence_length;
+		
 		print "OTU Results: ".($cutoff*100)."% cutoff\n";
 		# print "User: Bryan White\n";
 		print "\tAlignment: ".$alignment_file."\n";
@@ -1151,8 +1155,6 @@ sub cluster_algorithm {
 				$num_used_only_once++;
 			}
 		}
-		print $num_morpho_names."\n";
-		print $num_one_to_one_morpho."\n";
 		
 		my $one_to_one_ratio = sprintf($identification_rounding,$num_one_to_one_morpho/$num_morpho_names);
 		my $used_only_once_ratio = sprintf($identification_rounding, $num_used_only_once/$num_morpho_names);
@@ -1167,7 +1169,6 @@ sub cluster_algorithm {
 			$percent_correspondence = sprintf($identification_rounding,$percent_correspondence);
 			if($unique_otu_morpho_lumps == 1) {
 				$lumping_rate = $percent_correspondence/100;
-				$output_summary{'lumping_rate'} = $lumping_rate;
 			}
 			print "\t\t".$unique_otu_morpho_lumps.") ".$percent_correspondence."\n";
 		}
@@ -1188,7 +1189,6 @@ sub cluster_algorithm {
 		print "\n";
 		print timestr($time)."\n";
 		
-		
 		print OTU_SUMMARY "\n";
 		print OTU_SUMMARY timestr($time).$delimiter."\n";
 
@@ -1204,7 +1204,7 @@ sub cluster_algorithm {
 
 		$output_summary{'pseudo_reps'} 			= $pseudo_reps;
 		$output_summary{'total_found_seqs'} 	= $total_found_seqs;
-		$output_summary{'total_otu'} 			= $total_otu;
+		$output_summary{'num_otu'} 				= $otu_i-1;
 		$output_summary{'max_seq_length'} 		= $max_seq_length;
 		$output_summary{'splice_start'} 		= $splice_start;
 		$output_summary{'lumping_rate'} 		= $lumping_rate;
@@ -1212,7 +1212,6 @@ sub cluster_algorithm {
 		$output_summary{'used_only_once_ratio'} = $used_only_once_ratio;
 		$output_summary{'num_morpho_names'} 	= $num_morpho_names;
 
-		
 		if($pseudo_reps >= 1) {
 			my $total_otu = $otu_i - 1;
 			print PSEUDO_REPS $pseudo_reps.','.$total_found_seqs.','.$num_morpho_names.','.$total_otu.','.$max_seq_length.','.$splice_start.','.$splice_end.','.$lumping_rate.','.$one_to_one_ratio.','.$used_only_once_ratio."\n";
@@ -1237,6 +1236,10 @@ my $analysis_completed = $output_prefix.'_complete.txt';
 unlink $output_path.$analysis_completed;
 open(COMPLETE, '>'.$output_path.$analysis_completed);
 print COMPLETE 'Complete'."\n";
+
+while (my ($param,$value) = each (%output_summary)) {
+	print COMPLETE $param."=".$value."\n";
+}
 close(COMPLETE);
 
 if ($doing_bootstrap == $bootstrap_flag) {

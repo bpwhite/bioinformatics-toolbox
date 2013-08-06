@@ -174,7 +174,7 @@ unlink $output_path.$run_status_file;
 open(RUN_STATUS, '>'.$output_path.$run_status_file);
 
 print RUN_STATUS "run_tag=".$run_tag."\n";
-print RUN_STATUS "time_start=".localtime."\n";
+print RUN_STATUS "start_time=".localtime."\n";
 print RUN_STATUS "cutoff=".$cutoff."\n";
 print RUN_STATUS "skip_nn=".$skip_nn."\n";
 

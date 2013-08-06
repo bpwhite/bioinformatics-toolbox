@@ -103,6 +103,7 @@ my $params = General::Arguments->new(
 					'-print-spliced-aln'	=> 0,			# Print a spliced alignment 
 					'-spliced-aln-size'		=> 135,			# Size of a spliced alignment
 					'-print-ref-seq'		=> 1,			# Print a reference sequence when printing short reads
+					'-run-tag'				=> '',			# Give the run a name
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -127,6 +128,7 @@ my $skip_nn						= $params->options->{'-skip-nn'};
 my $print_spliced_aln			= $params->options->{'-print-spliced-aln'};
 my $spliced_aln_size			= $params->options->{'-spliced-aln-size'};
 my $print_ref_seq				= $params->options->{'-print-ref-seq'};
+my $run_tag 					= $params->options->{'-run-tag'};
 
 # Detect OS
 my $file_separator = "\\";
@@ -155,6 +157,16 @@ my $delimiter = ",";
 my $minimum_catch_distance = 0.05;
 my $num_examplars = 5;
 my %output_summary = ();
+
+# Outputs a summary file of program status
+my $run_status_file = $output_prefix.'_complete.txt';
+unlink $output_path.$run_status_file;
+open(RUN_STATUS, '>'.$output_path.$run_status_file);
+
+print RUN_STATUS "run_tag=".$run_tag;
+print RUN_STATUS "time_start=".$time{'hh:mm:ss - yyyy/mm/dd'};
+print RUN_STATUS "cutoff=".$cutoff;
+print RUN_STATUS "skip_nn=".$skip_nn;
 
 fix_bold_fasta($alignment_file);
 my @alignment_file_split = split(m/\./,$alignment_file);
@@ -608,9 +620,9 @@ sub cluster_algorithm {
 		print OTU_SUMMARY "\tMinimum seq. length: ".$minimum_sequence_length."\n";
 		print OTU_SUMMARY "\n";
 		
-		$output_summary{'alignment_file'} 			= $alignment_file;
-		$output_summary{'sequences'} 				= $number_query_seqs;
-		$output_summary{'minimum_sequence_length'} 	= $minimum_sequence_length;
+		print RUN_STATUS "alignment_file=".$alignment_file;
+		print RUN_STATUS "sequences=".$number_query_seqs;
+		print RUN_STATUS "minimum_seq_length=".$minimum_sequence_length;
 		
 		print "OTU Results: ".($cutoff*100)."% cutoff\n";
 		# print "User: Bryan White\n";
@@ -1232,13 +1244,11 @@ close(OTU_SUMMARY);
 close(OTU_RESULTS);
 close(SPLICED);
 
-my $analysis_completed = $output_prefix.'_complete.txt';
-unlink $output_path.$analysis_completed;
-open(COMPLETE, '>'.$output_path.$analysis_completed);
 while (my ($param,$value) = each (%output_summary)) {
-	print COMPLETE $param."=".$value."\n";
+	print RUN_STATUS $param."=".$value."\n";
 }
-close(COMPLETE);
+print RUN_STATUS "finish_time=".$time{'hh:mm:ss - yyyy/mm/dd'};
+close(RUN_STATUS);
 
 if ($doing_bootstrap == $bootstrap_flag) {
 

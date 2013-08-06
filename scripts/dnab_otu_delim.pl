@@ -169,7 +169,7 @@ my $output_prefix = $alignment_label;
 my $output_path = $alignment_label.'_output'.$file_separator;
 
 # Outputs a summary file of program status
-my $run_status_file = $output_prefix.'_complete.txt';
+my $run_status_file = $output_prefix.'_status.txt';
 unlink $output_path.$run_status_file;
 open(RUN_STATUS, '>'.$output_path.$run_status_file);
 
@@ -1141,6 +1141,7 @@ sub cluster_algorithm {
 		print OTU_SUMMARY "\n";
 		print OTU_SUMMARY "Found ".scalar(@query_seqs_found)."\n";
 		print OTU_SUMMARY "Not matched :\n";
+		my $not_found_seqs = $number_query_seqs - scalar(@query_seqs_found);
 		print "\n";
 		print "Found ".scalar(@query_seqs_found)."\n";
 		print "Not matched :\n";
@@ -1213,6 +1214,7 @@ sub cluster_algorithm {
 
 		$output_summary{'pseudo_reps'} 			= $pseudo_reps;
 		$output_summary{'total_found_seqs'} 	= $total_found_seqs;
+		$output_summary{'not_found_seqs'}		= $not_found_seqs;
 		$output_summary{'num_otu'} 				= $otu_i-1;
 		$output_summary{'max_seq_length'} 		= $max_seq_length;
 		$output_summary{'splice_start'} 		= $splice_start;
@@ -1245,6 +1247,7 @@ close(SPLICED);
 while (my ($param,$value) = each (%output_summary)) {
 	print RUN_STATUS $param."=".$value."\n";
 }
+print RUN_STATUS "result=complete\n";
 print RUN_STATUS "finish_time=".localtime."\n";
 close(RUN_STATUS);
 

@@ -158,15 +158,7 @@ my $minimum_catch_distance = 0.05;
 my $num_examplars = 5;
 my %output_summary = ();
 
-# Outputs a summary file of program status
-my $run_status_file = $output_prefix.'_complete.txt';
-unlink $output_path.$run_status_file;
-open(RUN_STATUS, '>'.$output_path.$run_status_file);
 
-print RUN_STATUS "run_tag=".$run_tag;
-print RUN_STATUS "time_start=".$time{'hh:mm:ss - yyyy/mm/dd'};
-print RUN_STATUS "cutoff=".$cutoff;
-print RUN_STATUS "skip_nn=".$skip_nn;
 
 fix_bold_fasta($alignment_file);
 my @alignment_file_split = split(m/\./,$alignment_file);
@@ -175,6 +167,17 @@ my $alignment_label = $alignment_file_split[0];
 my $output_prefix = $alignment_label;
 
 my $output_path = $alignment_label.'_output'.$file_separator;
+
+# Outputs a summary file of program status
+my $run_status_file = $output_prefix.'_complete.txt';
+unlink $output_path.$run_status_file;
+open(RUN_STATUS, '>'.$output_path.$run_status_file);
+
+print RUN_STATUS "run_tag=".$run_tag."\n";
+print RUN_STATUS "time_start=".localtime."\n";
+print RUN_STATUS "cutoff=".$cutoff."\n";
+print RUN_STATUS "skip_nn=".$skip_nn."\n";
+
 ##################################################################
 
 ##################################################################
@@ -335,6 +338,7 @@ my @ambiguous_characters = ('N', 'R', 'Y', 'K',
 							'M', 'S', 'W', 'B', 
 							'D', 'H');
 my %ref_library_seqs = ();
+my %unique_ids = ();
 foreach my $seq (@original_sequence_array) {
 	my $seq_gapped = $seq->seq();
 	my $seq_id = $seq->id();
@@ -375,6 +379,7 @@ foreach my $seq (@original_sequence_array) {
 	
 	$unique_sequences{$seq->seq()} = $seq->id;
 	$non_unique_sequences{$seq->id} = $seq->seq;
+	$unique_ids{$seq->id} = 'a';
 	
 	push(@query_seqs_array,$seq);
 }
@@ -508,7 +513,9 @@ sub cluster_algorithm {
 	print "\n" if $doing_bootstrap == $bootstrap_flag;
 	print "Done deleting.\n" if $doing_bootstrap == $bootstrap_flag;
 	my $remaining_otu = keys %seq_hash1;
+	print RUN_STATUS "predicted_otu=".$remaining_otu."\n";
 	print $remaining_otu."\n" if $doing_bootstrap == $bootstrap_flag;
+	print 
 	print "Rebuilding sequence arrays...\n" if $doing_bootstrap == $bootstrap_flag;
 	my $number_remaining_seqs = 0;
 	##################################################################
@@ -620,9 +627,9 @@ sub cluster_algorithm {
 		print OTU_SUMMARY "\tMinimum seq. length: ".$minimum_sequence_length."\n";
 		print OTU_SUMMARY "\n";
 		
-		print RUN_STATUS "alignment_file=".$alignment_file;
-		print RUN_STATUS "sequences=".$number_query_seqs;
-		print RUN_STATUS "minimum_seq_length=".$minimum_sequence_length;
+		print RUN_STATUS "alignment_file=".$alignment_file."\n";
+		print RUN_STATUS "sequences=".$number_query_seqs."\n";
+		print RUN_STATUS "minimum_seq_length=".$minimum_sequence_length."\n";
 		
 		print "OTU Results: ".($cutoff*100)."% cutoff\n";
 		# print "User: Bryan White\n";
@@ -1197,28 +1204,19 @@ sub cluster_algorithm {
 		print "Average Bootstrap Support: $mean_bs_values\n";
 
 		my $t1 = Benchmark->new;
-		my $time = timediff($t1, $t0);
+		my $time_diff = timediff($t1, $t0);
 		print "\n";
-		print timestr($time)."\n";
+		print timestr($time_diff)."\n";
 		
 		print OTU_SUMMARY "\n";
-		print OTU_SUMMARY timestr($time).$delimiter."\n";
-
-		print OTU_SUMMARY "[OTU #] OTU Ref. ID:			Reference ID\n";
-		print OTU_SUMMARY "[# Morpho]:					# of morphological identifications\n";
-		print OTU_SUMMARY "[Abundance:					Alleles]	# of sequences: # of unique alleles\n";
-		print OTU_SUMMARY "Avg. Dist: Max (Adjusted):	# Average K2P Maximum K2P (Minimum Possible K2P)\n";
-		print OTU_SUMMARY "Upper Limit:					Upper limit of the widest confidence interval\n";
-		print OTU_SUMMARY "Avg. Length: (Min - Max):	Average sequence length (Minimum - Maximum)\n";
-		print OTU_SUMMARY "[Sub-groups]:				# of non-statistical sub-groups\n";
-		print OTU_SUMMARY "[Link Depth]:				Network depth that sub-groups are connected by\n";
-		print OTU_SUMMARY "[Link Strength %]:			Distribution of sequences within each sub-group\n";
+		print OTU_SUMMARY timestr($time_diff).$delimiter."\n";
 
 		$output_summary{'pseudo_reps'} 			= $pseudo_reps;
 		$output_summary{'total_found_seqs'} 	= $total_found_seqs;
 		$output_summary{'num_otu'} 				= $otu_i-1;
 		$output_summary{'max_seq_length'} 		= $max_seq_length;
 		$output_summary{'splice_start'} 		= $splice_start;
+		$output_summary{'splice_end'}	 		= $splice_end;
 		$output_summary{'lumping_rate'} 		= $lumping_rate;
 		$output_summary{'one_to_one_ratio'}		= $one_to_one_ratio;
 		$output_summary{'used_only_once_ratio'} = $used_only_once_ratio;
@@ -1247,7 +1245,7 @@ close(SPLICED);
 while (my ($param,$value) = each (%output_summary)) {
 	print RUN_STATUS $param."=".$value."\n";
 }
-print RUN_STATUS "finish_time=".$time{'hh:mm:ss - yyyy/mm/dd'};
+print RUN_STATUS "finish_time=".localtime."\n";
 close(RUN_STATUS);
 
 if ($doing_bootstrap == $bootstrap_flag) {

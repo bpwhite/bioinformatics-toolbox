@@ -172,12 +172,11 @@ my $output_path = $alignment_label.'_output'.$file_separator;
 my $run_status_file = $output_prefix.'_status.txt';
 unlink $output_path.$run_status_file;
 open(RUN_STATUS, '>'.$output_path.$run_status_file);
-
 print RUN_STATUS "run_tag=".$run_tag."\n";
 print RUN_STATUS "start_time=".localtime."\n";
 print RUN_STATUS "cutoff=".$cutoff."\n";
 print RUN_STATUS "skip_nn=".$skip_nn."\n";
-
+close(RUN_STATUS);
 ##################################################################
 
 ##################################################################
@@ -383,6 +382,12 @@ foreach my $seq (@original_sequence_array) {
 	
 	push(@query_seqs_array,$seq);
 }
+my $number_query_seqs 	= scalar(@query_seqs_array);
+open(RUN_STATUS, '>>'.$output_path.$run_status_file);
+print RUN_STATUS "alignment_file=".$alignment_file."\n";
+print RUN_STATUS "sequences=".$number_query_seqs."\n";
+print RUN_STATUS "minimum_seq_length=".$minimum_sequence_length."\n";
+close(RUN_STATUS);
 ##################################################################
 # Optimize k2p shortcut for minimum transitions/transversion
 # that will go over the cutoff.
@@ -399,6 +404,7 @@ if ($doing_bootstrap == $bootstrap_flag) {
 	print "Skipping bootstrap\n";
 	goto skip_bootstrap;
 }
+
 
 # Create the thread-shared bootstrap hash.
 my %bootstrap_hash = ();
@@ -513,7 +519,9 @@ sub cluster_algorithm {
 	print "\n" if $doing_bootstrap == $bootstrap_flag;
 	print "Done deleting.\n" if $doing_bootstrap == $bootstrap_flag;
 	my $remaining_otu = keys %seq_hash1;
+	open(RUN_STATUS, '>>'.$output_path.$run_status_file);
 	print RUN_STATUS "predicted_otu=".$remaining_otu."\n";
+	close(RUN_STATUS);
 	print $remaining_otu."\n" if $doing_bootstrap == $bootstrap_flag;
 	print 
 	print "Rebuilding sequence arrays...\n" if $doing_bootstrap == $bootstrap_flag;
@@ -543,7 +551,7 @@ sub cluster_algorithm {
 	# unlink $output_path.$matches_file;
 	# open(MATCHES, '>>'.$output_path.$matches_file);
 
-	my $number_query_seqs 	= scalar(@query_seqs_array);
+	
 	my $query_seq_i 		= 1;
 
 	print "Re-Matching deleted sequences to OTU's...\n" if $doing_bootstrap == $bootstrap_flag;
@@ -626,10 +634,6 @@ sub cluster_algorithm {
 		print OTU_SUMMARY "\tSequences: ".$number_query_seqs."\n";
 		print OTU_SUMMARY "\tMinimum seq. length: ".$minimum_sequence_length."\n";
 		print OTU_SUMMARY "\n";
-		
-		print RUN_STATUS "alignment_file=".$alignment_file."\n";
-		print RUN_STATUS "sequences=".$number_query_seqs."\n";
-		print RUN_STATUS "minimum_seq_length=".$minimum_sequence_length."\n";
 		
 		print "OTU Results: ".($cutoff*100)."% cutoff\n";
 		# print "User: Bryan White\n";
@@ -1244,6 +1248,7 @@ close(OTU_SUMMARY);
 close(OTU_RESULTS);
 close(SPLICED);
 
+open(RUN_STATUS, '>>'.$output_path.$run_status_file);
 while (my ($param,$value) = each (%output_summary)) {
 	print RUN_STATUS $param."=".$value."\n";
 }

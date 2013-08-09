@@ -9,6 +9,7 @@ I. Toolbox Overview
 	2. Installation guide.
 		2a. Windows
 		2b. Linux
+		2c. Mac
 II. DNA Barcoding
 	1. dnab_condense.pl - Condenses sequence data down to either unique haplotypes or 
 	locales.
@@ -54,6 +55,12 @@ I. Toolbox Overview
 			2. Run the "installer.pl" script inside this folder.
 		2b. Linux
 			Coming soon
+		2c. Mac
+			1. Download and install Xcode
+			2. Go to Preferences > Downloads and install Command Line Tools
+			3. Update Perl by running "curl -L http://xrl.us/installperlosx | bash" in the Terminal
+			4. Check that your Perl version is 5.16 or greater by "Perl -v"
+			5. Run Cpan "Module::Name" until all dependencies are installed.
 II. DNA Barcoding
 	1. dnab_condense.pl
 		
@@ -112,3 +119,16 @@ II. DNA Barcoding
 	putative delimitations (AKA. Molecular Operational Taxonomic Units MOTUs). The
 	input requirements are that the sequence ID's must follow a particular format
 	outlined below.
+V. 
+	8.  seq_convert_genbank.pl
+	8a. Parameters
+		-query = COI_full, 16S_full, ND2_full, etc.
+		-voucher-only = 1, only download sequences with a voucher tag
+	8a. Common commands
+		1. Download all COI sequences for a taxa, limit the number of sequences 
+		per batch to 500, and give the output file a name:
+		seq_convert_genbank.pl 	-query COI_full 
+								-voucher-only 1 
+								-batch-cap 500 
+								-term Gastropoda
+								-outp Gastropoda_COI

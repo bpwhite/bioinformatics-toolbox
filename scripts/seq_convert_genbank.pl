@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # Downloads and parses genbank files given an input taxon name.
 #
 # Copyright (c) 2013, Bryan White, bpcwhite@gmail.com

@@ -104,6 +104,7 @@ my $params = General::Arguments->new(
 					'-spliced-aln-size'		=> 135,			# Size of a spliced alignment
 					'-print-ref-seq'		=> 1,			# Print a reference sequence when printing short reads
 					'-run-tag'				=> '',			# Give the run a name
+					'-genus-only'			=> 0,			# Truncate binomial ID's to genus only
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -129,6 +130,7 @@ my $print_spliced_aln			= $params->options->{'-print-spliced-aln'};
 my $spliced_aln_size			= $params->options->{'-spliced-aln-size'};
 my $print_ref_seq				= $params->options->{'-print-ref-seq'};
 my $run_tag 					= $params->options->{'-run-tag'};
+my $genus_only					= $params->options->{'-genus-only'};
 
 # Detect OS
 my $file_separator = "\\";
@@ -353,6 +355,10 @@ foreach my $seq (@original_sequence_array) {
 		$seq_id =~ s/_REFSEQ_//;
 		$seq->id($seq_id);
 		$ref_library_seqs{$seq_id} = '1';
+	}
+	if($genus_only == 1) {
+		my $genus_id = genus_name($seq->id);
+		$seq->id($genus_id);
 	}
 	my $seq_degapped = $seq_gapped;
 	$seq_degapped =~ s/-/ /g;
@@ -1348,8 +1354,11 @@ sub fast_seq_length {
 	return length($seq);
 }
 
-
-
+sub genus_name {
+	my $id = shift;
+	my @split_id = split(/_/,$id);
+	return $split_id[0];
+}
 
 #################
 ## General subs

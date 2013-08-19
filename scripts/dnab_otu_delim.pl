@@ -166,9 +166,9 @@ fix_bold_fasta($alignment_file);
 my @alignment_file_split = split(m/\./,$alignment_file);
 my $alignment_label = $alignment_file_split[0];
 
-my $output_prefix = $alignment_label;
+my $output_prefix = $alignment_label.'_'.$run_tag;
 
-my $output_path = $alignment_label.'_output'.$file_separator;
+my $output_path = $output_prefix.'_output'.$file_separator;
 
 # Outputs a summary file of program status
 my $run_status_file = $output_prefix.'_status.txt';

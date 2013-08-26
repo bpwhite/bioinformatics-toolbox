@@ -768,7 +768,7 @@ sub search_strings {
 	my $short_name = shift;
 	
 	my %search_string_hash = ();
-	$search_string_hash{'COI_full'} 	= "AND (COI[All Fields] OR \"cytochrome oxidase I\"[All Fields] OR COX1[All Fields] OR \"COXI\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
+	$search_string_hash{'COI_full'} 	= "AND (COI[All Fields] OR \"cytochrome oxidase I\"[All Fields] OR \"cytochrome oxidase subunit I\"[All Fields] OR COX1[All Fields] OR \"COXI\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
 	$search_string_hash{'16S_full'} 	= "AND (16S[All Fields] OR \"16S ribosomal RNA\"[All Fields] OR \"16S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
 	$search_string_hash{'18S_full'} 	= "AND (18S[All Fields] OR \"18S ribosomal RNA\"[All Fields] OR \"18S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
 	$search_string_hash{'28S_full'} 	= "AND (28S[All Fields] OR \"28S ribosomal RNA\"[All Fields] OR \"28S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";

@@ -38,6 +38,24 @@ use Data::Dumper;
 use Devel::Size qw(size total_size);
 use Test::LeakTrace;
 
+print "
+******************************************************************
+
+Copyright (c) 2013, Bryan White, bpcwhite\@gmail.com
+
+GNU General Public License, Version 3, 29 June 2007
+
+This program comes with ABSOLUTELY NO WARRANTY; for details type.
+This is free software, and you are welcome to redistribute it
+under certain conditions. 
+
+A full copy of the GPL 3.0 license should be accompanied with any 
+distribution of this software.
+
+******************************************************************
+\n\n
+";
+
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
 									option_defs => {'-list' 		=> '', 				# List file name
 													'-slim' 		=> 999999999,		# Sequence search limit

@@ -105,6 +105,7 @@ my $params = General::Arguments->new(
 					'-print-ref-seq'		=> 1,			# Print a reference sequence when printing short reads
 					'-run-tag'				=> '',			# Give the run a name
 					'-genus-only'			=> 0,			# Truncate binomial ID's to genus only
+					'-nj-trees'				=> 0,			# Compute NJ trees for each OTU, default off
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -131,6 +132,7 @@ my $spliced_aln_size			= $params->options->{'-spliced-aln-size'};
 my $print_ref_seq				= $params->options->{'-print-ref-seq'};
 my $run_tag 					= $params->options->{'-run-tag'};
 my $genus_only					= $params->options->{'-genus-only'};
+my $nj_trees					= $params->options->{'-nj-trees'};
 
 # Detect OS
 my $file_separator = "\\";

@@ -137,9 +137,9 @@ my $nj_trees					= $params->options->{'-nj-trees'};
 # Detect OS
 my $file_separator = "\\";
 if("$^O\n" =~ "Win") {
-	print "Windows\n";
+	print "Detected Windows\n";
 } else {
-	print "Unix\n";
+	print "Detected Unix\n";
 	$file_separator = "/";
 }
 
@@ -161,8 +161,6 @@ my $delimiter = ",";
 my $minimum_catch_distance = 0.05;
 my $num_examplars = 5;
 my %output_summary = ();
-
-
 
 fix_bold_fasta($alignment_file);
 my @alignment_file_split = split(m/\./,$alignment_file);
@@ -1406,6 +1404,7 @@ sub filter_one_id {
 	}
 	elsif($num_delimiters == 5) {
 		my $new_id = $delimited_id[2]."|".$delimited_id[3];
+		# my $new_id = $delimited_id[2]."|".$delimited_id[3]."|".$delimited_id[4];
 		$new_id =~ s/ /_/;
 		$filtered_id = $new_id;
 	# Only 4 bold delimited sections

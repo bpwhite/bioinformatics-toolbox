@@ -27,6 +27,7 @@ use Sequence::Fasta;
 use Sequence::Kimura_Distance;
 use General::Arguments;
 use Sequence::Bootstrap;
+use Sequence::Garli;
 
 # BioPerl libs
 use Bio::TreeIO;
@@ -49,6 +50,7 @@ use Digest::SHA qw(sha1 sha1_base64);
 use Term::Spinner;
 use Data::Dumper;
 use Storable qw(dclone);
+use File::Copy;
 
 use threads;
 use threads::shared;
@@ -166,7 +168,12 @@ fix_bold_fasta($alignment_file);
 my @alignment_file_split = split(m/\./,$alignment_file);
 my $alignment_label = $alignment_file_split[0];
 
-my $output_prefix = $alignment_label.'_'.$run_tag;
+my $output_prefix = '';
+if($run_tag ne '') {
+	$output_prefix .= $alignment_label.'_'.$run_tag;
+} else {
+	$output_prefix .= $alignment_label;
+}
 
 my $output_path = $output_prefix.'_output'.$file_separator;
 
@@ -895,10 +902,27 @@ sub cluster_algorithm {
 			# Collect the sequences for the current OTU into this array, current_otu_sequences
 			# Output the OTU content (match) results
 
-			my $current_otu_output = $output_prefix.'_'.$otu_i.'.fas';
-			unlink $output_path.$current_otu_output;
-			open(OTU_FASTA, '>>'.$output_path.$current_otu_output);
-
+			my $current_otu_output_prefix 	= $output_prefix.'_'.$otu_i;
+			my $current_otu_output_path 	= $output_path.$output_prefix.'_'.$otu_i;
+			my $otu_local_path 				= $current_otu_output_path.$file_separator;
+			# print $current_otu_output_prefix."\n";
+			# print $current_otu_output_path."\n";
+			# print $otu_local_path."\n";
+	
+			unless(-d ($current_otu_output_path)) {
+				# print "Creating output path: ".$current_otu_output_prefix."\n";
+				mkdir $current_otu_output_path;
+			}
+			print $current_otu_output_path
+								.$file_separator
+								.$current_otu_output_prefix
+								.'.fas'."\n";
+								# exit;
+			unlink $current_otu_output_path.$file_separator.$current_otu_output_prefix.'.fas';
+			open(OTU_FASTA, '>>'.$otu_local_path
+								.$current_otu_output_prefix
+								.'.fas');
+			# exit;
 			print OTU_FASTA '>NN|'.$nn_id."\n";
 			print OTU_FASTA $nn_sequence."\n";
 			
@@ -946,10 +970,23 @@ sub cluster_algorithm {
 				# }
 			}
 			close(OTU_FASTA);
-			
 			##################################################################
 			
-
+			# Garli tree
+			my $garli_path = '..\bin\win32\Garli-2.01-Win\bin\Garli-2.01.exe';
+			my $local_garli = $otu_local_path.'Garli-2.01.exe';
+			print $local_garli."\n";
+			# exit;
+			copy($garli_path,$local_garli);
+			# check_garli_copied(	garli_path => '..\bin\win32\Garli-2.01-Win\bin\Garli-2.01.exe',
+								# new_garli_path => $output_path);
+			write_garli_config(	config => 'garli.conf',
+								config_path => $otu_local_path.'garli.conf',
+								ofprefix => $current_otu_output_prefix
+								);
+			# my $garli_output = `$local_garli`;
+			system($local_garli);
+			# exit;
 
 			##################################################################
 			# Collect sequence lengths and distances.

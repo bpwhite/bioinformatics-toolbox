@@ -807,7 +807,27 @@ sub cluster_algorithm {
 		##################################################################
 		# Bootstrap Check ################################################
 		##################################################################
+						
+			## Begin finding exemplars
+			# Sort sequence lengths and print exemplars.
+			my @seq_lengths = ();
+			my $query_seq;
+			my %current_otu_sequences 		= ();
+			my %current_otu_seqs_and_id		= ();
+			my %exemplars_hash 				= ();
+			foreach my $query_seq_id (@unique_overall_query_matches) {	
+				$query_seq = $non_unique_sequences{$query_seq_id};
+				push(@seq_lengths,fast_seq_length($query_seq));
+				
+				
+				$current_otu_sequences{$query_seq} = $query_seq_id;
+				$current_otu_seqs_and_id{$query_seq_id} = $query_seq;
+				$exemplars_hash{$query_seq_id} = $query_seq;
+				$otu_assignments_ref->{$query_seq_id}->{'otu_id'} = $otu_seq->id;
+				$otu_assignments_ref->{$query_seq_id}->{'seq'} = $query_seq;
+			}
 			
+			##################################################################
 			my $bootstrap_percentage = 0;
 			my $raw_bootstrap_percentage = 0;
 			# print $otu_digest."\n";
@@ -820,71 +840,7 @@ sub cluster_algorithm {
 			$bootstrap_percentage = sprintf("%.3f",$raw_bootstrap_percentage)*100;
 			push(@bootstrap_values, $raw_bootstrap_percentage);
 			##################################################################
-			# Collect the sequences for the current OTU into this array, current_otu_sequences
-			# Output the OTU content (match) results
-			my %current_otu_sequences 		= ();
-			my %current_otu_seqs_and_id		= ();
-			my %exemplars_hash 				= ();
-			my $current_otu_output = $output_prefix.'_'.$otu_i.'.fas';
-			unlink $output_path.$current_otu_output;
-			open(OTU_FASTA, '>>'.$output_path.$current_otu_output);
-			my @seq_lengths = ();
-			my $query_seq;
-			my $filtered_otu_id;
-			my $filtered_query_id;
-			foreach my $query_seq_id (@unique_overall_query_matches) {
-				$query_seq = $non_unique_sequences{$query_seq_id};
-				$current_otu_sequences{$query_seq} = $query_seq_id;
-				$current_otu_seqs_and_id{$query_seq_id} = $query_seq;
-				$exemplars_hash{$query_seq_id} = $query_seq;
-				$otu_assignments_ref->{$query_seq_id}->{'otu_id'} = $otu_seq->id;
-				$otu_assignments_ref->{$query_seq_id}->{'seq'} = $query_seq;
-				# my $current_seq_length = fast_seq_length($query_seq);
-				push(@seq_lengths,fast_seq_length($query_seq));
-				$filtered_otu_id = filter_one_id($otu_seq->id);
-				$filtered_query_id = filter_one_id($query_seq_id);
-				print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
-				print OTU_FASTA '>['.$otu_i.']_'.$query_seq_id."\n";
-				print OTU_FASTA $query_seq."\n";
-				
-				if($print_spliced_aln == 1) {
-					if($print_ref_seq == 1) {
-						if($query_seq_id eq $otu_seq->id) {
-							print SPLICED ">".$query_seq_id."_REFSEQ_\n";
-							print SPLICED $query_seq."\n";
-						} else {
-							print SPLICED ">".$query_seq_id."\n";
-							print SPLICED splice_one_string_normal_dist($query_seq, 
-																$spliced_aln_size, # Mean splice size 
-																10,  # Std dev splice
-																5,  # Mean start gaps
-																2,  # Std dev start gaps
-																20   # Prob of short seq
-																)."\n";
-						}
-					} else {
-							print SPLICED ">".$query_seq_id."\n";
-							print SPLICED splice_one_string_normal_dist($query_seq, 
-																$spliced_aln_size, # Mean splice size 
-																10,  # Std dev splice
-																5,  # Mean start gaps
-																2,  # Std dev start gaps
-																20   # Prob of short seq
-																)."\n";
-					}
-				}
-				# else {
-					# print SPLICED ">".$query_seq_id."\n";
-					# print SPLICED $query_seq."\n";
-				# }
-			}
-			close(OTU_FASTA);
 			
-			##################################################################
-			
-			##################################################################
-			## Begin finding exemplars
-			# Sort sequence lengths and print exemplars.
 			my @sorted_seq_lengths = (sort { $b <=> $a } @seq_lengths);
 			my @printed_exemplars = ();
 			my @exemplar_keys = keys %exemplars_hash;
@@ -934,6 +890,66 @@ sub cluster_algorithm {
 			$nn_dist 	= sprintf($nn_rounding,$nn_dist)*100;
 			##################################################################
 			## End nearest neighbor search
+			
+
+			# Collect the sequences for the current OTU into this array, current_otu_sequences
+			# Output the OTU content (match) results
+
+			my $current_otu_output = $output_prefix.'_'.$otu_i.'.fas';
+			unlink $output_path.$current_otu_output;
+			open(OTU_FASTA, '>>'.$output_path.$current_otu_output);
+
+			print OTU_FASTA '>NN|'.$nn_id."\n";
+			print OTU_FASTA $nn_sequence."\n";
+			
+			my $filtered_otu_id;
+			my $filtered_query_id;
+			foreach my $query_seq_id (@unique_overall_query_matches) {
+
+				# my $current_seq_length = fast_seq_length($query_seq);
+				
+				$filtered_otu_id = filter_one_id($otu_seq->id);
+				$filtered_query_id = filter_one_id($query_seq_id);
+				print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
+				print OTU_FASTA '>|'.$otu_i.'|_'.$query_seq_id."\n";
+				print OTU_FASTA $query_seq."\n";
+				
+				if($print_spliced_aln == 1) {
+					if($print_ref_seq == 1) {
+						if($query_seq_id eq $otu_seq->id) {
+							print SPLICED ">".$query_seq_id."_REFSEQ_\n";
+							print SPLICED $query_seq."\n";
+						} else {
+							print SPLICED ">".$query_seq_id."\n";
+							print SPLICED splice_one_string_normal_dist($query_seq, 
+																$spliced_aln_size, # Mean splice size 
+																10,  # Std dev splice
+																5,  # Mean start gaps
+																2,  # Std dev start gaps
+																20   # Prob of short seq
+																)."\n";
+						}
+					} else {
+							print SPLICED ">".$query_seq_id."\n";
+							print SPLICED splice_one_string_normal_dist($query_seq, 
+																$spliced_aln_size, # Mean splice size 
+																10,  # Std dev splice
+																5,  # Mean start gaps
+																2,  # Std dev start gaps
+																20   # Prob of short seq
+																)."\n";
+					}
+				}
+				# else {
+					# print SPLICED ">".$query_seq_id."\n";
+					# print SPLICED $query_seq."\n";
+				# }
+			}
+			close(OTU_FASTA);
+			
+			##################################################################
+			
+
 
 			##################################################################
 			# Collect sequence lengths and distances.

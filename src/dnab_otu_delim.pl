@@ -974,20 +974,33 @@ sub cluster_algorithm {
 			
 			# Garli tree
 			my $garli_path = '..\bin\win32\Garli-2.01-Win\bin\Garli-2.01.exe';
-			my $local_garli = $otu_local_path.'Garli-2.01.exe';
-			print $local_garli."\n";
+			my $garli_bin_name = 'Garli-2.01.exe';
+			my $local_garli = $otu_local_path.$garli_bin_name;
+			# print $local_garli."\n";
 			# exit;
 			copy($garli_path,$local_garli);
 			# check_garli_copied(	garli_path => '..\bin\win32\Garli-2.01-Win\bin\Garli-2.01.exe',
 								# new_garli_path => $output_path);
 			write_garli_config(	config => 'garli.conf',
 								config_path => $otu_local_path.'garli.conf',
-								ofprefix => $current_otu_output_prefix
+								ofprefix => $current_otu_output_prefix,
+								datafname => $current_otu_output_prefix.'.fas'
 								);
 			# my $garli_output = `$local_garli`;
-			system($local_garli);
-			# exit;
-
+			use Cwd;
+			my $dir = getcwd;
+			print $dir."\n";
+			chdir($otu_local_path);
+			$dir = getcwd;
+			print $dir."\n";
+			# system($garli_bin_name.' -b ');
+			print `$garli_bin_name -b `;
+			# exec($garli_bin_name);
+			chdir("..");
+			$dir = getcwd;
+			print $dir."\n";
+			# exit;	
+			
 			##################################################################
 			# Collect sequence lengths and distances.
 			my @overall_names 			= ();

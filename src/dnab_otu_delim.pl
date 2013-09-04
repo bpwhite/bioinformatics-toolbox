@@ -108,6 +108,7 @@ my $params = General::Arguments->new(
 					'-run-tag'				=> '',			# Give the run a name
 					'-genus-only'			=> 0,			# Truncate binomial ID's to genus only
 					'-nj-trees'				=> 0,			# Compute NJ trees for each OTU, default off
+					'-garli-trees'			=> 0,			# Compute ML trees using GARLI
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -135,6 +136,7 @@ my $print_ref_seq				= $params->options->{'-print-ref-seq'};
 my $run_tag 					= $params->options->{'-run-tag'};
 my $genus_only					= $params->options->{'-genus-only'};
 my $nj_trees					= $params->options->{'-nj-trees'};
+my $garli_trees					= $params->options->{'-garli-trees'};
 
 # Detect OS
 my $file_separator = "\\";
@@ -789,6 +791,7 @@ sub cluster_algorithm {
 		my @sorted_ids = sort @unique_overall_query_matches;
 		my $otu_id_string = join ",", @sorted_ids;
 		my $otu_digest = sha1_base64($otu_id_string);
+		my $abundance = scalar(@unique_overall_query_matches);
 		
 		# if ($otu_i == 4) {
 			# print scalar(@sorted_ids)."\n";
@@ -913,11 +916,6 @@ sub cluster_algorithm {
 				# print "Creating output path: ".$current_otu_output_prefix."\n";
 				mkdir $current_otu_output_path;
 			}
-			print $current_otu_output_path
-								.$file_separator
-								.$current_otu_output_prefix
-								.'.fas'."\n";
-								# exit;
 			unlink $current_otu_output_path.$file_separator.$current_otu_output_prefix.'.fas';
 			open(OTU_FASTA, '>>'.$otu_local_path
 								.$current_otu_output_prefix
@@ -931,7 +929,7 @@ sub cluster_algorithm {
 			foreach my $query_seq_id (@unique_overall_query_matches) {
 
 				# my $current_seq_length = fast_seq_length($query_seq);
-				
+				$query_seq = $non_unique_sequences{$query_seq_id};
 				$filtered_otu_id = filter_one_id($otu_seq->id);
 				$filtered_query_id = filter_one_id($query_seq_id);
 				print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
@@ -973,34 +971,21 @@ sub cluster_algorithm {
 			##################################################################
 			
 			# Garli tree
-			my $garli_path = '..\bin\win32\Garli-2.01-Win\bin\Garli-2.01.exe';
-			my $garli_bin_name = 'Garli-2.01.exe';
-			my $local_garli = $otu_local_path.$garli_bin_name;
-			# print $local_garli."\n";
-			# exit;
-			copy($garli_path,$local_garli);
-			# check_garli_copied(	garli_path => '..\bin\win32\Garli-2.01-Win\bin\Garli-2.01.exe',
-								# new_garli_path => $output_path);
-			write_garli_config(	config => 'garli.conf',
-								config_path => $otu_local_path.'garli.conf',
-								ofprefix => $current_otu_output_prefix,
-								datafname => $current_otu_output_prefix.'.fas'
-								);
-			# my $garli_output = `$local_garli`;
-			use Cwd;
-			my $dir = getcwd;
-			print $dir."\n";
-			chdir($otu_local_path);
-			$dir = getcwd;
-			print $dir."\n";
-			# system($garli_bin_name.' -b ');
-			print `$garli_bin_name -b `;
-			# exec($garli_bin_name);
-			chdir("..");
-			$dir = getcwd;
-			print $dir."\n";
-			# exit;	
-			
+			if($abundance > 3 && $garli_trees == 1) {
+				my $garli_path = '..\bin\win32\Garli-2.01-Win\bin\Garli-2.01.exe';
+				my $garli_bin_name = 'Garli-2.01.exe';
+				my $local_garli = $otu_local_path.$garli_bin_name;
+				copy($garli_path,$local_garli);
+				write_garli_config(	config => 'garli.conf',
+									config_path => $otu_local_path.'garli.conf',
+									ofprefix => $current_otu_output_prefix,
+									datafname => $current_otu_output_prefix.'.fas',
+									);
+				chdir($otu_local_path);
+				my $garli_results = `$garli_bin_name -b `;
+				chdir("..");
+				chdir("..");
+			}
 			##################################################################
 			# Collect sequence lengths and distances.
 			my @overall_names 			= ();
@@ -1101,7 +1086,6 @@ sub cluster_algorithm {
 			
 			##################################################################
 			# Calculate the percentage of query specimens accoutned for in each link step
-			my $abundance = scalar(@unique_overall_query_matches);
 			my $link_strength_string = '';
 			my $link_strength_i = 1;
 			my $last_link = scalar(@link_strength);

@@ -33,6 +33,14 @@ use strict;
 use warnings;
 use Bio::DB::EUtilities;
 use Bio::SeqIO;
+use Bio::Tools::EUtilities::Query;
+
+use Bio::SeqIO::genbank;
+use Bio::Seq::RichSeq;
+use Bio::DB::Taxonomy;
+use Bio::DB::Taxonomy::list;
+
+use HTTP::Response;
 
 use Data::Dumper;
 use Devel::Size qw(size total_size);

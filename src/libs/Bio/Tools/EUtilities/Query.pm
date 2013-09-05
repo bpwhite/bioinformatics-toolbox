@@ -107,45 +107,48 @@ my %TYPE = (
     'epost'     => 'history'
     );
 
-sub _add_data {
-    my ($self, $qdata) = @_;
-    my $eutil = $self->eutil;
-    if (!$qdata || ref($qdata) !~ /HASH/i) {
-        $self->throw("Bad $eutil data");
-    }
-    if (exists $qdata->{WebEnv}) {
-        my $cookie = Bio::Tools::EUtilities::History->new(-eutil => $eutil,
-                            -verbose => $self->verbose);
-        $cookie->_add_data($qdata);
-        push @{$self->{'_histories'}}, $cookie;
-    }
-    my $type = exists $TYPE{$eutil} ? $TYPE{$eutil} :
-        $self->throw("Unrecognized eutil $eutil");
-    $self->datatype($type); # reset type based on what's present
-    for my $key (sort keys %$qdata) {
-        if ($key eq 'eGQueryResult' && exists $qdata->{$key}->{ResultItem}) {
-            for my $gquery (@{ $qdata->{eGQueryResult}->{ResultItem} }) {
-                $self->{'_term'} = $gquery->{Term} = $qdata->{Term};
-                my $qd = Bio::Tools::EUtilities::Query::GlobalQuery->new(-eutil => 'egquery',
-                                                            -datatype => 'globalquery',
-                                                            -verbose => $self->verbose);
-                $qd->_add_data($gquery);
-                push @{ $self->{'_globalqueries'} }, $qd;
-            }
-        }
-        if ($key eq 'IdList' &&
-            exists $qdata->{IdList}->{Id}) {
-            $self->{'_id'} = $qdata->{IdList}->{Id};
-            delete $qdata->{IdList};
-        }
-        if ($key eq 'TranslationSet' &&
-            exists $qdata->{TranslationSet}->{Translation}) {
-            $self->{'_translation'} = $qdata->{TranslationSet}->{Translation};
-            delete $qdata->{TranslationSet};
-        }
-        next if (ref $qdata->{$key} eq 'HASH' && !keys %{$qdata->{$key}});
-        $self->{'_'.lc $key} = $qdata->{$key};
-    }
+{
+	no warnings 'redefine';
+	sub _add_data {
+		my ($self, $qdata) = @_;
+		my $eutil = $self->eutil;
+		if (!$qdata || ref($qdata) !~ /HASH/i) {
+			$self->throw("Bad $eutil data");
+		}
+		if (exists $qdata->{WebEnv}) {
+			my $cookie = Bio::Tools::EUtilities::History->new(-eutil => $eutil,
+								-verbose => $self->verbose);
+			$cookie->_add_data($qdata);
+			push @{$self->{'_histories'}}, $cookie;
+		}
+		my $type = exists $TYPE{$eutil} ? $TYPE{$eutil} :
+			$self->throw("Unrecognized eutil $eutil");
+		$self->datatype($type); # reset type based on what's present
+		for my $key (sort keys %$qdata) {
+			if ($key eq 'eGQueryResult' && exists $qdata->{$key}->{ResultItem}) {
+				for my $gquery (@{ $qdata->{eGQueryResult}->{ResultItem} }) {
+					$self->{'_term'} = $gquery->{Term} = $qdata->{Term};
+					my $qd = Bio::Tools::EUtilities::Query::GlobalQuery->new(-eutil => 'egquery',
+																-datatype => 'globalquery',
+																-verbose => $self->verbose);
+					$qd->_add_data($gquery);
+					push @{ $self->{'_globalqueries'} }, $qd;
+				}
+			}
+			if ($key eq 'IdList' &&
+				exists $qdata->{IdList}->{Id}) {
+				$self->{'_id'} = $qdata->{IdList}->{Id};
+				delete $qdata->{IdList};
+			}
+			if ($key eq 'TranslationSet' &&
+				exists $qdata->{TranslationSet}->{Translation}) {
+				$self->{'_translation'} = $qdata->{TranslationSet}->{Translation};
+				delete $qdata->{TranslationSet};
+			}
+			next if (ref $qdata->{$key} eq 'HASH' && !keys %{$qdata->{$key}});
+			$self->{'_'.lc $key} = $qdata->{$key};
+		}
+	}
 }
 
 }
@@ -160,38 +163,40 @@ sub _add_data {
  Note     : Used generally for debugging and for the print_* methods
 
 =cut
+{
+	no warnings 'redefine';
+	sub to_string {
+		my $self = shift;
+		my %data = (
+			'DB'    => [1, join(', ',$self->get_databases) || ''],
+			'Query' => [2, $self->get_term || ''],
+			'IDs'   => [4, join(', ',$self->get_ids) || ''],
+		);
+		my $string = $self->SUPER::to_string;
+		if ($self->eutil eq 'esearch') {
+			$data{'Count'} = [3, $self->get_count ];
+			$data{'Translation From'} = [5, $self->get_translation_from || ''];
+			$data{'Translation To'} = [6, $self->get_translation_to || ''];
+			$data{'RetStart'} = [7, $self->get_retstart];
+			$data{'RetMax'} = [8, $self->get_retmax];
+			$data{'Translation'} = [9, $self->get_query_translation || ''];
+		}
+		if ($self->eutil eq 'espell') {
+			$data{'Corrected'} = [3, $self->get_corrected_query || ''];
+			$data{'Replaced'} = [4, join(',',$self->get_replaced_terms) || ''];
+		}
+		for my $k (sort {$data{$a}->[0] <=> $data{$b}->[0]} keys %data) {
+			$string .= sprintf("%-20s:%s\n",$k, $self->_text_wrap('',' 'x 20 .':', $data{$k}->[1]));
+		}
+		while (my $h = $self->next_History) {
+			$string .= $h->to_string;
+		}
+		while (my $gq = $self->next_GlobalQuery) {
+			$string .= $gq->to_string;
+		}
+		return $string;
+	}
 
-sub to_string {
-    my $self = shift;
-    my %data = (
-        'DB'    => [1, join(', ',$self->get_databases) || ''],
-        'Query' => [2, $self->get_term || ''],
-        'IDs'   => [4, join(', ',$self->get_ids) || ''],
-    );
-    my $string = $self->SUPER::to_string;
-    if ($self->eutil eq 'esearch') {
-        $data{'Count'} = [3, $self->get_count ];
-        $data{'Translation From'} = [5, $self->get_translation_from || ''];
-        $data{'Translation To'} = [6, $self->get_translation_to || ''];
-        $data{'RetStart'} = [7, $self->get_retstart];
-        $data{'RetMax'} = [8, $self->get_retmax];
-        $data{'Translation'} = [9, $self->get_query_translation || ''];
-    }
-    if ($self->eutil eq 'espell') {
-        $data{'Corrected'} = [3, $self->get_corrected_query || ''];
-        $data{'Replaced'} = [4, join(',',$self->get_replaced_terms) || ''];
-    }
-    for my $k (sort {$data{$a}->[0] <=> $data{$b}->[0]} keys %data) {
-        $string .= sprintf("%-20s:%s\n",$k, $self->_text_wrap('',' 'x 20 .':', $data{$k}->[1]));
-    }
-    while (my $h = $self->next_History) {
-        $string .= $h->to_string;
-    }
-    while (my $gq = $self->next_GlobalQuery) {
-        $string .= $gq->to_string;
-    }
-    return $string;
 }
-
 1;
 

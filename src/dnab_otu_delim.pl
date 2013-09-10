@@ -36,6 +36,7 @@ use Bio::Tree::TreeFunctionsI;
 use Bio::Tree::Node;
 use Bio::Align::AlignI;
 use Bio::AlignIO::fasta;
+use Bio::SimpleAlign;
 use Bio::Seq;
 use Bio::SeqIO;
 use Bio::SeqIO::fasta;
@@ -109,6 +110,7 @@ my $params = General::Arguments->new(
 					'-genus-only'			=> 0,			# Truncate binomial ID's to genus only
 					'-nj-trees'				=> 0,			# Compute NJ trees for each OTU, default off
 					'-garli-trees'			=> 0,			# Compute ML trees using GARLI
+					'-raxml-trees'			=> 0,			# Compute ML trees using RAxML
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -137,6 +139,7 @@ my $run_tag 					= $params->options->{'-run-tag'};
 my $genus_only					= $params->options->{'-genus-only'};
 my $nj_trees					= $params->options->{'-nj-trees'};
 my $garli_trees					= $params->options->{'-garli-trees'};
+my $raxml_trees					= $params->options->{'-raxml-trees'};
 
 # Detect OS
 my $file_separator = "\\";
@@ -908,6 +911,9 @@ sub cluster_algorithm {
 			my $current_otu_output_prefix 	= $output_prefix.'_'.$otu_i;
 			my $current_otu_output_path 	= $output_path.$output_prefix.'_'.$otu_i;
 			my $otu_local_path 				= $current_otu_output_path.$file_separator;
+			my $otu_FASTA_file				= $otu_local_path.$current_otu_output_prefix.'.fas';
+			my $otu_PHYLIP_file				= $otu_local_path.$current_otu_output_prefix.'.phy';
+			
 			# print $current_otu_output_prefix."\n";
 			# print $current_otu_output_path."\n";
 			# print $otu_local_path."\n";
@@ -916,10 +922,8 @@ sub cluster_algorithm {
 				# print "Creating output path: ".$current_otu_output_prefix."\n";
 				mkdir $current_otu_output_path;
 			}
-			unlink $current_otu_output_path.$file_separator.$current_otu_output_prefix.'.fas';
-			open(OTU_FASTA, '>>'.$otu_local_path
-								.$current_otu_output_prefix
-								.'.fas');
+			unlink $otu_FASTA_file;
+			open(OTU_FASTA, '>>'.$otu_FASTA_file);
 			# exit;
 			print OTU_FASTA '>NN|'.$nn_id."\n";
 			print OTU_FASTA $nn_sequence."\n";
@@ -970,6 +974,9 @@ sub cluster_algorithm {
 			close(OTU_FASTA);
 			##################################################################
 			
+			##################################################################
+			# Trees
+			
 			# Garli tree
 			if($abundance > 3 && $garli_trees == 1) {
 				my $garli_path = '..\bin\win32\Garli-2.01-Win\bin\Garli-2.01.exe';
@@ -986,6 +993,56 @@ sub cluster_algorithm {
 				chdir("..");
 				chdir("..");
 			}
+			if($abundance > 3 && $raxml_trees == 1) {
+
+				# convert data from one format to another
+				my $fasta_in		=  Bio::AlignIO->new(	-format => 'fasta',
+															-file   => $otu_FASTA_file);
+				
+				
+				my $chng_id_aln = $fasta_in->next_aln;
+				my $phy_tax_count = 1;
+				my $use_phy_tax_count = 0;
+				open(OTU_F2P, '>'.$otu_FASTA_file.'.f2p');
+				foreach my $seq ($chng_id_aln->each_seq) {
+					if($use_phy_tax_count == 1) {
+						print OTU_F2P '>'.$phy_tax_count."\n";
+					} else {
+						print OTU_F2P '>'.$seq->id."\n";
+					}
+						print OTU_F2P $seq->seq."\n";
+					$phy_tax_count++;
+				}
+				close(OTU_F2P);
+
+				my $fasta_in_f2p	=  Bio::AlignIO->new(	-format => 'fasta',
+															-file   => $otu_FASTA_file.'.f2p');
+				open(OTU_PHYLIP , '>'.$otu_PHYLIP_file);
+				my $phylipstream 	= Bio::AlignIO->new(-format  => 'phylip',
+													-fh      => \*OTU_PHYLIP,
+													-idlength=>80);
+				
+				while (my $phy_aln = $fasta_in_f2p->next_aln) {
+					$phylipstream->write_aln($phy_aln);
+				}
+
+				
+				close(OTU_PHYLIP);
+				# exit;
+				# print $phylipstream."\n";
+				my $raxml_path = '..\bin\win32\raxml\release-win32\raxmlHPC.exe';
+				my $raxml_bin_name = 'raxmlHPC.exe';
+				my $local_raxml = $otu_local_path.$raxml_bin_name;
+				my $raxml_seed = int rand(99999);
+				system($raxml_path	.' -s '.$otu_PHYLIP_file
+									.' -p '.$raxml_seed
+									.' -x '.$raxml_seed
+									.' -# '.'5'
+									.' -n '.$current_otu_output_prefix
+									.' -m GTRGAMMA');
+				exit;
+			}
+			
 			##################################################################
 			# Collect sequence lengths and distances.
 			my @overall_names 			= ();

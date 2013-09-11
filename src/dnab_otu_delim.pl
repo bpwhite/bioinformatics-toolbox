@@ -143,11 +143,13 @@ my $raxml_trees					= $params->options->{'-raxml-trees'};
 
 # Detect OS
 my $file_separator = "\\";
-if("$^O\n" =~ "Win") {
+my $detected_os = 'win32';
+if("$^O\n" =~ "win32") {
 	print "Detected Windows\n";
 } else {
-	print "Detected Unix\n";
+	print "Detected Linux\n";
 	$file_separator = "/";
+	$detected_os = 'linux';
 }
 
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
@@ -912,7 +914,7 @@ sub cluster_algorithm {
 			my $current_otu_output_path 	= $output_path.$output_prefix.'_'.$otu_i;
 			my $otu_local_path 				= $current_otu_output_path.$file_separator;
 			my $otu_FASTA_file				= $otu_local_path.$current_otu_output_prefix.'.fas';
-			my $otu_PHYLIP_file				= $otu_local_path.$current_otu_output_prefix.'.phy';
+			
 			
 			# print $current_otu_output_prefix."\n";
 			# print $current_otu_output_path."\n";
@@ -999,10 +1001,9 @@ sub cluster_algorithm {
 				my $fasta_in		=  Bio::AlignIO->new(	-format => 'fasta',
 															-file   => $otu_FASTA_file);
 				
-				
 				my $chng_id_aln = $fasta_in->next_aln;
 				my $phy_tax_count = 1;
-				my $use_phy_tax_count = 0;
+				my $use_phy_tax_count = 1;
 				open(OTU_F2P, '>'.$otu_FASTA_file.'.f2p');
 				foreach my $seq ($chng_id_aln->each_seq) {
 					if($use_phy_tax_count == 1) {
@@ -1017,10 +1018,11 @@ sub cluster_algorithm {
 
 				my $fasta_in_f2p	=  Bio::AlignIO->new(	-format => 'fasta',
 															-file   => $otu_FASTA_file.'.f2p');
+				my $otu_PHYLIP_file		= $otu_local_path.$current_otu_output_prefix.'.phy';
 				open(OTU_PHYLIP , '>'.$otu_PHYLIP_file);
 				my $phylipstream 	= Bio::AlignIO->new(-format  => 'phylip',
 													-fh      => \*OTU_PHYLIP,
-													-idlength=>80);
+													-idlength=>10);
 				
 				while (my $phy_aln = $fasta_in_f2p->next_aln) {
 					$phylipstream->write_aln($phy_aln);
@@ -1028,19 +1030,46 @@ sub cluster_algorithm {
 
 				
 				close(OTU_PHYLIP);
-				# exit;
-				# print $phylipstream."\n";
-				my $raxml_path = '..\bin\win32\raxml\release-win32\raxmlHPC.exe';
-				my $raxml_bin_name = 'raxmlHPC.exe';
+				
+				my $raxml_path 			= '..\bin\win32\raxml\release-win32\raxmlHPC.exe';
+				my $raxml_bin_name 		= 'raxmlHPC.exe';
+				my $raxml_output_file 	= $current_otu_output_prefix.'.raxml';
+				my $local_raxml			= $otu_local_path.$raxml_bin_name;
+				my $local_PHYLIP		= $current_otu_output_prefix.'.phy';
+				if($detected_os eq 'win32') {
+					
+				} elsif ($detected_os eq 'linux') {
+					$raxml_path 	= '../bin/linux/raxml/raxmlHPC-SSE3';
+					$raxml_bin_name = 'raxmlHPC-SSE3';
+				}
+				
 				my $local_raxml = $otu_local_path.$raxml_bin_name;
 				my $raxml_seed = int rand(99999);
-				system($raxml_path	.' -s '.$otu_PHYLIP_file
+				my $raxml_string = './'.$raxml_bin_name	
+									.' -f a '
+									.' -s '.$local_PHYLIP
 									.' -p '.$raxml_seed
 									.' -x '.$raxml_seed
 									.' -# '.'5'
-									.' -n '.$current_otu_output_prefix
-									.' -m GTRGAMMA');
-				exit;
+									.' -n '.$raxml_output_file
+									.' -m GTRGAMMA';
+				#print $raxml_string."\n";
+				copy($raxml_path,$local_raxml);
+				#use Cwd;
+				#print getcwd."\n";
+				chdir($otu_local_path);
+				chmod(0755, $raxml_bin_name);
+				#print getcwd."\n";
+				
+				#system($raxml_string);
+				my $raxml_console = `$raxml_string`;
+				unlink($raxml_bin_name);
+				#print getcwd."\n";
+				chdir("..");
+				#print getcwd."\n";
+				chdir("..");
+				#print getcwd."\n";
+				#exit;
 			}
 			
 			##################################################################

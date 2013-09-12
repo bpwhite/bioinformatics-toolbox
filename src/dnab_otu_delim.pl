@@ -1049,8 +1049,8 @@ sub cluster_algorithm {
 				copy($raxml_path,$local_raxml);
 				chdir($otu_local_path);
 				chmod(0755, $raxml_bin_name);
-				unlink('RAxML_bootstrap.'.$raxml_output_file);
-				unlink('RAxML_info.'.$raxml_output_file);
+				unlink<RAxML_*>;
+				
 				my $raxml_create_bs_string = './'.$raxml_bin_name	
 											.' -f a '
 											.' -s '.$local_PHYLIP

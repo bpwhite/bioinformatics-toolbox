@@ -1045,33 +1045,27 @@ sub cluster_algorithm {
 				
 				my $local_raxml = $otu_local_path.$raxml_bin_name;
 				my $raxml_seed = int rand(99999);
-				my $raxml_string = './'.$raxml_bin_name	
-									.' -f a '
-									.' -s '.$local_PHYLIP
-									.' -p '.$raxml_seed
-									.' -x '.$raxml_seed
-									.' -# '.'5'
-									.' -n '.$raxml_output_file
-									.' -m GTRGAMMA';
-				#print $raxml_string."\n";
+
 				copy($raxml_path,$local_raxml);
-				#use Cwd;
-				#print getcwd."\n";
 				chdir($otu_local_path);
 				chmod(0755, $raxml_bin_name);
-				#print getcwd."\n";
+				unlink('RAxML_bootstrap.'.$raxml_output_file);
+				unlink('RAxML_info.'.$raxml_output_file);
+				my $raxml_create_bs_string = './'.$raxml_bin_name	
+											.' -f a '
+											.' -s '.$local_PHYLIP
+											.' -p '.$raxml_seed
+											.' -x '.$raxml_seed
+											.' -# '.'5'
+											.' -n '.$raxml_output_file
+											.' -m GTRGAMMA';
+				my $raxml_create_bs_console = `$raxml_create_bs_string`;
 				
-				#system($raxml_string);
-				my $raxml_console = `$raxml_string`;
 				unlink($raxml_bin_name);
-				#print getcwd."\n";
 				chdir("..");
-				#print getcwd."\n";
 				chdir("..");
-				#print getcwd."\n";
-				#exit;
 			}
-			
+			exit;
 			##################################################################
 			# Collect sequence lengths and distances.
 			my @overall_names 			= ();

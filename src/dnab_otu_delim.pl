@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # This script takes an input of a FASTA sequence and outputs a 
 # species delimitation regime given certain parameters.
 # It is designed for use with the cytochrome oxidase I (COI) gene

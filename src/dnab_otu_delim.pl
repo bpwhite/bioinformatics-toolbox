@@ -996,8 +996,8 @@ sub cluster_algorithm {
 				chdir("..");
 			}
 			if($abundance > 3 && $raxml_trees == 1) {
-
-				# convert data from one format to another
+				
+				# Convert fasta to phylip
 				my $fasta_in		=  Bio::AlignIO->new(	-format => 'fasta',
 															-file   => $otu_FASTA_file);
 				
@@ -1060,12 +1060,14 @@ sub cluster_algorithm {
 											.' -n '.$raxml_output_file
 											.' -m GTRGAMMA';
 				my $raxml_create_bs_console = `$raxml_create_bs_string`;
-				
+				my $raxml_tree = $current_otu_output_prefix.'.tre';
+				move('RAxML_bipartitions.'.$raxml_output_file, $raxml_tree);
+				# Clean-up
+				unlink<RAxML_*>;
 				unlink($raxml_bin_name);
 				chdir("..");
 				chdir("..");
 			}
-			exit;
 			##################################################################
 			# Collect sequence lengths and distances.
 			my @overall_names 			= ();

@@ -144,8 +144,12 @@ my $raxml_trees					= $params->options->{'-raxml-trees'};
 # Detect OS
 my $file_separator = "\\";
 my $detected_os = 'win32';
+my $raxml_bin_name = 'raxmlHPC-SSE3';
+my $raxml_path 	= '~/Documents/dna-barcoding-web-tools/bioinformatics-toolbox/bin/linux/raxml/'.$raxml_bin_name;
 if("$^O\n" =~ "win32") {
 	print "Detected Windows\n";
+	$raxml_path	= '..\bin\win32\raxml\release-win32\raxmlHPC.exe';
+	$raxml_bin_name = 'raxmlHPC-SSE3.exe';
 } else {
 	print "Detected Linux\n";
 	$file_separator = "/";
@@ -177,7 +181,9 @@ my $alignment_label = $alignment_file_split[0];
 
 my $output_prefix = '';
 if($run_tag ne '') {
-	$output_prefix .= $alignment_label.'_'.$run_tag;
+	#~ $output_prefix .= $alignment_label.'_'.$run_tag;
+	$output_prefix .= $alignment_label;
+
 } else {
 	$output_prefix .= $alignment_label;
 }
@@ -886,7 +892,7 @@ sub cluster_algorithm {
 			my $nn_dist = 100;
 			my $nn_sequence = '';
 			my ($k2p_distance, $transitions, $transversions, $bases_compared ) = 0;
-			if($skip_nn == 0) {
+			if($skip_nn == 0 || $raxml_trees ne '0') {
 				foreach my $otu_seq (@otu_seqs_array) { # For each OTU
 					next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
 					($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(\$unpacked_sequences{$otu_seq->seq()},
@@ -927,9 +933,10 @@ sub cluster_algorithm {
 			unlink $otu_FASTA_file;
 			open(OTU_FASTA, '>>'.$otu_FASTA_file);
 			# exit;
-			print OTU_FASTA '>NN|'.$nn_id."\n";
-			print OTU_FASTA $nn_sequence."\n";
-			
+			if($nn_id ne '') {
+				print OTU_FASTA '>NN|'.$nn_id."\n";
+				print OTU_FASTA $nn_sequence."\n";
+			}
 			my $filtered_otu_id;
 			my $filtered_query_id;
 			foreach my $query_seq_id (@unique_overall_query_matches) {
@@ -995,7 +1002,7 @@ sub cluster_algorithm {
 				chdir("..");
 				chdir("..");
 			}
-			if($abundance > 3 && $raxml_trees == 1) {
+			if($abundance > 3 && $raxml_trees ne '0') {
 				
 				# Convert fasta to phylip
 				my $fasta_in		=  Bio::AlignIO->new(	-format => 'fasta',
@@ -1031,47 +1038,46 @@ sub cluster_algorithm {
 				
 				close(OTU_PHYLIP);
 				
-				my $raxml_path 			= '..\bin\win32\raxml\release-win32\raxmlHPC.exe';
-				my $raxml_bin_name 		= 'raxmlHPC.exe';
 				my $raxml_output_file 	= $current_otu_output_prefix.'.raxml';
 				my $local_raxml			= $otu_local_path.$raxml_bin_name;
 				my $local_PHYLIP		= $current_otu_output_prefix.'.phy';
 				if($detected_os eq 'win32') {
 					
 				} elsif ($detected_os eq 'linux') {
-					$raxml_bin_name = 'raxmlHPC-SSE3';
-					$raxml_path 	= '~/Documents/dna-barcoding-web-tools/bioinformatics-toolbox/bin/linux/raxml/'.$raxml_bin_name;
 					$local_raxml	= $otu_local_path.$raxml_bin_name;
 				}
-				print "rax ".$raxml_path."\n";
 				my $raxml_seed = int rand(99999);
-				use Cwd;
-				my $cwd = getcwd;
-				print $cwd."\n";
 				chdir($otu_local_path);
 				unlink<RAxML_*>;
-				
-				$cwd = getcwd;
-				print $cwd."\n";
-				my $raxml_create_bs_string = $raxml_path
-											.' -f a '
-											.' -s '.$local_PHYLIP
-											.' -p '.$raxml_seed
-											.' -x '.$raxml_seed
-											.' -# '.'100'
-											.' -n '.$raxml_output_file
-											.' -o 1'
-											.' -m GTRGAMMA';
-				my $raxml_create_bs_console = `$raxml_create_bs_string`;
 				my $raxml_tree = $current_otu_output_prefix.'.tre';
-				move('RAxML_bipartitions.'.$raxml_output_file, $raxml_tree);
+				if ($raxml_trees eq 'bootstrap') {
+					my $raxml_command = $raxml_path
+										.' -f a '
+										.' -s '.$local_PHYLIP
+										.' -p '.$raxml_seed
+										.' -x '.$raxml_seed
+										.' -# '.'100'
+										.' -n '.$raxml_output_file
+										.' -o 1'
+										.' -m GTRGAMMA';
+					my $raxml_console = `$raxml_command`;
+					move('RAxML_bipartitions.'.$raxml_output_file, $raxml_tree);
+				} elsif($raxml_trees eq 'quick') {
+					my $raxml_command = $raxml_path
+										.' -s '.$local_PHYLIP
+										.' -p '.$raxml_seed
+										.' -m GTRGAMMA'
+										.' -# '.'2'
+										.' -n '.$raxml_output_file
+										.' -o 1';
+					my $raxml_console = `$raxml_command`;
+					move('RAxML_bestTree.'.$raxml_output_file, $raxml_tree);
+				}							
 				# Clean-up
 				unlink<RAxML_*>;
 				use File::Spec;
 				chdir File::Spec->updir;
-				print $cwd."\n";
 				chdir File::Spec->updir;
-				print $cwd."\n";
 				
 			}
 			##################################################################

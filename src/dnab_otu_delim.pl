@@ -1039,34 +1039,40 @@ sub cluster_algorithm {
 				if($detected_os eq 'win32') {
 					
 				} elsif ($detected_os eq 'linux') {
-					$raxml_path 	= '../bin/linux/raxml/raxmlHPC-SSE3';
 					$raxml_bin_name = 'raxmlHPC-SSE3';
+					$raxml_path 	= '~/Documents/dna-barcoding-web-tools/bioinformatics-toolbox/bin/linux/raxml/'.$raxml_bin_name;
+					$local_raxml	= $otu_local_path.$raxml_bin_name;
 				}
-				
-				my $local_raxml = $otu_local_path.$raxml_bin_name;
+				print "rax ".$raxml_path."\n";
 				my $raxml_seed = int rand(99999);
-
-				copy($raxml_path,$local_raxml);
+				use Cwd;
+				my $cwd = getcwd;
+				print $cwd."\n";
 				chdir($otu_local_path);
-				chmod(0755, $raxml_bin_name);
 				unlink<RAxML_*>;
 				
-				my $raxml_create_bs_string = './'.$raxml_bin_name	
+				$cwd = getcwd;
+				print $cwd."\n";
+				my $raxml_create_bs_string = $raxml_path
 											.' -f a '
 											.' -s '.$local_PHYLIP
 											.' -p '.$raxml_seed
 											.' -x '.$raxml_seed
-											.' -# '.'5'
+											.' -# '.'100'
 											.' -n '.$raxml_output_file
+											.' -o 1'
 											.' -m GTRGAMMA';
 				my $raxml_create_bs_console = `$raxml_create_bs_string`;
 				my $raxml_tree = $current_otu_output_prefix.'.tre';
 				move('RAxML_bipartitions.'.$raxml_output_file, $raxml_tree);
 				# Clean-up
 				unlink<RAxML_*>;
-				unlink($raxml_bin_name);
-				chdir("..");
-				chdir("..");
+				use File::Spec;
+				chdir File::Spec->updir;
+				print $cwd."\n";
+				chdir File::Spec->updir;
+				print $cwd."\n";
+				
 			}
 			##################################################################
 			# Collect sequence lengths and distances.

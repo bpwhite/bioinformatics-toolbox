@@ -111,6 +111,9 @@ my $params = General::Arguments->new(
 					'-nj-trees'				=> 0,			# Compute NJ trees for each OTU, default off
 					'-garli-trees'			=> 0,			# Compute ML trees using GARLI
 					'-raxml-trees'			=> 0,			# Compute ML trees using RAxML
+					'-raxml-bs-reps'		=> 100,			# Number of raxml bs reps to do
+					'-raxml-search-reps'	=> 2,			# Number of raxml search reps to do
+					'-exemplar-tree'		=> 0,			# Compute a tree of the exmplar sequences
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -139,13 +142,20 @@ my $run_tag 					= $params->options->{'-run-tag'};
 my $genus_only					= $params->options->{'-genus-only'};
 my $nj_trees					= $params->options->{'-nj-trees'};
 my $garli_trees					= $params->options->{'-garli-trees'};
-my $raxml_trees					= $params->options->{'-raxml-trees'};
+my $raxml_tree_type				= $params->options->{'-raxml-trees'};
+my $raxml_search_reps			= $params->options->{'-raxml-search-reps'};
+my $raxml_bs_reps				= $params->options->{'-raxml-bs-reps'};
+my $exemplar_tree				= $params->options->{'-exemplar-tree'};
 
 # Detect OS
 my $file_separator = "\\";
 my $detected_os = 'win32';
 my $raxml_bin_name = 'raxmlHPC-SSE3';
-my $raxml_path 	= '~/Documents/dna-barcoding-web-tools/bioinformatics-toolbox/bin/linux/raxml/'.$raxml_bin_name;
+my $raxml_path 	= '../../../bin/linux/raxml/'.$raxml_bin_name;
+my $raxml_exemplar_path = '../../bin/linux/raxml/'.$raxml_bin_name;
+my $nw_utils_path = '../../../bin/linux/newick-utils-1.5.0/src/';
+my $nw_utils_exemplar_path = '../../bin/linux/newick-utils-1.5.0/src/';
+
 if("$^O\n" =~ "win32") {
 	print "Detected Windows\n";
 	$raxml_path	= '..\bin\win32\raxml\release-win32\raxmlHPC.exe';
@@ -179,6 +189,8 @@ fix_bold_fasta($alignment_file);
 my @alignment_file_split = split(m/\./,$alignment_file);
 my $alignment_label = $alignment_file_split[0];
 
+##################################################################
+# Create the output prefix for the entire run
 my $output_prefix = '';
 if($run_tag ne '') {
 	#~ $output_prefix .= $alignment_label.'_'.$run_tag;
@@ -189,11 +201,17 @@ if($run_tag ne '') {
 }
 
 my $output_path = $output_prefix.'_output'.$file_separator;
+unless(-d ($output_path)) {
+	print "Creating output path: ".$output_path."\n";
+	mkdir $output_path;
+}
+##################################################################
 
+##################################################################
 # Outputs a summary file of program status
 my $run_status_file = $output_prefix.'_status.txt';
 unlink $output_path.$run_status_file;
-open(RUN_STATUS, '>'.$output_path.$run_status_file);
+open(RUN_STATUS, '>'.$output_path.$run_status_file) or die("Could not open run status file: $!\n");
 print RUN_STATUS "run_tag=".$run_tag."\n";
 print RUN_STATUS "start_time=".localtime."\n";
 print RUN_STATUS "cutoff=".$cutoff."\n";
@@ -201,11 +219,6 @@ print RUN_STATUS "skip_nn=".$skip_nn."\n";
 close(RUN_STATUS);
 ##################################################################
 
-##################################################################
-unless(-d ($output_path)) {
-	print "Creating output path: ".$output_path."\n";
-	mkdir $output_path;
-}
 my $pseudo_reps_outp = $output_prefix.'_pseudo_reps.csv';
 unlink $output_path.$pseudo_reps_outp;
 open(PSEUDO_REPS, '>>'.$output_path.$pseudo_reps_outp);
@@ -870,7 +883,9 @@ sub cluster_algorithm {
 				foreach my $seq_id (@exemplar_keys) {
 					next if $seq_id ~~ @printed_exemplars;
 					if(fast_seq_length($exemplars_hash{$seq_id}) == $sorted_seq_lengths[$exemplar_i]) {
-						print EXEMPLARS '>['.$otu_i.']_['.$bootstrap_percentage.']_['.$otu_digest.']_'.$seq_id."\n";
+						#~ print EXEMPLARS '>|'.$otu_i.'|_|'.$bootstrap_percentage.'|_|'.$otu_digest.'|_'.$seq_id."\n";
+						print EXEMPLARS '>|'.$otu_i.'|_|'.$bootstrap_percentage.'|_'.$seq_id."\n";
+
 						print EXEMPLARS $exemplars_hash{$seq_id}."\n";
 						push(@printed_exemplars,$seq_id);
 						$num_exemplars++;
@@ -892,7 +907,7 @@ sub cluster_algorithm {
 			my $nn_dist = 100;
 			my $nn_sequence = '';
 			my ($k2p_distance, $transitions, $transversions, $bases_compared ) = 0;
-			if($skip_nn == 0 || $raxml_trees ne '0') {
+			if($skip_nn == 0 || $raxml_tree_type ne '0') {
 				foreach my $otu_seq (@otu_seqs_array) { # For each OTU
 					next if $otu_seq->id ~~ @unique_otu_links; # Skip found OTU's
 					($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(\$unpacked_sequences{$otu_seq->seq()},
@@ -912,6 +927,17 @@ sub cluster_algorithm {
 			##################################################################
 			## End nearest neighbor search
 			
+			##################################################################
+			# Compute overall sub-morpho names
+			my @overall_names 			= ();
+			my $current_name;
+			foreach my $unique_o_q_match1 (@unique_overall_query_matches) {
+				$current_name 		= filter_one_id($unique_o_q_match1);
+				$current_name 		= convert_id_to_name($current_name);
+				push(@overall_names,$current_name);
+			}
+			##################################################################
+
 
 			# Collect the sequences for the current OTU into this array, current_otu_sequences
 			# Output the OTU content (match) results
@@ -922,10 +948,6 @@ sub cluster_algorithm {
 			my $otu_FASTA_file				= $otu_local_path.$current_otu_output_prefix.'.fas';
 			
 			
-			# print $current_otu_output_prefix."\n";
-			# print $current_otu_output_path."\n";
-			# print $otu_local_path."\n";
-	
 			unless(-d ($current_otu_output_path)) {
 				# print "Creating output path: ".$current_otu_output_prefix."\n";
 				mkdir $current_otu_output_path;
@@ -940,13 +962,12 @@ sub cluster_algorithm {
 			my $filtered_otu_id;
 			my $filtered_query_id;
 			foreach my $query_seq_id (@unique_overall_query_matches) {
-
 				# my $current_seq_length = fast_seq_length($query_seq);
 				$query_seq = $non_unique_sequences{$query_seq_id};
 				$filtered_otu_id = filter_one_id($otu_seq->id);
 				$filtered_query_id = filter_one_id($query_seq_id);
 				print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
-				print OTU_FASTA '>|'.$otu_i.'|_'.$query_seq_id."\n";
+				print OTU_FASTA '>'.$query_seq_id."\n";
 				print OTU_FASTA $query_seq."\n";
 				
 				if($print_spliced_aln == 1) {
@@ -1002,78 +1023,48 @@ sub cluster_algorithm {
 				chdir("..");
 				chdir("..");
 			}
-			if($abundance > 3 && $raxml_trees ne '0') {
-				
-				# Convert fasta to phylip
-				my $fasta_in		=  Bio::AlignIO->new(	-format => 'fasta',
-															-file   => $otu_FASTA_file);
-				
-				my $chng_id_aln = $fasta_in->next_aln;
-				my $phy_tax_count = 1;
-				my $use_phy_tax_count = 1;
-				open(OTU_F2P, '>'.$otu_FASTA_file.'.f2p');
-				foreach my $seq ($chng_id_aln->each_seq) {
-					if($use_phy_tax_count == 1) {
-						print OTU_F2P '>'.$phy_tax_count."\n";
-					} else {
-						print OTU_F2P '>'.$seq->id."\n";
-					}
-						print OTU_F2P $seq->seq."\n";
-					$phy_tax_count++;
-				}
-				close(OTU_F2P);
+			if($abundance > 3 && $raxml_tree_type ne '0') {
 
-				my $fasta_in_f2p	=  Bio::AlignIO->new(	-format => 'fasta',
-															-file   => $otu_FASTA_file.'.f2p');
-				my $otu_PHYLIP_file		= $otu_local_path.$current_otu_output_prefix.'.phy';
-				open(OTU_PHYLIP , '>'.$otu_PHYLIP_file);
-				my $phylipstream 	= Bio::AlignIO->new(-format  => 'phylip',
-													-fh      => \*OTU_PHYLIP,
-													-idlength=>10);
+				my $seq_id_to_ptc_ref = convert_fas2phyl(	
+											FASTA_file => $otu_FASTA_file,
+											local_path => $otu_local_path,
+											current_output_prefix => $current_otu_output_prefix,
+										);
+				my %seq_id_to_ptc = %$seq_id_to_ptc_ref;
 				
-				while (my $phy_aln = $fasta_in_f2p->next_aln) {
-					$phylipstream->write_aln($phy_aln);
-				}
-
-				
-				close(OTU_PHYLIP);
-				
-				my $raxml_output_file 	= $current_otu_output_prefix.'.raxml';
-				my $local_raxml			= $otu_local_path.$raxml_bin_name;
+				# Create raxml command strings
 				my $local_PHYLIP		= $current_otu_output_prefix.'.phy';
-				if($detected_os eq 'win32') {
-					
-				} elsif ($detected_os eq 'linux') {
-					$local_raxml	= $otu_local_path.$raxml_bin_name;
-				}
-				my $raxml_seed = int rand(99999);
+				my $raxml_seed 			= int rand(99999);
+
+				my $raxml_output_file 	= $current_otu_output_prefix.'.raxml';
+				my $raxml_dna_model		= 'GTRGAMMA';
+				my $raxml_tree 			= $current_otu_output_prefix.'.tre';
+
 				chdir($otu_local_path);
 				unlink<RAxML_*>;
-				my $raxml_tree = $current_otu_output_prefix.'.tre';
-				if ($raxml_trees eq 'bootstrap') {
-					my $raxml_command = $raxml_path
-										.' -f a '
-										.' -s '.$local_PHYLIP
-										.' -p '.$raxml_seed
-										.' -x '.$raxml_seed
-										.' -# '.'100'
-										.' -n '.$raxml_output_file
-										.' -o 1'
-										.' -m GTRGAMMA';
-					my $raxml_console = `$raxml_command`;
-					move('RAxML_bipartitions.'.$raxml_output_file, $raxml_tree);
-				} elsif($raxml_trees eq 'quick') {
-					my $raxml_command = $raxml_path
-										.' -s '.$local_PHYLIP
-										.' -p '.$raxml_seed
-										.' -m GTRGAMMA'
-										.' -# '.'2'
-										.' -n '.$raxml_output_file
-										.' -o 1';
-					my $raxml_console = `$raxml_command`;
-					move('RAxML_bestTree.'.$raxml_output_file, $raxml_tree);
-				}							
-				# Clean-up
+				
+				
+				raxml_command_selector(	raxml_path			=> $raxml_path,
+										local_PHYLIP 		=> $local_PHYLIP,
+										raxml_seed 			=> $raxml_seed,
+										raxml_search_reps	=> $raxml_search_reps,
+										raxml_bs_reps		=> $raxml_bs_reps,
+										raxml_output_file	=> $raxml_output_file,
+										raxml_dna_model		=> $raxml_dna_model,
+										raxml_tree			=> $raxml_tree,
+										raxml_tree_type		=> $raxml_tree_type,
+										raxml_outgroup		=> 1,
+										);
+				if($nn_id eq '') {
+					# midpoint rooting if no nearest neighbor
+					raxml_root_on_midpoint(	raxml_tree 	=> $raxml_tree,
+											raxml_path	=> $raxml_path,);
+				}
+				print_tree_nw_utils(nw_utils_path		=> $nw_utils_path,
+									raxml_tree 			=> $raxml_tree,
+									seq_id_to_ptc_ref 	=> $seq_id_to_ptc_ref,
+									raxml_tree_type		=> $raxml_tree_type,
+									);
 				unlink<RAxML_*>;
 				use File::Spec;
 				chdir File::Spec->updir;
@@ -1082,7 +1073,6 @@ sub cluster_algorithm {
 			}
 			##################################################################
 			# Collect sequence lengths and distances.
-			my @overall_names 			= ();
 			my @num_comparisons			= ();
 			my %unique_alleles			= ();
 			my %distinct_alleles		= ();
@@ -1120,15 +1110,6 @@ sub cluster_algorithm {
 			%current_otu_sequences = (); # Flush
 			##################################################################
 			
-			##################################################################
-			# Compute overall sub-morpho names
-			my $current_name;
-			foreach my $unique_o_q_match1 (@unique_overall_query_matches) {
-				$current_name 		= filter_one_id($unique_o_q_match1);
-				$current_name 		= convert_id_to_name($current_name);
-				push(@overall_names,$current_name);
-			}
-			##################################################################
 
 			##################################################################
 			# Stat summaries
@@ -1358,13 +1339,8 @@ sub cluster_algorithm {
 		}
 		print "Average Bootstrap Support: $mean_bs_values\n";
 
-		my $t1 = Benchmark->new;
-		my $time_diff = timediff($t1, $t0);
-		print "\n";
-		print timestr($time_diff)."\n";
+
 		
-		print OTU_SUMMARY "\n";
-		print OTU_SUMMARY timestr($time_diff).$delimiter."\n";
 
 		$output_summary{'pseudo_reps'} 			= $pseudo_reps;
 		$output_summary{'total_found_seqs'} 	= $total_found_seqs;
@@ -1394,10 +1370,56 @@ sub cluster_algorithm {
 	}
 }
 close(EXEMPLARS);
-close(OTU_SUMMARY);
 close(OTU_RESULTS);
 close(SPLICED);
 
+if($exemplar_tree == 1) {
+	my $exemplar_prefix = $output_prefix.'_exemplars';
+	if($raxml_tree_type ne '0') {
+		chdir($output_path);
+		my $seq_id_to_ptc_ref = convert_fas2phyl(	FASTA_file => $otu_exemplars,
+												local_path => '',
+												current_output_prefix => $exemplar_prefix
+					);
+		my %seq_id_to_ptc = %$seq_id_to_ptc_ref;
+		my $local_PHYLIP		= $exemplar_prefix.'.phy';
+		my $raxml_seed 			= int rand(99999);
+		my $raxml_search_reps	= 1;
+		my $raxml_bs_reps		= 10;
+		my $raxml_output_file 	= $exemplar_prefix.'.raxml';
+		my $raxml_dna_model		= 'GTRGAMMA';
+		my $raxml_tree 			= $exemplar_prefix.'.tre';
+		#~ print $raxml_tree."\n";
+		
+		unlink<RAxML_*>;
+		raxml_command_selector(	raxml_path			=> $raxml_exemplar_path,
+								local_PHYLIP 		=> $local_PHYLIP,
+								raxml_seed 			=> $raxml_seed,
+								raxml_search_reps	=> $raxml_search_reps,
+								raxml_bs_reps		=> $raxml_bs_reps,
+								raxml_output_file	=> $raxml_output_file,
+								raxml_dna_model		=> $raxml_dna_model,
+								raxml_tree			=> $raxml_tree,
+								raxml_tree_type		=> $raxml_tree_type,
+								raxml_outgroup		=> 1,
+								);
+								
+		raxml_root_on_midpoint(	raxml_tree => $raxml_tree,
+								raxml_path			=> $raxml_exemplar_path
+								);
+										
+		print_tree_nw_utils(	nw_utils_path 		=> $nw_utils_exemplar_path,
+								raxml_tree 			=> $raxml_tree,
+								seq_id_to_ptc_ref	=> $seq_id_to_ptc_ref,
+								raxml_tree_type		=> $raxml_tree_type,
+								);
+								
+
+		unlink<RAxML_*>;
+		chdir File::Spec->updir;
+
+	}
+}
 open(RUN_STATUS, '>>'.$output_path.$run_status_file);
 while (my ($param,$value) = each (%output_summary)) {
 	print RUN_STATUS $param."=".$value."\n";
@@ -1455,6 +1477,14 @@ if ($print_dist_matrix == 1) {
 	}
 	print "Done with matrix.\n";
 }
+
+my $t1 = Benchmark->new;
+my $time_diff = timediff($t1, $t0);
+print "\n";
+print timestr($time_diff)."\n";
+print OTU_SUMMARY "\n";
+print OTU_SUMMARY timestr($time_diff).$delimiter."\n";
+close(OTU_SUMMARY);
 ########################################################################################################
 ## Begin subs																						   #
 ########################################################################################################
@@ -1588,4 +1618,187 @@ sub convert_id_to_name {
 	}
 }
 
+sub convert_fas2phyl {
+	my %params = (
+		FASTA_file => '',
+		local_path => '',
+		current_output_prefix => '',
+		@_
+	);
+	my $FASTA_file 			= $params{'FASTA_file'};
+	my $local_path 			= $params{'local_path'};
+	my $current_output_prefix 	= $params{'current_output_prefix'};
+	#~ print $current_output_prefix."\n";
+	# Convert from FASTA to PHYLIP for import into RAxML
+	# 1. Export FASTA with reduced file names.
+	my $fasta_in		=  Bio::AlignIO->new(	-format => 'fasta',
+												-file   => $FASTA_file);
+	my $chng_id_aln = $fasta_in->next_aln;
+	my $phy_tax_count = 1;
+	my $use_phy_tax_count = 1;
+	open(OTU_F2P, '>'.$FASTA_file.'.f2p');
+	my %seq_id_to_ptc = (); # convert back to id from phy_tax_count
+	foreach my $seq ($chng_id_aln->each_seq) {
+		if($use_phy_tax_count == 1) {
+			print OTU_F2P '>'.$phy_tax_count."\n";
+			$seq_id_to_ptc{$phy_tax_count} = $seq->id;
+		} else {
+			print OTU_F2P '>'.$seq->id."\n";
+		}
+			print OTU_F2P $seq->seq."\n";
+		$phy_tax_count++;
+	}
+	close(OTU_F2P);
+	# 2. Load FASTA and export ot PHYLIP
+	my $fasta_in_f2p	=  Bio::AlignIO->new(	-format => 'fasta',
+												-file   => $FASTA_file.'.f2p');
+	my $PHYLIP_file		= $local_path.$current_output_prefix.'.phy';
+	open(OTU_PHYLIP , '>'.$PHYLIP_file);
+	#~ print $PHYLIP_file."\n";
+	my $phylipstream 	= Bio::AlignIO->new(-format  => 'phylip',
+										-fh      => \*OTU_PHYLIP,
+										-idlength=>10);
+	while (my $phy_aln = $fasta_in_f2p->next_aln) {
+		$phylipstream->write_aln($phy_aln);
+	}
 
+	close(OTU_PHYLIP);
+	return \%seq_id_to_ptc;
+}
+
+sub print_tree_nw_utils {
+	my %params = ( 	nw_utils_path => '',
+					raxml_tree => '',
+					seq_id_to_ptc_ref => '',
+					raxml_tree_type => '',
+					@_
+				);
+	my $raxml_tree = $params{'raxml_tree'};
+	my $seq_id_to_ptc_ref = $params{'seq_id_to_ptc_ref'};
+	my $nw_utils_path	= $params{'nw_utils_path'};
+	my %seq_id_to_ptc = %$seq_id_to_ptc_ref;
+	
+	# Load RAxML tree and clean up branch lengths, boostrap values, etc.
+	my $raxml_treeio = Bio::TreeIO->new(-format => 'newick', -file => $raxml_tree);
+	my $tree = $raxml_treeio->next_tree;
+	my @nodes = $tree->get_nodes;
+	my $bs_round = "%.2f";
+	my $bs_cutoff = 0.70;
+	my $bl_round = "%.3f";
+	my $bl_cutoff = 0.0001;
+	if($raxml_tree_type ne 'veryfast') {
+		foreach my $node (@nodes) {
+			if(defined($node->branch_length)) {
+				my $new_bl = sprintf($bl_round,$node->branch_length);
+				if($new_bl < $bl_cutoff) {
+					$node->branch_length(0);
+				} else {
+					$node->branch_length($new_bl);
+				}
+			}
+			if(defined($node->bootstrap)) {
+				my $new_bs = sprintf($bs_round,$node->bootstrap);
+				if($new_bs < $bs_cutoff) {
+					$node->bootstrap(undef);
+				} else {
+					$node->bootstrap($new_bs);
+				}
+			}
+			if(defined($seq_id_to_ptc{$node->id})) {
+				my $new_id = $seq_id_to_ptc{$node->id};
+				$node->id($new_id);
+			}
+		}
+	}
+	# Write cleaned tree to newick
+	my $out = new Bio::TreeIO(-file => '>'.$raxml_tree.'.nwk',
+							  -format => 'newick');
+	$out->write_tree($tree);
+	my $nw_utils = `$nw_utils_path/nw_display -b opacity:0 -w 800 -Im $raxml_tree.nwk -s -n 5 > $raxml_tree.svg`;
+	my $tree_pdf = `inkscape -f $raxml_tree.svg -A $raxml_tree.pdf`;
+}
+
+sub raxml_command_selector {
+	
+	my %params = (	raxml_path			=> '',
+					local_PHYLIP 		=> '',
+					raxml_seed 			=> '',
+					raxml_search_reps 	=> '',
+					raxml_bs_reps 		=> '',
+					raxml_output_file 	=> '',
+					raxml_dna_model 	=> '',
+					raxml_tree			=> '',
+					raxml_tree_type 	=> '',
+					raxml_outgroup		=> '', # Defaults to automatic "midpoint" root finding
+					@_
+					);
+	my $raxml_path			= $params{'raxml_path'};
+	my $local_PHYLIP 		= $params{'local_PHYLIP'};
+	my $raxml_seed 			= $params{'raxml_seed'};
+	my $raxml_search_reps 	= $params{'raxml_search_reps'};
+	my $raxml_bs_reps 		= $params{'raxml_bs_reps'};
+	my $raxml_output_file 	= $params{'raxml_output_file'};
+	my $raxml_dna_model 	= $params{'raxml_dna_model'};
+	my $raxml_tree			= $params{'raxml_tree'};
+	my $raxml_outgroup		= $params{'raxml_outgroup'};
+	
+	if ($raxml_tree_type eq 'bootstrap') {
+		my $raxml_command = $raxml_path
+							.' -f a '
+							.' -s '.$local_PHYLIP
+							.' -p '.$raxml_seed
+							.' -x '.$raxml_seed
+							.' -# '.$raxml_bs_reps
+							.' -n '.$raxml_output_file
+							.' -o '.$raxml_outgroup
+							.' -m '.$raxml_dna_model;
+		my $raxml_console = `$raxml_command`;
+		#~ system($raxml_command);
+		move('RAxML_bipartitions.'.$raxml_output_file, $raxml_tree);
+	} elsif($raxml_tree_type eq 'quick') {
+		my $raxml_command = $raxml_path
+							.' -s '.$local_PHYLIP
+							.' -p '.$raxml_seed
+							.' -m '.$raxml_dna_model
+							.' -# '.$raxml_search_reps
+							.' -n '.$raxml_output_file
+							.' -o '.$raxml_outgroup;
+		#~ print $raxml_command."\n";
+		my $raxml_console = `$raxml_command`;
+		#~ system($raxml_command);
+		move('RAxML_bestTree.'.$raxml_output_file, $raxml_tree);
+	} elsif($raxml_tree_type eq 'veryfast') {
+		my $raxml_command = $raxml_path
+							.' -s '.$local_PHYLIP
+							.' -p '.$raxml_seed
+							.' -f E'
+							.' -m '.$raxml_dna_model
+							.' -n '.$raxml_output_file
+							.' -o '.$raxml_outgroup;
+		#~ print $raxml_command."\n";
+		my $raxml_console = `$raxml_command`;
+		#~ system($raxml_command);
+
+		move('RAxML_fastTree.'.$raxml_output_file, $raxml_tree);
+	}
+}
+
+sub raxml_root_on_midpoint {
+	my %params = ( 	raxml_tree => '',
+					raxml_path => '',
+					@_
+	);
+	my $raxml_tree = $params{'raxml_tree'};
+	my $raxml_path			= $params{'raxml_path'};
+	
+	my $raxml_command = $raxml_path
+						.' -t '.$raxml_tree
+						.' -m GTRGAMMA'
+						.' -f I'
+						.' -n '.$raxml_tree.'.rerooted';
+	#~ print $raxml_command."\n";
+	#~ system($raxml_command);
+	my $raxml_console = `$raxml_command`;
+	move($raxml_tree.'.rerooted',$raxml_tree);
+
+}

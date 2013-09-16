@@ -154,30 +154,38 @@ my $nw_utils_abs_path			= $params->options->{'-nw-utils-abs-path'};
 # Detect OS
 my $file_separator = "\\";
 my $detected_os = 'win32';
-my $raxml_bin_name = 'raxmlHPC-SSE3';
-my $raxml_path 	= '../../../bin/linux/raxml/'.$raxml_bin_name;
-my $raxml_exemplar_path = '../../bin/linux/raxml/'.$raxml_bin_name;
+my $raxml_path 	= '../../../bin/linux/raxml/';
+my $raxml_exemplar_path = '../../bin/linux/raxml/';
 my $nw_utils_path = '../../../bin/linux/newick-utils-1.5.0/src/';
 my $nw_utils_exemplar_path = '../../bin/linux/newick-utils-1.5.0/src/';
 
-if($raxml_abs_path ne '0') {
-	$raxml_path 			= $raxml_abs_path.'/'.$raxml_bin_name;
-	$raxml_exemplar_path 	= $raxml_abs_path.'/'.$raxml_bin_name;
-}
-if($nw_utils_abs_path ne '0') {
-	$nw_utils_path 			= $nw_utils_abs_path;
-	$nw_utils_exemplar_path = $nw_utils_abs_path;
-}
+my $linux_bit = 'x686';
 if("$^O\n" =~ "win32") {
 	print "Detected Windows\n";
 	$raxml_path	= '..\bin\win32\raxml\release-win32\raxmlHPC.exe';
-	$raxml_bin_name = 'raxmlHPC-SSE3.exe';
 } else {
 	print "Detected Linux\n";
 	$file_separator = "/";
 	$detected_os = 'linux';
+	my $linux_mode = `uname -a`;
+	if($linux_mode =~ "x86_64") {
+		$raxml_path .= 'raxmlHPC-SSE3_x86_64';
+		$nw_utils_path .= 'nw_display_x86_64';
+		$linux_bit = 'x86_64';
+	} elsif($linux_mode =~ '686') {
+		$raxml_path .= 'raxmlHPC-SSE3_x686';
+		$nw_utils_path .= 'nw_display_x686';
+	}
 }
 
+if($raxml_abs_path ne '0') {
+	$raxml_path 			= $raxml_abs_path.'/raxmlHPC-SSE3_'.$linux_bit;
+	$raxml_exemplar_path 	= $raxml_abs_path.'/raxmlHPC-SSE3_'.$linux_bit;
+}
+if($nw_utils_abs_path ne '0') {
+	$nw_utils_path 			= $nw_utils_abs_path.'/nw_display_'.$linux_bit;
+	$nw_utils_exemplar_path = $nw_utils_abs_path.'/nw_display_'.$linux_bit;
+}
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
 if ($bootstrap_reps > 0) {
@@ -1726,7 +1734,7 @@ sub print_tree_nw_utils {
 	my $out = new Bio::TreeIO(-file => '>'.$raxml_tree.'.nwk',
 							  -format => 'newick');
 	$out->write_tree($tree);
-	my $nw_utils = `$nw_utils_path/nw_display -b opacity:0 -w 800 -Im $raxml_tree.nwk -s -n 5 > $raxml_tree.svg`;
+	my $nw_utils = `$nw_utils_path -b opacity:0 -w 800 -Im $raxml_tree.nwk -s -n 5 > $raxml_tree.svg`;
 	my $tree_pdf = `inkscape -f $raxml_tree.svg -A $raxml_tree.pdf`;
 }
 

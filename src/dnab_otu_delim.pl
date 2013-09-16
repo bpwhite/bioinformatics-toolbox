@@ -114,6 +114,8 @@ my $params = General::Arguments->new(
 					'-raxml-bs-reps'		=> 100,			# Number of raxml bs reps to do
 					'-raxml-search-reps'	=> 2,			# Number of raxml search reps to do
 					'-exemplar-tree'		=> 0,			# Compute a tree of the exmplar sequences
+					'-raxml-abs-path'		=> 0,			# Set path for raxml
+					'-nw-utils-abs-path'	=> 0,		# Set path for nw_utils
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -146,6 +148,8 @@ my $raxml_tree_type				= $params->options->{'-raxml-trees'};
 my $raxml_search_reps			= $params->options->{'-raxml-search-reps'};
 my $raxml_bs_reps				= $params->options->{'-raxml-bs-reps'};
 my $exemplar_tree				= $params->options->{'-exemplar-tree'};
+my $raxml_abs_path				= $params->options->{'-raxml-abs-path'};
+my $nw_utils_abs_path			= $params->options->{'-nw-utils-abs-path'};
 
 # Detect OS
 my $file_separator = "\\";
@@ -156,6 +160,14 @@ my $raxml_exemplar_path = '../../bin/linux/raxml/'.$raxml_bin_name;
 my $nw_utils_path = '../../../bin/linux/newick-utils-1.5.0/src/';
 my $nw_utils_exemplar_path = '../../bin/linux/newick-utils-1.5.0/src/';
 
+if($raxml_abs_path ne '0') {
+	$raxml_path 			= $raxml_abs_path.'/'.$raxml_bin_name;
+	$raxml_exemplar_path 	= $raxml_abs_path.'/'.$raxml_bin_name;
+}
+if($nw_utils_abs_path ne '0') {
+	$nw_utils_path 			= $nw_utils_abs_path;
+	$nw_utils_exemplar_path = $nw_utils_abs_path;
+}
 if("$^O\n" =~ "win32") {
 	print "Detected Windows\n";
 	$raxml_path	= '..\bin\win32\raxml\release-win32\raxmlHPC.exe';

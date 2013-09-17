@@ -324,6 +324,7 @@ open(EXEMPLARS, '>'.$output_path.$otu_exemplars);
 my $spliced_align = $output_prefix.'_spliced.fas';
 unlink $output_path.$spliced_align;
 open(SPLICED, '>'.$output_path.$spliced_align);
+
 ##################################################################
 
 # Tag sequences
@@ -1233,8 +1234,7 @@ sub cluster_algorithm {
 					"[".$link_depth."]".$delimiter.
 					"[".$link_strength_string."]".$delimiter.
 					"".$nn_id." -> ".$nn_dist."%\n";
-			print OTU_EXCEL
-					$otu_i.$delimiter.filter_one_id($otu_seq->id).$delimiter.
+			my $otu_excel_string = $otu_i.$delimiter.filter_one_id($otu_seq->id).$delimiter.
 					$bootstrap_percentage.$delimiter.
 					scalar(@unique_overall_names).$delimiter.
 					$abundance.$delimiter.$num_unique_alleles.$delimiter.$num_distinct_alleles.$delimiter.
@@ -1245,7 +1245,39 @@ sub cluster_algorithm {
 					$link_depth.$delimiter.
 					$link_strength_string.$delimiter.
 					$nn_id.$delimiter.$nn_dist.$delimiter."\n";
-
+			print OTU_EXCEL $otu_excel_string;
+			
+			my $stats_string = 
+					'otu_i='.$otu_i."\n"
+					.'otu_id='.filter_one_id($otu_seq->id)."\n"
+					.'bootstrap_percentage='.$bootstrap_percentage."\n"
+					.'num_tax='.scalar(@unique_overall_names)."\n"
+					.'abundance='.$abundance."\n"
+					.'num_unique_alleles='.$num_unique_alleles."\n"
+					.'num_distinct_alleles='.$num_distinct_alleles."\n"
+					.'mean_distance='.$mean_distance."\n"
+					.'se_distance='.$se_distance."\n"
+					.'min_distance='.$min_distance."\n"
+					.'max_distance='.$max_distance."\n"
+					.'mean_number_comparisons='.$mean_number_comparisons."\n"
+					.'se_number_comparisons='.$se_number_comparisons."\n"
+					.'min_number_comparisons='.$min_number_comparisons."\n"
+					.'max_number_comparisons='.$max_number_comparisons."\n"
+					.'mean_sequence_length='.$mean_sequence_length."\n"
+					.'se_sequence_length='.$se_sequence_length."\n"
+					.'min_sequence_length='.$min_sequence_length."\n"
+					.'max_sequence_length='.$max_sequence_length."\n"
+					.'num_links='.scalar(@unique_otu_links)."\n"
+					.'link_depth='.$link_depth."\n"
+					.'link_strength_string='.$link_strength_string."\n"
+					.'nn_id='.$nn_id."\n"
+					.'nn_dist='.$nn_dist."\n";
+	
+			my $otu_stats = $otu_local_path.$current_otu_output_prefix.'_stats.txt';
+			unlink $otu_stats;
+			open(OTU_STATS, '>'.$otu_stats);
+			print OTU_STATS $stats_string;
+			close(OTU_STATS);
 			##################################################################
 			foreach my $unique_overall_name (@unique_overall_names) {
 				my $unique_name_abundance = 0;
@@ -1710,11 +1742,11 @@ sub print_tree_nw_utils {
 		foreach my $node (@nodes) {
 			if(defined($node->branch_length)) {
 				my $new_bl = sprintf($bl_round,$node->branch_length);
-				if($new_bl < $bl_cutoff) {
-					$node->branch_length(0);
-				} else {
-					$node->branch_length($new_bl);
-				}
+				#~ if($new_bl < $bl_cutoff) {
+					#~ $node->branch_length(0);
+				#~ } else {
+					#~ $node->branch_length($new_bl);
+				#~ }
 			}
 			if(defined($node->bootstrap)) {
 				my $new_bs = sprintf($bs_round,$node->bootstrap);
@@ -1736,6 +1768,7 @@ sub print_tree_nw_utils {
 	$out->write_tree($tree);
 	my $nw_utils = `$nw_utils_path -b opacity:0 -w 800 -Im $raxml_tree.nwk -s -n 5 > $raxml_tree.svg`;
 	my $tree_pdf = `inkscape -f $raxml_tree.svg -A $raxml_tree.pdf`;
+	my $tree_png = `inkscape -f $raxml_tree.svg -e $raxml_tree.png`;
 }
 
 sub raxml_command_selector {

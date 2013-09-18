@@ -115,7 +115,8 @@ my $params = General::Arguments->new(
 					'-raxml-search-reps'	=> 2,			# Number of raxml search reps to do
 					'-exemplar-tree'		=> 0,			# Compute a tree of the exmplar sequences
 					'-raxml-abs-path'		=> 0,			# Set path for raxml
-					'-nw-utils-abs-path'	=> 0,		# Set path for nw_utils
+					'-nw-utils-abs-path'	=> 0,			# Set path for nw_utils
+					'-nw-order-abs-path'	=> 0,			# Set path for nw_order
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -150,16 +151,33 @@ my $raxml_bs_reps				= $params->options->{'-raxml-bs-reps'};
 my $exemplar_tree				= $params->options->{'-exemplar-tree'};
 my $raxml_abs_path				= $params->options->{'-raxml-abs-path'};
 my $nw_utils_abs_path			= $params->options->{'-nw-utils-abs-path'};
+my $nw_order_abs_path			= $params->options->{'-nw-order-abs-path'};
 
 # Detect OS
 my $file_separator = "\\";
 my $detected_os = 'win32';
+
 my $raxml_path 	= '../../../bin/linux/raxml/';
 my $raxml_exemplar_path = '../../bin/linux/raxml/';
+
 my $nw_utils_path = '../../../bin/linux/newick-utils-1.5.0/src/';
 my $nw_utils_exemplar_path = '../../bin/linux/newick-utils-1.5.0/src/';
 
-my $linux_bit = 'x686';
+my $nw_display_path = $nw_utils_path;
+my $nw_display_exemplar_path = $nw_utils_exemplar_path;
+
+my $nw_order_path = $nw_utils_path;
+my $nw_order_exemplar_path = $nw_utils_exemplar_path;
+
+my $nw_reroot_path = $nw_utils_path;
+my $nw_reroot_exemplar_path = $nw_utils_exemplar_path;
+
+my $linux_bit 		= 'x686';
+my $nw_display_bin 	= 'nw_display';
+my $nw_order_bin	= 'nw_order';
+my $nw_reroot_bin	= 'nw_reroot';
+my $raxml_bin		= 'raxmlHPC-SSE3';
+
 if("$^O\n" =~ "win32") {
 	print "Detected Windows\n";
 	$raxml_path	= '..\bin\win32\raxml\release-win32\raxmlHPC.exe';
@@ -169,23 +187,54 @@ if("$^O\n" =~ "win32") {
 	$detected_os = 'linux';
 	my $linux_mode = `uname -a`;
 	if($linux_mode =~ "x86_64") {
-		$raxml_path .= 'raxmlHPC-SSE3_x86_64';
-		$nw_utils_path .= 'nw_display_x86_64';
 		$linux_bit = 'x86_64';
-	} elsif($linux_mode =~ '686') {
-		$raxml_path .= 'raxmlHPC-SSE3_x686';
-		$nw_utils_path .= 'nw_display_x686';
+		$nw_display_bin .= '_'.$linux_bit;
+		$nw_order_bin 	.= '_'.$linux_bit;
+		$nw_reroot_bin 	.= '_'.$linux_bit;
+		$raxml_bin 		.= '_'.$linux_bit;
+	} elsif ($linux_mode =~ "686") {
+		$linux_bit = 'x686';
+		$nw_display_bin .= '_'.$linux_bit;
+		$nw_order_bin 	.= '_'.$linux_bit;
+		$nw_reroot_bin 	.= '_'.$linux_bit;
+		$raxml_bin 		.= '_'.$linux_bit;
 	}
 }
 
+$raxml_path 		.= $raxml_bin;
+$nw_display_path 	.= $nw_display_bin;
+$nw_order_path 		.= $nw_order_bin;
+$nw_reroot_path 	.= $nw_reroot_bin;
+
+$raxml_exemplar_path 		.= $raxml_bin;
+$nw_display_exemplar_path 	.= $nw_display_bin;
+$nw_order_exemplar_path 	.= $nw_order_bin;
+$nw_reroot_exemplar_path 	.= $nw_reroot_bin;
+
+
+
 if($raxml_abs_path ne '0') {
-	$raxml_path 			= $raxml_abs_path.'/raxmlHPC-SSE3_'.$linux_bit;
-	$raxml_exemplar_path 	= $raxml_abs_path.'/raxmlHPC-SSE3_'.$linux_bit;
+	$raxml_path 			= $raxml_abs_path.'/'.$raxml_bin;
+	$raxml_exemplar_path 	= $raxml_abs_path.'/'.$raxml_bin;
 }
 if($nw_utils_abs_path ne '0') {
-	$nw_utils_path 			= $nw_utils_abs_path.'/nw_display_'.$linux_bit;
-	$nw_utils_exemplar_path = $nw_utils_abs_path.'/nw_display_'.$linux_bit;
+	$nw_display_path 			= $nw_utils_abs_path.'/nw_display_'.$linux_bit;
+	$nw_display_exemplar_path 	= $nw_utils_abs_path.'/nw_display_'.$linux_bit;
 }
+if($nw_utils_abs_path ne '0') {
+	$nw_order_path 			= $nw_utils_abs_path.'/nw_order_'.$linux_bit;
+	$nw_order_exemplar_path = $nw_utils_abs_path.'/nw_order_'.$linux_bit;
+}
+if($nw_utils_abs_path ne '0') {
+	$nw_reroot_path 			= $nw_utils_abs_path.'/nw_reroot_'.$linux_bit;
+	$nw_reroot_exemplar_path 	= $nw_utils_abs_path.'/nw_reroot_'.$linux_bit;
+}
+
+print $raxml_path."\n";
+print $nw_display_path."\n";
+print $nw_order_path."\n";
+print $nw_reroot_path."\n";
+
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
 if ($bootstrap_reps > 0) {
@@ -369,6 +418,7 @@ if ($use_tags == 1) {
 # 4. Replace ambiguous characters with gaps (-)
 my %unique_sequences = (); # Don't flush
 my %non_unique_sequences = ();
+my %non_unique_sequences_fltr_id = ();
 
 my %unpacked_sequences = ();
 my %unpacked_filtered_sequences = ();
@@ -438,6 +488,8 @@ foreach my $seq (@original_sequence_array) {
 	
 	$unique_sequences{$seq->seq()} = $seq->id;
 	$non_unique_sequences{$seq->id} = $seq->seq;
+	$non_unique_sequences_fltr_id{filter_one_id($seq->id)} = $seq->seq;
+	
 	$unique_ids{$seq->id} = 'a';
 	
 	push(@query_seqs_array,$seq);
@@ -870,7 +922,7 @@ sub cluster_algorithm {
 			my %current_otu_sequences 		= ();
 			my %current_otu_seqs_and_id		= ();
 			my %exemplars_hash 				= ();
-			foreach my $query_seq_id (@unique_overall_query_matches) {	
+			foreach my $query_seq_id (@unique_overall_query_matches) {
 				$query_seq = $non_unique_sequences{$query_seq_id};
 				push(@seq_lengths,fast_seq_length($query_seq));
 				
@@ -905,8 +957,7 @@ sub cluster_algorithm {
 					next if $seq_id ~~ @printed_exemplars;
 					if(fast_seq_length($exemplars_hash{$seq_id}) == $sorted_seq_lengths[$exemplar_i]) {
 						#~ print EXEMPLARS '>|'.$otu_i.'|_|'.$bootstrap_percentage.'|_|'.$otu_digest.'|_'.$seq_id."\n";
-						print EXEMPLARS '>|'.$otu_i.'|_|'.$bootstrap_percentage.'|_'.$seq_id."\n";
-
+						print EXEMPLARS '>|'.$otu_i.'|_|'.$bootstrap_percentage.'|_'.filter_one_id($seq_id)."\n";
 						print EXEMPLARS $exemplars_hash{$seq_id}."\n";
 						push(@printed_exemplars,$seq_id);
 						$num_exemplars++;
@@ -924,9 +975,8 @@ sub cluster_algorithm {
 			
 			##################################################################
 			# Use first exemplar to find nearest neighbor.
-			my $nn_id = '';
-			my $nn_dist = 100;
-			my $nn_sequence = '';
+			my %nn_hash = ();
+			my @neighbor_dists = ();
 			my ($k2p_distance, $transitions, $transversions, $bases_compared ) = 0;
 			if($skip_nn == 0 || $raxml_tree_type ne '0') {
 				foreach my $otu_seq (@otu_seqs_array) { # For each OTU
@@ -935,16 +985,25 @@ sub cluster_algorithm {
 																							\$unpacked_filtered_sequences{$first_exemplar_seq_gapped}, 
 																							$max_seq_length);																								
 					next if $bases_compared < $minimum_sequence_length;
-					if($k2p_distance < $nn_dist) {
-						$nn_dist = $k2p_distance;
-						$nn_id = $otu_seq->id;
-						$nn_sequence = $otu_seq->seq();
+					
+					# Store pairwise distances to each OTU in a hash
+					mod_k2p($otu_seq->id,$k2p_distance,\%nn_hash);
+					sub mod_k2p {
+						my $seq_id = shift;
+						my $k2p_distance = shift;
+						my $nn_hash_ref = shift;
+						# Make sure not to overwrite a nn that happens to have the same distance.
+						if(exists($nn_hash_ref->{$k2p_distance})) {
+							$k2p_distance += 0.0000001;
+						} else {
+							$nn_hash_ref->{$k2p_distance} = $seq_id;
+							return;
+						}
+						mod_k2p($seq_id,$k2p_distance,$nn_hash_ref);
 					}
+					push(@neighbor_dists, $k2p_distance);
 				}
 			}
-			my $nn_rounding = "%.3f";
-			$nn_id 		= filter_one_id($nn_id);
-			$nn_dist 	= sprintf($nn_rounding,$nn_dist)*100;
 			##################################################################
 			## End nearest neighbor search
 			
@@ -975,20 +1034,33 @@ sub cluster_algorithm {
 			}
 			unlink $otu_FASTA_file;
 			open(OTU_FASTA, '>>'.$otu_FASTA_file);
-			# exit;
-			if($nn_id ne '') {
-				print OTU_FASTA '>NN|'.$nn_id."\n";
-				print OTU_FASTA $nn_sequence."\n";
+			
+			# Print nearest neighbors, if applicable.
+			my $nn_id = '';
+			my $nn_dist = '';
+			my $nn_sequence = '';
+			if((keys %nn_hash) > 0) {
+				my @sorted_neighbor_dists = (sort { $b <=> $a } @neighbor_dists);
+				my $num_nearest_neighbors = 3;
+				for(my $nn_i = 1; $nn_i <= $num_nearest_neighbors; $nn_i++) {
+					if($nn_i == 1) {
+						$nn_dist 	= sprintf("%.3f",$sorted_neighbor_dists[$nn_i])*100;
+						$nn_id 		= $nn_hash{$sorted_neighbor_dists[$nn_i]};
+					}
+					print OTU_FASTA '>NN|'.filter_one_id($nn_hash{$sorted_neighbor_dists[$nn_i]})."\n";
+					print OTU_FASTA $non_unique_sequences{$nn_hash{$sorted_neighbor_dists[$nn_i]}}."\n";
+				}
 			}
+			
 			my $filtered_otu_id;
 			my $filtered_query_id;
 			foreach my $query_seq_id (@unique_overall_query_matches) {
-				# my $current_seq_length = fast_seq_length($query_seq);
+				# my $current_seq_length = fast_seq_length($query_seq);				
 				$query_seq = $non_unique_sequences{$query_seq_id};
 				$filtered_otu_id = filter_one_id($otu_seq->id);
 				$filtered_query_id = filter_one_id($query_seq_id);
 				print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
-				print OTU_FASTA '>'.$query_seq_id."\n";
+				print OTU_FASTA '>'.filter_one_id($query_seq_id)."\n";
 				print OTU_FASTA $query_seq."\n";
 				
 				if($print_spliced_aln == 1) {
@@ -1064,7 +1136,6 @@ sub cluster_algorithm {
 				chdir($otu_local_path);
 				unlink<RAxML_*>;
 				
-				
 				raxml_command_selector(	raxml_path			=> $raxml_path,
 										local_PHYLIP 		=> $local_PHYLIP,
 										raxml_seed 			=> $raxml_seed,
@@ -1081,7 +1152,9 @@ sub cluster_algorithm {
 					raxml_root_on_midpoint(	raxml_tree 	=> $raxml_tree,
 											raxml_path	=> $raxml_path,);
 				}
-				print_tree_nw_utils(nw_utils_path		=> $nw_utils_path,
+				print_tree_nw_utils(nw_display_path		=> $nw_display_path,
+									nw_order_path		=> $nw_order_path,
+									nw_reroot_path		=> $nw_reroot_path,
 									raxml_tree 			=> $raxml_tree,
 									seq_id_to_ptc_ref 	=> $seq_id_to_ptc_ref,
 									raxml_tree_type		=> $raxml_tree_type,
@@ -1436,8 +1509,8 @@ if($exemplar_tree == 1) {
 		my %seq_id_to_ptc = %$seq_id_to_ptc_ref;
 		my $local_PHYLIP		= $exemplar_prefix.'.phy';
 		my $raxml_seed 			= int rand(99999);
-		my $raxml_search_reps	= 1;
-		my $raxml_bs_reps		= 10;
+		#~ my $raxml_search_reps	= 1;
+		#~ my $raxml_bs_reps		= 10;
 		my $raxml_output_file 	= $exemplar_prefix.'.raxml';
 		my $raxml_dna_model		= 'GTRGAMMA';
 		my $raxml_tree 			= $exemplar_prefix.'.tre';
@@ -1460,7 +1533,9 @@ if($exemplar_tree == 1) {
 								raxml_path			=> $raxml_exemplar_path
 								);
 										
-		print_tree_nw_utils(	nw_utils_path 		=> $nw_utils_exemplar_path,
+		print_tree_nw_utils(	nw_display_path 	=> $nw_display_exemplar_path,
+								nw_order_path		=> $nw_order_exemplar_path,
+								nw_reroot_path		=> $nw_reroot_exemplar_path,
 								raxml_tree 			=> $raxml_tree,
 								seq_id_to_ptc_ref	=> $seq_id_to_ptc_ref,
 								raxml_tree_type		=> $raxml_tree_type,
@@ -1719,7 +1794,9 @@ sub convert_fas2phyl {
 }
 
 sub print_tree_nw_utils {
-	my %params = ( 	nw_utils_path => '',
+	my %params = ( 	nw_display_path => '',
+					nw_order_path => '',
+					nw_reroot_path => '',
 					raxml_tree => '',
 					seq_id_to_ptc_ref => '',
 					raxml_tree_type => '',
@@ -1727,7 +1804,10 @@ sub print_tree_nw_utils {
 				);
 	my $raxml_tree = $params{'raxml_tree'};
 	my $seq_id_to_ptc_ref = $params{'seq_id_to_ptc_ref'};
-	my $nw_utils_path	= $params{'nw_utils_path'};
+	my $nw_display_path	= $params{'nw_display_path'};
+	my $nw_order_path	= $params{'nw_order_path'};
+	my $nw_reroot_path	= $params{'nw_reroot_path'};
+	
 	my %seq_id_to_ptc = %$seq_id_to_ptc_ref;
 	
 	# Load RAxML tree and clean up branch lengths, boostrap values, etc.
@@ -1735,19 +1815,19 @@ sub print_tree_nw_utils {
 	my $tree = $raxml_treeio->next_tree;
 	my @nodes = $tree->get_nodes;
 	my $bs_round = "%.2f";
-	my $bs_cutoff = 0.70;
+	my $bs_cutoff = 0.00;
 	my $bl_round = "%.3f";
 	my $bl_cutoff = 0.0001;
 	if($raxml_tree_type ne 'veryfast') {
 		foreach my $node (@nodes) {
-			if(defined($node->branch_length)) {
-				my $new_bl = sprintf($bl_round,$node->branch_length);
+			#~ if(defined($node->branch_length)) {
+				#~ my $new_bl = sprintf($bl_round,$node->branch_length);
 				#~ if($new_bl < $bl_cutoff) {
 					#~ $node->branch_length(0);
 				#~ } else {
 					#~ $node->branch_length($new_bl);
 				#~ }
-			}
+			#~ }
 			if(defined($node->bootstrap)) {
 				my $new_bs = sprintf($bs_round,$node->bootstrap);
 				if($new_bs < $bs_cutoff) {
@@ -1766,7 +1846,10 @@ sub print_tree_nw_utils {
 	my $out = new Bio::TreeIO(-file => '>'.$raxml_tree.'.nwk',
 							  -format => 'newick');
 	$out->write_tree($tree);
-	my $nw_utils = `$nw_utils_path -b opacity:0 -w 800 -Im $raxml_tree.nwk -s -n 5 > $raxml_tree.svg`;
+	
+	#~ my $nw_utils = `$nw_reroot_path $raxml_tree.nwk | $nw_order_path - -c d | $nw_display_path - -b opacity:0 -w 800 -Im  -s -n 5 > $raxml_tree.svg`;
+	my $nw_utils = `$nw_order_path $raxml_tree.nwk -c d | $nw_display_path - -b opacity:0 -w 800 -Im  -s -n 5 > $raxml_tree.svg`;
+
 	my $tree_pdf = `inkscape -f $raxml_tree.svg -A $raxml_tree.pdf`;
 	my $tree_png = `inkscape -f $raxml_tree.svg -e $raxml_tree.png`;
 }
@@ -1795,6 +1878,7 @@ sub raxml_command_selector {
 	my $raxml_tree			= $params{'raxml_tree'};
 	my $raxml_outgroup		= $params{'raxml_outgroup'};
 	
+	print $raxml_path."\n";
 	if ($raxml_tree_type eq 'bootstrap') {
 		my $raxml_command = $raxml_path
 							.' -f a '

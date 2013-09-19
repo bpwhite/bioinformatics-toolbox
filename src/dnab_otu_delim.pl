@@ -172,10 +172,14 @@ my $nw_order_exemplar_path = $nw_utils_exemplar_path;
 my $nw_reroot_path = $nw_utils_path;
 my $nw_reroot_exemplar_path = $nw_utils_exemplar_path;
 
+my $nw_ed_path = $nw_utils_path;
+my $nw_ed_exemplar_path = $nw_utils_exemplar_path;
+
 my $linux_bit 		= 'x686';
 my $nw_display_bin 	= 'nw_display';
 my $nw_order_bin	= 'nw_order';
 my $nw_reroot_bin	= 'nw_reroot';
+my $nw_ed_bin		= 'nw_ed';
 my $raxml_bin		= 'raxmlHPC-SSE3';
 
 if("$^O\n" =~ "win32") {
@@ -191,12 +195,14 @@ if("$^O\n" =~ "win32") {
 		$nw_display_bin .= '_'.$linux_bit;
 		$nw_order_bin 	.= '_'.$linux_bit;
 		$nw_reroot_bin 	.= '_'.$linux_bit;
+		$nw_ed_bin		.= '_'.$linux_bit;
 		$raxml_bin 		.= '_'.$linux_bit;
 	} elsif ($linux_mode =~ "686") {
 		$linux_bit = 'x686';
 		$nw_display_bin .= '_'.$linux_bit;
 		$nw_order_bin 	.= '_'.$linux_bit;
 		$nw_reroot_bin 	.= '_'.$linux_bit;
+		$nw_ed_bin		.= '_'.$linux_bit;
 		$raxml_bin 		.= '_'.$linux_bit;
 	}
 }
@@ -205,12 +211,13 @@ $raxml_path 		.= $raxml_bin;
 $nw_display_path 	.= $nw_display_bin;
 $nw_order_path 		.= $nw_order_bin;
 $nw_reroot_path 	.= $nw_reroot_bin;
+$nw_ed_path			.= $nw_ed_bin;
 
 $raxml_exemplar_path 		.= $raxml_bin;
 $nw_display_exemplar_path 	.= $nw_display_bin;
 $nw_order_exemplar_path 	.= $nw_order_bin;
 $nw_reroot_exemplar_path 	.= $nw_reroot_bin;
-
+$nw_ed_exemplar_path		.= $nw_ed_bin;
 
 
 if($raxml_abs_path ne '0') {
@@ -229,11 +236,16 @@ if($nw_utils_abs_path ne '0') {
 	$nw_reroot_path 			= $nw_utils_abs_path.'/nw_reroot_'.$linux_bit;
 	$nw_reroot_exemplar_path 	= $nw_utils_abs_path.'/nw_reroot_'.$linux_bit;
 }
+if($nw_utils_abs_path ne '0') {
+	$nw_ed_path 			= $nw_utils_abs_path.'/nw_reroot_'.$linux_bit;
+	$nw_ed_exemplar_path 	= $nw_utils_abs_path.'/nw_reroot_'.$linux_bit;
+}
 
 print $raxml_path."\n";
 print $nw_display_path."\n";
 print $nw_order_path."\n";
 print $nw_reroot_path."\n";
+print $nw_ed_path."\n";
 
 my $bootstrap_flag = 0; # If doing_bootstrap matches this, do a bootstrap.
 my $doing_bootstrap = 0;
@@ -1040,7 +1052,8 @@ sub cluster_algorithm {
 			my $nn_dist = '';
 			my $nn_sequence = '';
 			if((keys %nn_hash) > 0) {
-				my @sorted_neighbor_dists = (sort { $b <=> $a } @neighbor_dists);
+				# sort neighbor distances by lowest first.
+				my @sorted_neighbor_dists = (sort { $a <=> $b } @neighbor_dists);
 				my $num_nearest_neighbors = 3;
 				for(my $nn_i = 1; $nn_i <= $num_nearest_neighbors; $nn_i++) {
 					if($nn_i == 1) {
@@ -1155,6 +1168,7 @@ sub cluster_algorithm {
 				print_tree_nw_utils(nw_display_path		=> $nw_display_path,
 									nw_order_path		=> $nw_order_path,
 									nw_reroot_path		=> $nw_reroot_path,
+									nw_ed_path			=> $nw_ed_path,
 									raxml_tree 			=> $raxml_tree,
 									seq_id_to_ptc_ref 	=> $seq_id_to_ptc_ref,
 									raxml_tree_type		=> $raxml_tree_type,
@@ -1536,6 +1550,7 @@ if($exemplar_tree == 1) {
 		print_tree_nw_utils(	nw_display_path 	=> $nw_display_exemplar_path,
 								nw_order_path		=> $nw_order_exemplar_path,
 								nw_reroot_path		=> $nw_reroot_exemplar_path,
+								nw_ed_path			=> $nw_ed_exemplar_path,
 								raxml_tree 			=> $raxml_tree,
 								seq_id_to_ptc_ref	=> $seq_id_to_ptc_ref,
 								raxml_tree_type		=> $raxml_tree_type,
@@ -1800,6 +1815,8 @@ sub print_tree_nw_utils {
 					raxml_tree => '',
 					seq_id_to_ptc_ref => '',
 					raxml_tree_type => '',
+					nw_set_outgroup	=> '',
+					nw_ed_path	=> '',
 					@_
 				);
 	my $raxml_tree = $params{'raxml_tree'};
@@ -1807,19 +1824,28 @@ sub print_tree_nw_utils {
 	my $nw_display_path	= $params{'nw_display_path'};
 	my $nw_order_path	= $params{'nw_order_path'};
 	my $nw_reroot_path	= $params{'nw_reroot_path'};
+	my $nw_set_outgroup = $params{'nw_set_outgroup'};
+	my $nw_ed_path		= $params{'nw_ed_path'};
 	
 	my %seq_id_to_ptc = %$seq_id_to_ptc_ref;
 	
 	# Load RAxML tree and clean up branch lengths, boostrap values, etc.
-	my $raxml_treeio = Bio::TreeIO->new(-format => 'newick', -file => $raxml_tree);
+	my $raxml_treeio = Bio::TreeIO->new(-format => 'newick', 
+										-file => $raxml_tree,
+										-internal_node_id => 'bootstrap');
 	my $tree = $raxml_treeio->next_tree;
 	my @nodes = $tree->get_nodes;
 	my $bs_round = "%.2f";
-	my $bs_cutoff = 0.00;
+	my $bs_cutoff = 50;
 	my $bl_round = "%.3f";
 	my $bl_cutoff = 0.0001;
 	if($raxml_tree_type ne 'veryfast') {
 		foreach my $node (@nodes) {
+			#~ use Data::Dumper;
+			#~ my $dumper = Dumper($node);
+			#~ open(DUMPER, '>dumper.txt');
+			#~ print DUMPER $dumper;
+			#~ close(DUMPER);
 			#~ if(defined($node->branch_length)) {
 				#~ my $new_bl = sprintf($bl_round,$node->branch_length);
 				#~ if($new_bl < $bl_cutoff) {
@@ -1828,12 +1854,10 @@ sub print_tree_nw_utils {
 					#~ $node->branch_length($new_bl);
 				#~ }
 			#~ }
-			if(defined($node->bootstrap)) {
-				my $new_bs = sprintf($bs_round,$node->bootstrap);
-				if($new_bs < $bs_cutoff) {
-					$node->bootstrap(undef);
-				} else {
-					$node->bootstrap($new_bs);
+			use Scalar::Util qw(looks_like_number);
+			if(defined($node->bootstrap) && looks_like_number($node->bootstrap)) {
+				if($node->bootstrap < $bs_cutoff) {
+					$node->bootstrap('');
 				}
 			}
 			if(defined($seq_id_to_ptc{$node->id})) {
@@ -1848,7 +1872,9 @@ sub print_tree_nw_utils {
 	$out->write_tree($tree);
 	
 	#~ my $nw_utils = `$nw_reroot_path $raxml_tree.nwk | $nw_order_path - -c d | $nw_display_path - -b opacity:0 -w 800 -Im  -s -n 5 > $raxml_tree.svg`;
-	my $nw_utils = `$nw_order_path $raxml_tree.nwk -c d | $nw_display_path - -b opacity:0 -w 800 -Im  -s -n 5 > $raxml_tree.svg`;
+	#~ my $nw_utils = `$nw_order_path $raxml_tree.nwk -c n | $nw_display_path - -b 'opacity:0' -w 800 -Im -s -n 5 > $raxml_tree.svg`;
+
+	my $nw_utils = `$nw_order_path $raxml_tree.nwk -c n | $nw_display_path - -b 'opacity:0' -w 800 -Im -s -n 5 > $raxml_tree.svg`;
 
 	my $tree_pdf = `inkscape -f $raxml_tree.svg -A $raxml_tree.pdf`;
 	my $tree_png = `inkscape -f $raxml_tree.svg -e $raxml_tree.png`;
@@ -1917,6 +1943,8 @@ sub raxml_command_selector {
 		#~ system($raxml_command);
 
 		move('RAxML_fastTree.'.$raxml_output_file, $raxml_tree);
+	} else {
+		die("Invalid RAxML option");
 	}
 }
 

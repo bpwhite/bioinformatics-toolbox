@@ -1883,9 +1883,11 @@ sub print_tree_nw_utils {
 	
 	print $root."\n";
 	#~ exit;
-	my $nw_utils = `$nw_reroot_path $raxml_tree.nwk '$root' | $nw_order_path - -c n | $nw_display_path - -b 'opacity:0' -w 800 -Im -s -n 5 > $raxml_tree.svg`;
-	#~ my $nw_utils = `$nw_reroot_path $raxml_tree.nwk $root | $nw_order_path $raxml_tree.nwk -c n | $nw_display_path - -b 'opacity:0' -w 800 -Im -s -n 5 > $raxml_tree.svg`;
-
+	if($root ne '') {
+		my $nw_utils = `$nw_reroot_path $raxml_tree.nwk '$root' | $nw_order_path - -c n | $nw_display_path - -b 'opacity:0' -w 800 -Im -s -n 5 > $raxml_tree.svg`;
+	} else {
+		my $nw_utils = `$nw_order_path $raxml_tree.nwk -c n | $nw_display_path - -b 'opacity:0' -w 800 -Im -s -n 5 > $raxml_tree.svg`;
+	}
 	my $tree_pdf = `inkscape -f $raxml_tree.svg -A $raxml_tree.pdf`;
 	my $tree_png = `inkscape -f $raxml_tree.svg -e $raxml_tree.png`;
 }
@@ -1927,6 +1929,7 @@ sub raxml_command_selector {
 							.' -m '.$raxml_dna_model;
 		my $raxml_console = `$raxml_command`;
 		#~ system($raxml_command);
+
 		move('RAxML_bipartitions.'.$raxml_output_file, $raxml_tree);
 	} elsif($raxml_tree_type eq 'quick') {
 		my $raxml_command = $raxml_path

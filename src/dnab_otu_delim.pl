@@ -1051,17 +1051,21 @@ sub cluster_algorithm {
 			my $nn_id = '';
 			my $nn_dist = '';
 			my $nn_sequence = '';
+			my $root = '';
 			if((keys %nn_hash) > 0) {
 				# sort neighbor distances by lowest first.
 				my @sorted_neighbor_dists = (sort { $a <=> $b } @neighbor_dists);
 				my $num_nearest_neighbors = 3;
 				for(my $nn_i = 1; $nn_i <= $num_nearest_neighbors; $nn_i++) {
+					my $cur_nn_id = $nn_hash{$sorted_neighbor_dists[$nn_i]};
 					if($nn_i == 1) {
 						$nn_dist 	= sprintf("%.3f",$sorted_neighbor_dists[$nn_i])*100;
-						$nn_id 		= $nn_hash{$sorted_neighbor_dists[$nn_i]};
+						$nn_id 		= $cur_nn_id;
 					}
-					print OTU_FASTA '>NN|'.filter_one_id($nn_hash{$sorted_neighbor_dists[$nn_i]})."\n";
+					
+					print OTU_FASTA '>NN|'.filter_one_id($cur_nn_id)."\n";
 					print OTU_FASTA $non_unique_sequences{$nn_hash{$sorted_neighbor_dists[$nn_i]}}."\n";
+					$root = 'NN|'.filter_one_id($cur_nn_id);
 				}
 			}
 			
@@ -1172,6 +1176,7 @@ sub cluster_algorithm {
 									raxml_tree 			=> $raxml_tree,
 									seq_id_to_ptc_ref 	=> $seq_id_to_ptc_ref,
 									raxml_tree_type		=> $raxml_tree_type,
+									root				=> $root,
 									);
 				unlink<RAxML_*>;
 				use File::Spec;
@@ -1817,6 +1822,7 @@ sub print_tree_nw_utils {
 					raxml_tree_type => '',
 					nw_set_outgroup	=> '',
 					nw_ed_path	=> '',
+					root		=> '',
 					@_
 				);
 	my $raxml_tree = $params{'raxml_tree'};
@@ -1826,6 +1832,7 @@ sub print_tree_nw_utils {
 	my $nw_reroot_path	= $params{'nw_reroot_path'};
 	my $nw_set_outgroup = $params{'nw_set_outgroup'};
 	my $nw_ed_path		= $params{'nw_ed_path'};
+	my $root			= $params{'root'};
 	
 	my %seq_id_to_ptc = %$seq_id_to_ptc_ref;
 	
@@ -1873,8 +1880,11 @@ sub print_tree_nw_utils {
 	
 	#~ my $nw_utils = `$nw_reroot_path $raxml_tree.nwk | $nw_order_path - -c d | $nw_display_path - -b opacity:0 -w 800 -Im  -s -n 5 > $raxml_tree.svg`;
 	#~ my $nw_utils = `$nw_order_path $raxml_tree.nwk -c n | $nw_display_path - -b 'opacity:0' -w 800 -Im -s -n 5 > $raxml_tree.svg`;
-
-	my $nw_utils = `$nw_order_path $raxml_tree.nwk -c n | $nw_display_path - -b 'opacity:0' -w 800 -Im -s -n 5 > $raxml_tree.svg`;
+	
+	print $root."\n";
+	#~ exit;
+	my $nw_utils = `$nw_reroot_path $raxml_tree.nwk '$root' | $nw_order_path - -c n | $nw_display_path - -b 'opacity:0' -w 800 -Im -s -n 5 > $raxml_tree.svg`;
+	#~ my $nw_utils = `$nw_reroot_path $raxml_tree.nwk $root | $nw_order_path $raxml_tree.nwk -c n | $nw_display_path - -b 'opacity:0' -w 800 -Im -s -n 5 > $raxml_tree.svg`;
 
 	my $tree_pdf = `inkscape -f $raxml_tree.svg -A $raxml_tree.pdf`;
 	my $tree_png = `inkscape -f $raxml_tree.svg -e $raxml_tree.png`;

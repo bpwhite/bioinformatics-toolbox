@@ -926,7 +926,6 @@ sub cluster_algorithm {
 		##################################################################
 		# Bootstrap Check ################################################
 		##################################################################
-						
 			## Begin finding exemplars
 			# Sort sequence lengths and print exemplars.
 			my @seq_lengths = ();
@@ -1038,7 +1037,6 @@ sub cluster_algorithm {
 			my $current_otu_output_path 	= $output_path.$output_prefix.'_'.$otu_i;
 			my $otu_local_path 				= $current_otu_output_path.$file_separator;
 			my $otu_FASTA_file				= $otu_local_path.$current_otu_output_prefix.'.fas';
-			
 			
 			unless(-d ($current_otu_output_path)) {
 				# print "Creating output path: ".$current_otu_output_prefix."\n";
@@ -1483,9 +1481,6 @@ sub cluster_algorithm {
 		}
 		print "Average Bootstrap Support: $mean_bs_values\n";
 
-
-		
-
 		$output_summary{'pseudo_reps'} 			= $pseudo_reps;
 		$output_summary{'total_found_seqs'} 	= $total_found_seqs;
 		$output_summary{'not_found_seqs'}		= $not_found_seqs;
@@ -1512,6 +1507,7 @@ sub cluster_algorithm {
 	# End Bootstrap Check ############################################
 	##################################################################
 	}
+
 }
 close(EXEMPLARS);
 close(OTU_RESULTS);

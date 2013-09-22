@@ -1362,7 +1362,7 @@ sub cluster_algorithm {
 					.'link_strength_string='.$link_strength_string."\n"
 					.'nn_id='.$nn_id."\n"
 					.'nn_dist='.$nn_dist."\n";
-	
+
 			my $otu_stats = $otu_local_path.$current_otu_output_prefix.'_stats.txt';
 			unlink $otu_stats;
 			open(OTU_STATS, '>'.$otu_stats);

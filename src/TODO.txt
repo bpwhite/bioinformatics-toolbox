@@ -1,2 +1,4 @@
+09/27/2013
+- Add note on installing libexpat1-dev on debian systems which is a dependency for XML::Simple
 09/18/2013
-- Add reroot functionality in newick utils
+- Add reroot functionality in newick utils -done

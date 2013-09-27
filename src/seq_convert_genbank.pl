@@ -236,8 +236,6 @@ sub download_target_taxa {
 		goto taxonomy_eutil;
 	}
 	
-
-
 	my $taxon_id = $taxon_ids[0];
 	print "\tFound taxon ID: $taxon_id\n";
 	##############################################################################
@@ -271,6 +269,15 @@ sub download_target_taxa {
 		usleep($sleep_time); 	# Sleep so you don't overload NCBI's servers.
 		goto sequence_search;
 	}
+	my %unique_seq_ids = ();
+	foreach my $seq_id (@sequence_ids) {
+		if(exists($unique_seq_ids{$seq_id})) {
+			$unique_seq_ids{$seq_id}++;
+		} else {
+			$unique_seq_ids{$seq_id} = 1;
+		}
+	}
+	@sequence_ids = keys %unique_seq_ids;
 	$number_seqs_found = scalar @sequence_ids;
 	# If only looking to count sequences, go here.
 	if ($params->options->{'-count-seqs'} == 1) {
@@ -366,6 +373,7 @@ sub download_target_taxa {
 	my @genbank 						= <GENBANK>;
 	close GENBANK;
 	my %binomial_name_hash				= ();
+	my %accession_hash					= ();
 	my %taxonomy_hierarchy_hash 		= ();
 	my $current_accession 				= 'NA';
 	my @current_hierarchical_taxonomy 	= ();
@@ -394,6 +402,12 @@ sub download_target_taxa {
 			$current_accession = $accession_split[0];			
 			$current_accession =~ s/\s+$//; # remove trailing spaces
 			$current_accession =~ s/ /_/g; 	# replace inner whitespace
+			if(exists($accession_hash{$current_accession})) {
+				print $current_accession;
+				$accession_hash{$current_accession}++;
+			} else {
+				$accession_hash{$current_accession} = 1;
+			}
 		}
 		if($genbank_line =~ m/ORGANISM/ && $found_accession == 1) { $found_organism_line = 1 };
 		if($found_organism_line == 1) {
@@ -503,6 +517,9 @@ sub download_target_taxa {
 		}
 		# If targetting specimens that only have vouchers.
 		if(($voucher_only == 1) && ($voucher_id eq 'NA')) {
+			next;
+		}
+		if($accession_hash{$accession_number} > 1) {
 			next;
 		}
 		##############################################################################
@@ -777,6 +794,12 @@ sub download_target_taxa {
 	# unlink $sequence_file or warn "Could not unlink $sequence_file\n";
 	unlink($sequence_file) if defined $sequence_file;
 
+	print "Duplicate accession Id's eliminated:\n";
+	for my $unique_id (sort keys %accession_hash) {
+		if($accession_hash{$unique_id} > 1) {
+			print $unique_id." => ".$accession_hash{$unique_id}."\n";
+		}
+	}
 	return \@return_output_lines;
 }
 

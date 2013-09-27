@@ -303,7 +303,7 @@ close(RUN_STATUS);
 my $pseudo_reps_outp = $output_prefix.'_pseudo_reps.csv';
 unlink $output_path.$pseudo_reps_outp;
 open(PSEUDO_REPS, '>>'.$output_path.$pseudo_reps_outp);
-print PSEUDO_REPS "pseudo_rep,total_found_seqs,total_morpho,total_otu,max_seq_length,splice_start,splice_end,lumping_rate,one_to_one_ratio,used_only_once\n";
+print PSEUDO_REPS "run_tag,cutoff,pseudo_rep,total_found_seqs,total_morpho,total_otu,max_seq_length,splice_start,splice_end,lumping_rate,one_to_one_ratio,used_only_once\n";
 close(PSEUDO_REPS);
 ##################################################################
 # Import alignment
@@ -647,7 +647,6 @@ sub cluster_algorithm {
 	print RUN_STATUS "predicted_otu=".$remaining_otu."\n";
 	close(RUN_STATUS);
 	print $remaining_otu."\n" if $doing_bootstrap == $bootstrap_flag;
-	print 
 	print "Rebuilding sequence arrays...\n" if $doing_bootstrap == $bootstrap_flag;
 	my $number_remaining_seqs = 0;
 	##################################################################
@@ -1131,7 +1130,8 @@ sub cluster_algorithm {
 				chdir("..");
 				chdir("..");
 			}
-			if($abundance > 3 && $raxml_tree_type ne '0') {
+			if(($abundance > 3 && $raxml_tree_type ne '0') || 
+				($remaining_otu > 3 && $raxml_tree_type ne '0')) {
 
 				my $seq_id_to_ptc_ref = convert_fas2phyl(	
 											FASTA_file => $otu_FASTA_file,
@@ -1492,10 +1492,10 @@ sub cluster_algorithm {
 		$output_summary{'one_to_one_ratio'}		= $one_to_one_ratio;
 		$output_summary{'used_only_once_ratio'} = $used_only_once_ratio;
 		$output_summary{'num_morpho_names'} 	= $num_morpho_names;
-
+		
 		if($pseudo_reps >= 1) {
 			my $total_otu = $otu_i - 1;
-			print PSEUDO_REPS $pseudo_reps.','.$total_found_seqs.','.$num_morpho_names.','.$total_otu.','.$max_seq_length.','.$splice_start.','.$splice_end.','.$lumping_rate.','.$one_to_one_ratio.','.$used_only_once_ratio."\n";
+			print PSEUDO_REPS $run_tag.','.$cutoff.','.$pseudo_reps.','.$total_found_seqs.','.$num_morpho_names.','.$total_otu.','.$max_seq_length.','.$splice_start.','.$splice_end.','.$lumping_rate.','.$one_to_one_ratio.','.$used_only_once_ratio."\n";
 			$pseudo_reps--;
 			close(PSEUDO_REPS);
 			if ($pseudo_reps == 0) {

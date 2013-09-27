@@ -1132,7 +1132,7 @@ sub cluster_algorithm {
 			}
 			if(($abundance > 3 && $raxml_tree_type ne '0') || 
 				($remaining_otu > 3 && $raxml_tree_type ne '0')) {
-
+			
 				my $seq_id_to_ptc_ref = convert_fas2phyl(	
 											FASTA_file => $otu_FASTA_file,
 											local_path => $otu_local_path,
@@ -1151,7 +1151,8 @@ sub cluster_algorithm {
 				chdir($otu_local_path);
 				unlink<RAxML_*>;
 				
-				raxml_command_selector(	raxml_path			=> $raxml_path,
+				my $raxml_result = raxml_command_selector(	
+										raxml_path			=> $raxml_path,
 										local_PHYLIP 		=> $local_PHYLIP,
 										raxml_seed 			=> $raxml_seed,
 										raxml_search_reps	=> $raxml_search_reps,
@@ -1162,20 +1163,17 @@ sub cluster_algorithm {
 										raxml_tree_type		=> $raxml_tree_type,
 										raxml_outgroup		=> 1,
 										);
-				if($nn_id eq '') {
-					# midpoint rooting if no nearest neighbor
-					raxml_root_on_midpoint(	raxml_tree 	=> $raxml_tree,
-											raxml_path	=> $raxml_path,);
+				if($raxml_result ne 'raxml_fail') {
+					print_tree_nw_utils(nw_display_path		=> $nw_display_path,
+										nw_order_path		=> $nw_order_path,
+										nw_reroot_path		=> $nw_reroot_path,
+										nw_ed_path			=> $nw_ed_path,
+										raxml_tree 			=> $raxml_tree,
+										seq_id_to_ptc_ref 	=> $seq_id_to_ptc_ref,
+										raxml_tree_type		=> $raxml_tree_type,
+										root				=> $root,
+										);
 				}
-				print_tree_nw_utils(nw_display_path		=> $nw_display_path,
-									nw_order_path		=> $nw_order_path,
-									nw_reroot_path		=> $nw_reroot_path,
-									nw_ed_path			=> $nw_ed_path,
-									raxml_tree 			=> $raxml_tree,
-									seq_id_to_ptc_ref 	=> $seq_id_to_ptc_ref,
-									raxml_tree_type		=> $raxml_tree_type,
-									root				=> $root,
-									);
 				unlink<RAxML_*>;
 				use File::Spec;
 				chdir File::Spec->updir;
@@ -1833,9 +1831,14 @@ sub print_tree_nw_utils {
 	my %seq_id_to_ptc = %$seq_id_to_ptc_ref;
 	
 	# Load RAxML tree and clean up branch lengths, boostrap values, etc.
-	my $raxml_treeio = Bio::TreeIO->new(-format => 'newick', 
+	my $raxml_treeio = '';
+	eval {
+	$raxml_treeio = Bio::TreeIO->new(-format => 'newick', 
 										-file => $raxml_tree,
 										-internal_node_id => 'bootstrap');
+	}; 
+	return 'nw_print_fail' if $@;
+	
 	my $tree = $raxml_treeio->next_tree;
 	my @nodes = $tree->get_nodes;
 	my $bs_round = "%.2f";
@@ -1923,7 +1926,7 @@ sub raxml_command_selector {
 							.' -n '.$raxml_output_file
 							.' -o '.$raxml_outgroup
 							.' -m '.$raxml_dna_model;
-		my $raxml_console = `$raxml_command`;
+		my $raxml_console = `$raxml_command` or return 'raxml_fail';
 		#~ system($raxml_command);
 
 		move('RAxML_bipartitions.'.$raxml_output_file, $raxml_tree);
@@ -1936,7 +1939,7 @@ sub raxml_command_selector {
 							.' -n '.$raxml_output_file
 							.' -o '.$raxml_outgroup;
 		#~ print $raxml_command."\n";
-		my $raxml_console = `$raxml_command`;
+		my $raxml_console = `$raxml_command` or return 'raxml_fail';
 		#~ system($raxml_command);
 		move('RAxML_bestTree.'.$raxml_output_file, $raxml_tree);
 	} elsif($raxml_tree_type eq 'veryfast') {
@@ -1948,13 +1951,14 @@ sub raxml_command_selector {
 							.' -n '.$raxml_output_file
 							.' -o '.$raxml_outgroup;
 		#~ print $raxml_command."\n";
-		my $raxml_console = `$raxml_command`;
+		my $raxml_console = `$raxml_command` or return 'raxml_fail';
 		#~ system($raxml_command);
 
 		move('RAxML_fastTree.'.$raxml_output_file, $raxml_tree);
 	} else {
 		die("Invalid RAxML option");
 	}
+	return 'raxml_pass';
 }
 
 sub raxml_root_on_midpoint {

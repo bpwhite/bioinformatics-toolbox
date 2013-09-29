@@ -1443,6 +1443,28 @@ sub cluster_algorithm {
 				$num_one_to_one_morpho++;
 			}
 		}
+		my $print_discrepancies = 1;
+		if($print_discrepancies == 1) {
+			my $discrepant_seqs = $output_prefix.'_discrepant_seqs.fas';
+			open(DISCREPANT_SEQS, '>'.$output_path.$discrepant_seqs);
+			my $discrepant_ids = $output_prefix.'_discrepant_ids.csv';
+			open(DISCREPANT_IDS, '>'.$output_path.$discrepant_ids);
+			print DISCREPANT_IDS "discrepant_id,times_discrepant\n";
+			for my $unique_morpho_name (sort keys %morpho_name_hash) {
+				if($morpho_name_hash{$unique_morpho_name} == 1) {
+					$num_one_to_one_morpho++;
+				} else {
+					my @discrepant_seqs = grep { $_->id =~ m/$unique_morpho_name/ } @original_sequence_array;
+					foreach my $discrepant_seq (@discrepant_seqs) {
+						print DISCREPANT_SEQS ">".$discrepant_seq->id."\n";
+						print DISCREPANT_SEQS $discrepant_seq->seq."\n";
+						print DISCREPANT_IDS $discrepant_seq->id.','.$morpho_name_hash{$unique_morpho_name}."\n";
+					}
+				}
+			}
+			close(DISCREPANT_IDS);
+			close(DISCREPANT_SEQS);
+		}
 		# Used only once
 		my $num_used_only_once = 0;
 		for my $unique_morpho_name (sort keys %morpho_used_once) {

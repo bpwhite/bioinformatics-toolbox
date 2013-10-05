@@ -77,6 +77,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-count-seqs'	=> 0,				# Toggle to only count sequences
 													'-voucher-only' => 0,				# Toggle using voucher only sequences
 													'-term'			=> '',				# Use a search term instead of a list
+													'-cq-file'		=> '',				# Filename for a custom query list
 													}
 													);
 # Initiate parameters
@@ -141,7 +142,9 @@ sub download_target_taxa {
 	my $voucher_only = $params->options->{'-voucher-only'};
 	# my $skip_pubmed_search = 1;
 	my $number_seqs_found = 'NA';
-	my $search_options = search_strings($params->options->{'-query'});
+
+	my $search_options = search_strings($params->options->{'-query'},
+										$params->options->{'-cq-file'});
 	my $taxa_failed = 0; # Flag for if the taxa lookup fails
 	my $failed_taxa = 'NA';
 	my $sequence_failed = 0; # Flag for if the sequence lookup fails
@@ -815,6 +818,7 @@ sub download_target_taxa {
 				
 sub search_strings {
 	my $short_name = shift;
+	my $query_file = shift;
 	
 	my %search_string_hash = ();
 	$search_string_hash{'COI_full'} 	= "AND (COI[All Fields] OR \"cytochrome oxidase I\"[All Fields] OR \"cytochrome oxidase subunit I\"[All Fields] OR COX1[All Fields] OR \"COXI\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
@@ -824,7 +828,19 @@ sub search_strings {
 	$search_string_hash{'CYTB_full'} 	= "AND (CYTB[All Fields] OR \"cytochrome b\"[All Fields] OR \"cyt b\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
 	$search_string_hash{'ND2_full'} 	= "AND (ND2[All Fields] OR \"NADH dehydrogenase subunit 2\"[All Fields] OR \"NADH2\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
 
+	if($query_file ne '') {
+		open(QUERY, '<'.$query_file) or die "Couldn't open: $!";
+		my @query_lines = <QUERY>;
+		foreach my $query_line (@query_lines) {
+			my @split_line = split(m/\=/, $query_line);
+			print $split_line[0]." => ".$split_line[1]."\n";
+			$search_string_hash{$split_line[0]} = $split_line[1];
+		}
+	}
+
 	if(exists $search_string_hash{$short_name}) {
+		print "Executing search string: \n";
+		print $search_string_hash{$short_name}."\n";
 		return $search_string_hash{$short_name};
 	} else {
 		return $short_name;

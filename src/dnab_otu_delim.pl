@@ -696,7 +696,7 @@ sub cluster_algorithm {
 																									\$unpacked_filtered_sequences{$otu_seq->seq()}, 
 																									$max_seq_length, $character_weights,
 																									$shortcut_partition, $max_ts, $max_tv);
-				next if $bases_compared < $minimum_sequence_length;
+				#next if $bases_compared < $minimum_sequence_length;
 			}
 				
 			# If minimum distance is less than cutoff and statistical method is employed, 

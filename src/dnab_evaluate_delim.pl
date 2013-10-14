@@ -62,7 +62,10 @@ foreach my $line (@check_list_lines) {
 	$unique_check_list{$line} = 'A';
 }
 
-print "Taxa,".$delim_summary_lines[0]."\n";
+my $output_file = $delim_summary_file."_evaluated.csv";
+unlink($output_file);
+open(EVALUATED, '>>'.$output_file);
+print EVALUATED "Taxa,".$delim_summary_lines[0]."\n";
 for my $taxa ( sort keys %unique_check_list ) {
 	# print $taxa."\n";
 	my $found_delim = 0;
@@ -74,8 +77,8 @@ for my $taxa ( sort keys %unique_check_list ) {
 		$delim_fields = scalar(@split_summary);
 		if($delim_summary =~ m/$taxa/) {
 			if($split_summary[1] =~ m/$taxa/) {
-				print "\t$taxa,";
-				print $delim_summary."\n";
+				# print "\t$taxa,";
+				print EVALUATED $taxa.",".$delim_summary."\n";
 				# foreach my $summary_field (@split_summary) {
 					# print $summary_field." => ";
 				# }
@@ -88,11 +91,11 @@ for my $taxa ( sort keys %unique_check_list ) {
 	}
 	if($found_delim == 0) {
 		# print "\tNot found.\n";
-		print "\t$taxa,";
+		print EVALUATED "$taxa,";
 		for(0..($delim_fields-1)) {
-			print "NA,";
+			print EVALUATED "NA,";
 		}
-		print "\n";
+		print EVALUATED "\n";
 	}
 	# my @current_results = grep { $_ == $taxa } @delim_results_lines;
 }

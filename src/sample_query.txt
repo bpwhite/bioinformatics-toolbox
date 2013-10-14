@@ -1,0 +1,2 @@
+SAMPLE_QUERY=AND (COI[All Fields] OR \"cytochrome oxidase I\"[All Fields] OR \"cytochrome oxidase subunit I\"[All Fields] OR COX1[All Fields] OR \"COXI\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])
+SLC48A1=AND (heme[title] AND SLC48A1[gene])

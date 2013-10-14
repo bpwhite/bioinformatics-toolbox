@@ -1452,7 +1452,6 @@ sub cluster_algorithm {
 			print DISCREPANT_IDS "discrepant_id,times_discrepant\n";
 			for my $unique_morpho_name (sort keys %morpho_name_hash) {
 				if($morpho_name_hash{$unique_morpho_name} == 1) {
-					$num_one_to_one_morpho++;
 				} else {
 					my @discrepant_seqs = grep { $_->id =~ m/$unique_morpho_name/ } @original_sequence_array;
 					foreach my $discrepant_seq (@discrepant_seqs) {

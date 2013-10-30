@@ -696,7 +696,7 @@ sub cluster_algorithm {
 																									\$unpacked_filtered_sequences{$otu_seq->seq()}, 
 																									$max_seq_length, $character_weights,
 																									$shortcut_partition, $max_ts, $max_tv);
-				next if $bases_compared < $minimum_sequence_length;
+				#next if $bases_compared < $minimum_sequence_length;
 			}
 				
 			# If minimum distance is less than cutoff and statistical method is employed, 
@@ -1452,7 +1452,6 @@ sub cluster_algorithm {
 			print DISCREPANT_IDS "discrepant_id,times_discrepant\n";
 			for my $unique_morpho_name (sort keys %morpho_name_hash) {
 				if($morpho_name_hash{$unique_morpho_name} == 1) {
-					$num_one_to_one_morpho++;
 				} else {
 					my @discrepant_seqs = grep { $_->id =~ m/$unique_morpho_name/ } @original_sequence_array;
 					foreach my $discrepant_seq (@discrepant_seqs) {

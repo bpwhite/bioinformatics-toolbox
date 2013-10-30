@@ -24,30 +24,42 @@ use lib "$FindBin::Bin/libs/";
 use General::Arguments;
 use General::Voucher;
 
+
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
-										option_defs => {'-csv-files'		=> '',	# First gene file.
-														'-voucher-column' 	=> '',	# CSV column containing voucher ID
-														'-dna-column'		=> '',  # CSV column containing DNA sequence
+										option_defs => {'-csv-file'			=> '',	# Gene file.
+														'-voucher-col' 		=> '',	# CSV column containing voucher ID
+														'-dna-col'			=> '',  # CSV column containing DNA sequence
+														'-species-col'		=> '',  # species column
+														'-outp'				=> 'output.fas',	# Output file
 													}
 													);
 
+my $csv_file	= $params->options->{'-csv-file'};
+my $voucher_col = $params->options->{'-voucher-col'}	- 1;
+my $dna_col 	= $params->options->{'-dna-col'} 		- 1;
+my $species_col = $params->options->{'-species-col'} 	- 1;
+my $output_file = $params->options->{'-outp'};
 
-my $csv_files	=  $params->options->{'-csv-files'};
-
-my @csv_files = split(/,/,$csv_files);
 print "Processing...\n";
-foreach my $file (@csv_files) {
-	print $file."\n";
-	open (VFILE, '<'.$file);
-	my @current_file = <VFILE>;
-	close(VFILE);
-	foreach my $line (@current_file) {
-		print $line;
+print $csv_file."\n";
+open (VFILE, '<'.$csv_file);
+my @current_file = <VFILE>;
+close(VFILE);
+
+open (OUTP, '>'.$output_file);
+foreach my $line (@current_file) {
+	my @split_line = split(/,/,$line);
+	foreach my $split (@split_line) {
+		$split =~ s/\"//g;
+		$split =~ s/^\s+//;
+		$split =~ s/\s+$//;
+		$split =~ s/ /_/g;
 	}
-	# my $rect1 = CollisionBlock->new( x =>  1, y =>  1, w => 10, h => 10 );
-	my $vinfo = General::Voucher->new( voucher_id => 1, sequence => 2, genus => 3, species => 4);
-	# print $vinfo->voucher_id."\n";
+	my $output_string = ">".$split_line[$voucher_col]."|".$split_line[$species_col]."\n".$split_line[$dna_col]."\n";
+	
+	print $output_string;
+	print OUTP $output_string;
 }
-exit;
-
-
+close(OUTP);
+# my $vinfo = General::Voucher->new( voucher_id => 1, sequence => 2, genus => 3, species => 4);
+# print $vinfo->voucher_id."\n";

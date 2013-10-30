@@ -691,6 +691,100 @@ sub download_target_taxa {
 		
 		#############################################################################
 		# Prepare output strings
+		$target_taxon =~ s/\"|^\s+|\s+$//g;
+		$target_taxon =~ s/ |,/_/g;
+		
+		$taxon_id =~ s/\"|^\s+|\s+$//g;
+		$taxon_id =~ s/ |,/_/g;
+		
+		$accession_number =~ s/\"|^\s+|\s+$//g;
+		$accession_number =~ s/ |,/_/g;
+		
+		$search_options =~ s/\"|^\s+|\s+$//g;
+		$search_options =~ s/ |,/_/g;
+		
+		$number_seqs_found =~ s/\"|^\s+|\s+$//g;
+		$number_seqs_found =~ s/ |,/_/g;
+		
+		$long_name =~ s/\"|^\s+|\s+$//g;
+		$long_name =~ s/ |,/_/g;
+		
+		$gene_name =~ s/\"|^\s+|\s+$//g;
+		$gene_name =~ s/ |,/_/g;
+		
+		$product_name =~ s/\"|^\s+|\s+$//g;
+		$product_name =~ s/ |,/_/g;
+		
+		$binomial_name =~ s/\"|^\s+|\s+$//g;
+		$binomial_name =~ s/ |,/_/g;
+		
+		$taxonomy_print_string =~ s/\"|^\s+|\s+$//g;
+		$taxonomy_print_string =~ s/ |,/_/g;
+		
+		$publication_title =~ s/\"|^\s+|\s+$//g;
+		$publication_title =~ s/ |,/_/g;
+		
+		$publication_authors =~ s/\"|^\s+|\s+$//g;
+		$publication_authors =~ s/ |,/_/g;
+		
+		$abstract_text =~ s/\"|^\s+|\s+$//g;
+		$abstract_text =~ s/ |,/_/g;
+		
+		$journal_name =~ s/\"|^\s+|\s+$//g;
+		$journal_name =~ s/ |,/_/g;
+		
+		$journal_DOI =~ s/\"|^\s+|\s+$//g;
+		$journal_DOI =~ s/ |,/_/g;
+		
+		$journal_SO =~ s/\"|^\s+|\s+$//g;
+		$journal_SO =~ s/ |,/_/g;
+		
+		$journal_volume =~ s/\"|^\s+|\s+$//g;
+		$journal_volume =~ s/ |,/_/g;
+		
+		$journal_issue =~ s/\"|^\s+|\s+$//g;
+		$journal_issue =~ s/ |,/_/g;
+		
+		$journal_pages =~ s/\"|^\s+|\s+$//g;
+		$journal_pages =~ s/ |,/_/g;
+		
+		$journal_pubdate =~ s/\"|^\s+|\s+$//g;
+		$journal_pubdate =~ s/ |,/_/g;
+		
+		$nucleotide_seq =~ s/\"|^\s+|\s+$//g;
+		$nucleotide_seq =~ s/ |,/_/g;
+		
+		$amino_acid_seq =~ s/\"|^\s+|\s+$//g;
+		$amino_acid_seq =~ s/ |,/_/g;
+		
+		$pcr_primer_print_string =~ s/\"|^\s+|\s+$//g;
+		$pcr_primer_print_string =~ s/ |,/_/g;
+		
+		$codon_start =~ s/\"|^\s+|\s+$//g;
+		$codon_start =~ s/ |,/_/g;
+		
+		$collection_date =~ s/\"|^\s+|\s+$//g;
+		$collection_date =~ s/ |,/_/g;
+		
+		$voucher_id =~ s/\"|^\s+|\s+$//g;
+		$voucher_id =~ s/ |,/_/g;
+		
+		$collected_by =~ s/\"|^\s+|\s+$//g;
+		$collected_by =~ s/ |,/_/g;
+		
+		$identified_by =~ s/\"|^\s+|\s+$//g;
+		$identified_by =~ s/ |,/_/g;
+		
+		$organelle =~ s/\"|^\s+|\s+$//g;
+		$organelle =~ s/ |,/_/g;
+		
+		$country =~ s/\"|^\s+|\s+$//g;
+		$country =~ s/ |,/_/g;
+		
+		$lat_lon =~ s/\"|^\s+|\s+$//g;
+		$lat_lon =~ s/ |,/_/g;
+		
+	
 		my @current_output = (	$target_taxon,$dlm,
 								$taxon_id,$dlm,
 								$accession_number,$dlm,

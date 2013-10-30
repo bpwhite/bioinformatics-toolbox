@@ -98,7 +98,6 @@ foreach my $master_order_id (@master_list) {
 					last;
 				}
 			}
-			
 		}
 		
 		if ($taxa_count == 0) {

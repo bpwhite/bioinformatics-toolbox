@@ -24,12 +24,12 @@ use lib "$FindBin::Bin/libs/";
 use General::Arguments;
 use General::Voucher;
 
-
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
-										option_defs => {'-csv-file'			=> '',	# Gene file.
-														'-voucher-col' 		=> '',	# CSV column containing voucher ID
-														'-dna-col'			=> '',  # CSV column containing DNA sequence
-														'-species-col'		=> '',  # species column
+										option_defs => {'-csv-file'			=> '',				# Gene file.
+														'-voucher-col' 		=> '',				# CSV column containing voucher ID
+														'-dna-col'			=> '',  			# CSV column containing DNA sequence
+														'-species-col'		=> '',  			# species column
+														'-gene-name'		=> 'gene',			# Gene name
 														'-outp'				=> 'output.fas',	# Output file
 													}
 													);
@@ -39,6 +39,7 @@ my $voucher_col = $params->options->{'-voucher-col'}	- 1;
 my $dna_col 	= $params->options->{'-dna-col'} 		- 1;
 my $species_col = $params->options->{'-species-col'} 	- 1;
 my $output_file = $params->options->{'-outp'};
+my $gene_name	= $params->options->{'-gene-name'};
 
 print "Processing...\n";
 print $csv_file."\n";
@@ -55,7 +56,7 @@ foreach my $line (@current_file) {
 		$split =~ s/\s+$//;
 		$split =~ s/ /_/g;
 	}
-	my $output_string = ">".$split_line[$voucher_col]."|".$split_line[$species_col]."\n".$split_line[$dna_col]."\n";
+	my $output_string = ">".$gene_name."|".$split_line[$voucher_col]."|".$split_line[$species_col]."\n".$split_line[$dna_col]."\n";
 	
 	print $output_string;
 	print OUTP $output_string;

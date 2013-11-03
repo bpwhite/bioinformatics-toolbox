@@ -14,8 +14,6 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-#!/usr/bin/perl
 use strict;
 use warnings;
 
@@ -23,6 +21,7 @@ use FindBin;
 use lib "$FindBin::Bin/libs/";
 use General::Arguments;
 use General::Voucher;
+use Sequence::ExemplarGenes;
 
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
 										option_defs => {'-csv-file'			=> '',				# Gene file.
@@ -32,16 +31,30 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 														'-gene-name'		=> 'gene',			# Gene name
 														'-outp'				=> 'output.fas',	# Output file
 														'-skip'				=> '1',				# Number of lines to skip on import
+														'-gene-exemplar'	=> '',				# Select an exemplar gene from file
 													}
 													);
+													
+my $csv_file		= $params->options->{'-csv-file'};
+my $voucher_col 	= $params->options->{'-voucher-col'}	- 1;
+my $dna_col 		= $params->options->{'-dna-col'} 		- 1;
+my $species_col 	= $params->options->{'-species-col'} 	- 1;
+my $output_file 	= $params->options->{'-outp'};
+my $gene_name		= $params->options->{'-gene-name'};
+my $skip_lines		= $params->options->{'-skip'};
+my $gene_exemplar 	= $params->options->{'-gene-exemplar'};
 
-my $csv_file	= $params->options->{'-csv-file'};
-my $voucher_col = $params->options->{'-voucher-col'}	- 1;
-my $dna_col 	= $params->options->{'-dna-col'} 		- 1;
-my $species_col = $params->options->{'-species-col'} 	- 1;
-my $output_file = $params->options->{'-outp'};
-my $gene_name	= $params->options->{'-gene-name'};
-my $skip_lines	= $params->options->{'-skip'};
+my $gene_exemplar_seq = '';
+
+if($gene_exemplar eq '18S') {
+	$gene_exemplar_seq = Sequence::ExemplarGenes->print_18S();
+} elsif($gene_exemplar eq '16S') {
+	$gene_exemplar_seq = Sequence::ExemplarGenes->print_16S();
+} elsif($gene_exemplar eq '28S') {
+	$gene_exemplar_seq = Sequence::ExemplarGenes->print_28S();
+} elsif($gene_exemplar eq 'COI') {
+	$gene_exemplar_seq = Sequence::ExemplarGenes->print_COI();
+}
 
 print "Processing...\n";
 print $csv_file."\n";
@@ -52,6 +65,9 @@ close(VFILE);
 my %voucher_hash = ();
 open (OUTP, '>'.$output_file);
 my $line_i = 1;
+if($gene_exemplar_seq ne '') {
+	print OUTP $gene_exemplar_seq."\n";
+}
 foreach my $line (@current_file) {
 	if ($line_i <= $skip_lines) {
 		$line_i++;
@@ -63,7 +79,7 @@ foreach my $line (@current_file) {
 		$split =~ s/^\s+//;
 		$split =~ s/\s+$//;
 		$split =~ s/\n//;
-		$split =~ s/\'//;
+		$split =~ s/\'//g;
 		$split =~ s/ /_/g;
 	}
 	if(exists($voucher_hash{$split_line[$voucher_col]})) {

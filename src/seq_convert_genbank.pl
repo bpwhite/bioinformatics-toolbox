@@ -156,7 +156,7 @@ sub download_target_taxa {
 	my $endl = "\n";
 	my $output_file = $target_taxon."_output.csv";
 	my $sleep_time = 1000; # microsends, pause between seconds
-	my $max_num_tries = 2;
+	my $max_num_tries = 5;
 	my $max_pubmed_tries = 2;
 	my $sequence_file = 'seqs_'.$target_taxon.'.gb';
 	unlink($sequence_file);

@@ -31,6 +31,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 														'-species-col'		=> '',  			# species column
 														'-gene-name'		=> 'gene',			# Gene name
 														'-outp'				=> 'output.fas',	# Output file
+														'-skip'				=> '1',				# Number of lines to skip on import
 													}
 													);
 
@@ -40,6 +41,7 @@ my $dna_col 	= $params->options->{'-dna-col'} 		- 1;
 my $species_col = $params->options->{'-species-col'} 	- 1;
 my $output_file = $params->options->{'-outp'};
 my $gene_name	= $params->options->{'-gene-name'};
+my $skip_lines	= $params->options->{'-skip'};
 
 print "Processing...\n";
 print $csv_file."\n";
@@ -47,19 +49,34 @@ open (VFILE, '<'.$csv_file);
 my @current_file = <VFILE>;
 close(VFILE);
 
+my %voucher_hash = ();
 open (OUTP, '>'.$output_file);
+my $line_i = 1;
 foreach my $line (@current_file) {
+	if ($line_i <= $skip_lines) {
+		$line_i++;
+		next;
+	}
 	my @split_line = split(/,/,$line);
 	foreach my $split (@split_line) {
 		$split =~ s/\"//g;
 		$split =~ s/^\s+//;
 		$split =~ s/\s+$//;
+		$split =~ s/\n//;
+		$split =~ s/\'//;
 		$split =~ s/ /_/g;
+	}
+	if(exists($voucher_hash{$split_line[$voucher_col]})) {
+		$line_i++;
+		next;
+	} else {
+		$voucher_hash{$split_line[$voucher_col]} = 1;
 	}
 	my $output_string = ">".$gene_name."|".$split_line[$voucher_col]."|".$split_line[$species_col]."\n".$split_line[$dna_col]."\n";
 	
-	print $output_string;
+	# print $output_string;
 	print OUTP $output_string;
+	$line_i++;
 }
 close(OUTP);
 # my $vinfo = General::Voucher->new( voucher_id => 1, sequence => 2, genus => 3, species => 4);

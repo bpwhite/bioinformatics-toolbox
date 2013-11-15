@@ -32,6 +32,8 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 														'-outp'				=> 'output.fas',	# Output file
 														'-skip'				=> '1',				# Number of lines to skip on import
 														'-gene-exemplar'	=> '',				# Select an exemplar gene from file
+														'-validate'			=> '0',				# Validate sequences against an exemplar gene
+														'-seq-type'			=> 'nucl',			# Type of sequence
 													}
 													);
 													
@@ -44,7 +46,20 @@ my $gene_name		= $params->options->{'-gene-name'};
 my $skip_lines		= $params->options->{'-skip'};
 my $gene_exemplar 	= $params->options->{'-gene-exemplar'};
 
+my $validate		= $params->options->{'-validate'};
+my $seq_type	 	= $params->options->{'-seq-type'};
+
 my $gene_exemplar_seq = '';
+my $file_separator = "\\";
+my $detected_os = 'Win32';
+
+if("$^O\n" =~ "Win32") {
+	print "Detected Windows\n";
+} else {
+	print "Detected Linux\n";
+	$file_separator = "/";
+	$detected_os = 'linux';
+}
 
 if($gene_exemplar eq '18S') {
 	$gene_exemplar_seq = Sequence::ExemplarGenes->print_18S();
@@ -68,6 +83,12 @@ my $line_i = 1;
 if($gene_exemplar_seq ne '') {
 	print OUTP $gene_exemplar_seq."\n";
 }
+
+my $output_path = $output_file.'_temp';
+unless(-d ($output_path)) {
+	mkdir $output_path;
+}
+
 foreach my $line (@current_file) {
 	if ($line_i <= $skip_lines) {
 		$line_i++;
@@ -88,8 +109,19 @@ foreach my $line (@current_file) {
 	} else {
 		$voucher_hash{$split_line[$voucher_col]} = 1;
 	}
+	
 	my $output_string = ">".$gene_name."|".$split_line[$voucher_col]."|".$split_line[$species_col]."\n".$split_line[$dna_col]."\n";
 	
+	my $temp_name = $split_line[$voucher_col]."_".;
+	print "Creating output folder ".$output_path.$file_separator.$output_file."\n";
+	open (BLDB, '>'.$output_path.$file_separator.$output_file);
+	print BLDB $gene_exemplar_seq."\n";
+	print BLDB $output_string;
+	close (BLDB);
+	system("makeblastdb -in ".$output_path.$output_file." -dbtype nucl");
+
+	exit;
+
 	# print $output_string;
 	print OUTP $output_string;
 	$line_i++;

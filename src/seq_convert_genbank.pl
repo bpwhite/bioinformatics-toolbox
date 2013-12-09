@@ -78,11 +78,18 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-voucher-only' => 0,				# Toggle using voucher only sequences
 													'-term'			=> '',				# Use a search term instead of a list
 													'-cq-file'		=> '',				# Filename for a custom query list
+													'-db'			=> 'nucleotide',	# Change to a different ncbi database
+													'-pre-dl'		=> '0',				# Use pre-downloaded genbank files
+													'-slow-download'=> '0',				# Slow batch download
 													}
 													);
 # Initiate parameters
 
 my $taxa_file = $params->options->{'-list'};
+my $ncbi_database = $params->options->{'-db'};
+my $pre_downloaded = $params->options->{'-pre-dl'};
+my $slow_download = $params->options->{'-slow-download'};
+
 my @taxa_list = ();
 
 if ($params->options->{'-term'}) {
@@ -158,8 +165,9 @@ sub download_target_taxa {
 	my $sleep_time = 1000; # microsends, pause between seconds
 	my $max_num_tries = 5;
 	my $max_pubmed_tries = 2;
-	my $sequence_file = 'seqs_'.$target_taxon.'.gb';
-	unlink($sequence_file);
+	my $sequence_file = '';
+	
+
 	
 	##############################################################################
 	# Optimization hashes. Swap memory for speed.
@@ -245,16 +253,24 @@ sub download_target_taxa {
 
 	##############################################################################
 	# Retrieve nucleotide sequences
+	if($pre_downloaded == 1) { 
+		$sequence_file = 'seqs_'.$target_taxon.'.gb';
+		# unlink($sequence_file);
+		goto use_pre_downloaded;
+	} else {
+		$sequence_file = 'seqs_'.$target_taxon.'.gb';
+		unlink($sequence_file);
+	}
 	my $sequence_search_tries = 1;
 	sequence_search:
 	print "\tRetrieving sequences...\n";
 	my $sequence_term = 'txid'.$taxon_id.'[Organism:exp]';
+	print $sequence_term."\n";
 	my $sequence_search_limit = ($params->options->{'-slim'});
 	$sequence_search_limit = 999999999 if ($params->options->{'-count-seqs'} == 1);
 
-	
 	my $sequence_search = Bio::DB::EUtilities->new(-eutil    => 'esearch',
-												   -db      => 'nucleotide',
+												   -db      => $ncbi_database,
 												   -retmax  => $sequence_search_limit,
 												   -rettype => 'gb',
 												   -email   => $user_email,
@@ -274,6 +290,7 @@ sub download_target_taxa {
 	}
 	my %unique_seq_ids = ();
 	foreach my $seq_id (@sequence_ids) {
+		# print $seq_id."\n";
 		if(exists($unique_seq_ids{$seq_id})) {
 			$unique_seq_ids{$seq_id}++;
 		} else {
@@ -318,14 +335,16 @@ sub download_target_taxa {
 		print "\tDownloading sequences...[".$batch_i."] ".$starting_count." to ".$total_batched."\n";
 		my $sub_batch_file = $batch_i."_".$sequence_file;
 		my $sequence_fetch = '';
-
-		$sequence_fetch = Bio::DB::EUtilities->new( -eutil   => 'efetch',
+		if($slow_download != 0) {
+			usleep($slow_download);
+		}
+		$sequence_fetch = Bio::DB::EUtilities->new( -eutil   	=> 'efetch',
 													   -db      => 'nucleotide',
 													   -rettype => 'gb',
 													   -email   => $user_email,
 													   -id      => \@sub_batch_list);
 
-		eval { 
+		eval {
 			$sequence_fetch->get_Response(-file => $sub_batch_file);
 		};
 		if($@) {
@@ -347,17 +366,26 @@ sub download_target_taxa {
 	##############################################################################
 
 	##############################################################################
+	# use_pre_downloaded:
+	# print $sequence_file."\n";
 	my @batched_files = <*$sequence_file>;
 	my @concatenated_batch_file = ();
 	foreach my $file (@batched_files) {
+		# print $file."\n";
+		# exit;
 		next if $file eq $sequence_file;
+		# print "B";
 		open (CURRENT, "<$file") or die $!;
 		my @current_file = <CURRENT>;
+		# foreach my $current (@current_file) {
+			# print $current."\n";
+			# exit;
+		# }
 		push(@concatenated_batch_file, @current_file);
 		close CURRENT or die $!;
 	}
 	
-	
+	# exit;
 	open(CONCAT, ">$sequence_file") or die $!;
 	foreach my $line (@concatenated_batch_file) {
 		print CONCAT $line;
@@ -366,6 +394,7 @@ sub download_target_taxa {
 	foreach my $file (@batched_files) {
 		unlink($file) or die "|".$file."|";
 	}
+	use_pre_downloaded:
 	##############################################################################
 	
 
@@ -446,7 +475,6 @@ sub download_target_taxa {
 	# Loop through the downloaded genbank files and parse all the data
 	my $seq_counter = 0;
 	while (my $seq = $seqin->next_seq) {
-
 		# Pull these values as you go along and parse the genbank file.
 		# NCBI/Taxonomy Variables
 		my $taxon_id 				= 'NA'; # Taxon ID for NCBI
@@ -679,6 +707,7 @@ sub download_target_taxa {
 		if (exists $taxonomy_hierarchy_hash{$accession_number}) {
 			my @current_tax_array = @{$taxonomy_hierarchy_hash{$accession_number}};
 			foreach my $taxa_i (0 .. $#current_tax_array) { # Print hierarchical taxonomy list
+				last if $current_tax_array[$taxa_i] =~ m/COMMENT/;
 				$taxonomy_print_string = '' if ($taxa_i == 0);
 				$taxonomy_print_string .= $current_tax_array[$taxa_i].';' if ($taxa_i > 0);
 			}
@@ -691,6 +720,7 @@ sub download_target_taxa {
 		
 		#############################################################################
 		# Prepare output strings
+		
 		$target_taxon =~ s/\"|^\s+|\s+$//g;
 		$target_taxon =~ s/ |,/_/g;
 		
@@ -715,8 +745,10 @@ sub download_target_taxa {
 		$product_name =~ s/\"|^\s+|\s+$//g;
 		$product_name =~ s/ |,/_/g;
 		
-		$binomial_name =~ s/\"|^\s+|\s+$//g;
-		$binomial_name =~ s/ |,/_/g;
+		if(defined($binomial_name)) {
+			$binomial_name =~ s/\"|^\s+|\s+$//g;
+			$binomial_name =~ s/ |,/_/g;
+		}
 		
 		$taxonomy_print_string =~ s/\"|^\s+|\s+$//g;
 		$taxonomy_print_string =~ s/ |,/_/g;
@@ -915,12 +947,12 @@ sub search_strings {
 	my $query_file = shift;
 	
 	my %search_string_hash = ();
-	$search_string_hash{'COI_full'} 	= "AND (COI[All Fields] OR \"cytochrome oxidase I\"[All Fields] OR \"cytochrome oxidase subunit I\"[All Fields] OR COX1[All Fields] OR \"COXI\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
-	$search_string_hash{'16S_full'} 	= "AND (16S[All Fields] OR \"16S ribosomal RNA\"[All Fields] OR \"16S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
-	$search_string_hash{'18S_full'} 	= "AND (18S[All Fields] OR \"18S ribosomal RNA\"[All Fields] OR \"18S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
-	$search_string_hash{'28S_full'} 	= "AND (28S[All Fields] OR \"28S ribosomal RNA\"[All Fields] OR \"28S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
-	$search_string_hash{'CYTB_full'} 	= "AND (CYTB[All Fields] OR \"cytochrome b\"[All Fields] OR \"cyt b\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
-	$search_string_hash{'ND2_full'} 	= "AND (ND2[All Fields] OR \"NADH dehydrogenase subunit 2\"[All Fields] OR \"NADH2\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
+	$search_string_hash{'COI'} 	= "AND (COI[All Fields] OR \"cytochrome oxidase I\"[All Fields] OR \"cytochrome oxidase subunit I\"[All Fields] OR COX1[All Fields] OR \"COXI\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
+	$search_string_hash{'16S'} 	= "AND (16S[All Fields] OR \"16S ribosomal RNA\"[All Fields] OR \"16S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
+	$search_string_hash{'18S'} 	= "AND (18S[All Fields] OR \"18S ribosomal RNA\"[All Fields] OR \"18S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
+	$search_string_hash{'28S'} 	= "AND (28S[All Fields] OR \"28S ribosomal RNA\"[All Fields] OR \"28S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
+	$search_string_hash{'CYTB'} = "AND (CYTB[All Fields] OR \"cytochrome b\"[All Fields] OR \"cyt b\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
+	$search_string_hash{'ND2'} 	= "AND (ND2[All Fields] OR \"NADH dehydrogenase subunit 2\"[All Fields] OR \"NADH2\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
 
 	if($query_file ne '') {
 		open(QUERY, '<'.$query_file) or die "Couldn't open: $!";

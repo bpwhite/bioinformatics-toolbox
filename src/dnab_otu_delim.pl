@@ -117,6 +117,7 @@ my $params = General::Arguments->new(
 					'-raxml-abs-path'		=> 0,			# Set path for raxml
 					'-nw-utils-abs-path'	=> 0,			# Set path for nw_utils
 					'-nw-order-abs-path'	=> 0,			# Set path for nw_order
+					'-check-coverage'		=> 0,			# Check alignment coverage
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -152,6 +153,7 @@ my $exemplar_tree				= $params->options->{'-exemplar-tree'};
 my $raxml_abs_path				= $params->options->{'-raxml-abs-path'};
 my $nw_utils_abs_path			= $params->options->{'-nw-utils-abs-path'};
 my $nw_order_abs_path			= $params->options->{'-nw-order-abs-path'};
+my $check_coverage				= $params->options->{'-check-coverage'};
 
 # Detect OS
 my $file_separator = "\\";
@@ -315,7 +317,9 @@ my $original_aln = $alignin->next_aln;
 # Alignment processing
 # Reduce alignment so that only positions that are covered by the
 # minimum number of nucleotides are used.
-$original_aln = alignment_coverage($original_aln, $coverage_pcnt);
+if($check_coverage == 1) {
+	$original_aln = alignment_coverage($original_aln, $coverage_pcnt);
+}
 my @starting_sequence_array = ();
 foreach my $seq ($original_aln->each_seq) {
 	if(fast_seq_length($seq->seq) < $minimum_alignment_length) { next; };

@@ -1,2 +1,8 @@
 SAMPLE_QUERY=AND (COI[All Fields] OR \"cytochrome oxidase I\"[All Fields] OR \"cytochrome oxidase subunit I\"[All Fields] OR COX1[All Fields] OR \"COXI\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])
 SLC48A1=AND (heme[title] AND SLC48A1[gene])
+12S=AND (12S[All Fields] OR \"12S ribosomal RNA\"[All Fields] OR \"12S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])
+KCASEIN=AND kcasein
+FERRITIN=AND ferritin
+TRANSFERRIN=AND transferrin
+DLOOP=AND D-loop
+RBCL=AND RBCL

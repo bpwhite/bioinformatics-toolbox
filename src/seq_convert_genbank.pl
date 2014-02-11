@@ -511,8 +511,6 @@ sub download_target_taxa {
 		my $organelle				= 'NA'; # 
 		my $country					= 'NA'; # 
 		my $lat_lon					= 'NA'; # 
-		
-		
 		##############################################################################
 		# Grab some easy variables.
 		$long_name 			= $seq->description if defined $seq->description;
@@ -637,8 +635,7 @@ sub download_target_taxa {
 			goto skip_pubmed if $pubmed_summary_tries == $max_pubmed_tries;
 			$pubmed_summary_tries++;
 			goto pubmed_summary;
-		}
-		
+		}		
 		while (my $item = $ds_pubmed->next_Item('flattened'))  {
 			next if !defined($item->get_content);
 			$journal_name									= $item->get_content if $item->get_name =~ m/FullJournalName/;

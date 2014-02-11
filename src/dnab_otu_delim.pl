@@ -67,7 +67,7 @@ my $k2p1 = 0;
 print "
 ******************************************************************
 
-Copyright (c) 2013, Bryan White, bpcwhite\@gmail.com
+Copyright (c) 2013,2014, Bryan White, bpcwhite\@gmail.com
 
 GNU General Public License, Version 3, 29 June 2007
 
@@ -87,7 +87,7 @@ my $params = General::Arguments->new(
 	option_defs => {'-aln1' 				=> '', 			# List file name
 					'-cutoff' 				=> 0.02, 		# Sequence limit
 					'-tags' 				=> 0, 			# Taxa limit
-					'-min-length' 			=> 25, 			# Minimum sequence length
+					'-min-length' 			=> 25, 			# Minimum sequence length, bases compared
 					'-stat' 				=> 'analytical',# Output file prefix
 					'-bsreps'				=> 0,			# Number of BS reps to perform. 0 for no bootstrap
 					'-threads'				=> 1,			# Number of threads to use.

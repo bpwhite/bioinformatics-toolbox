@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # Resamples an alignment or splits it into even parts
 #
 # Copyright (c) 2011, Bryan White, bpcwhite@gmail.com
@@ -15,6 +15,10 @@
 
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+use FindBin;
+use lib "$FindBin::Bin/libs/Sequence"; 
+use lib "$FindBin::Bin/libs/";
+
 use Bio::TreeIO;
 use Bio::Tree::Tree;
 use Bio::Tree::TreeFunctionsI;
@@ -55,6 +59,9 @@ if ($splitorsample == 1) {
 
 my $seqio  = Bio::SeqIO->new(-file => $fasta_input, '-format' => 'Fasta');
 
+my @output_split = split(/\./,$fasta_input);
+my $output_name = $output_split[0];
+
 my %seq_hash = ();
 my %unique_seqs = ();
 
@@ -86,7 +93,7 @@ if($splitorsample == 1) {
 
 		
 		my $new_file = '';
-		$new_file = clean_file_name($fasta_input)."_resampled_n_".$sample_size."_rep_".$rep_number."_aln.fas";
+		$new_file = $output_name."_resampled_n_".$sample_size."_rep_".$rep_number."_aln.fas";
 		unlink $new_file;
 		open (MYFILE, '>>'.$new_file);
 		
@@ -111,7 +118,7 @@ if($splitorsample == 2) {
 
 		print "File number: ".$file_num."\n";
 		my $new_file = '';
-		$new_file = clean_file_name($fasta_input)."_split_".$file_num."_of_".$number_files."_aln.fas";
+		$new_file = $output_name."_split_".$file_num."_of_".$number_files."_aln.fas";
 		unlink $new_file;
 		open (MYFILE, '>>'.$new_file);
 		

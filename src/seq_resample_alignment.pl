@@ -16,8 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use FindBin;
-use lib "$FindBin::Bin/libs/Sequence"; 
-use lib "$FindBin::Bin/libs/";
+use lib "$FindBin::Bin/libs";
+
+use Sequence::ExemplarGenes;
+use Getopt::Long;
 
 use Bio::TreeIO;
 use Bio::Tree::Tree;
@@ -35,26 +37,24 @@ use warnings;
 use Bio::Seq;
 use Bio::SeqIO;
 
-print "Enter input filename:";
-chomp(my $fasta_input = <>);
-
-print "Resample [1] or Split [2]?";
-chomp(my $splitorsample = <>);
-# my $splitorsample = 1;
-
-# Parameters
+my $fasta_input 	= '';
+my $split 		= 0;
+my $resample	= 0;
 my $sample_size = 0;
 my $replicates = 0;
 my $chunk_size = 0;
-if ($splitorsample == 1) {
-	print "Sample size?: ";
-	chomp($sample_size = <>);
-	print "Replicates?: ";
-	chomp($replicates = <>);
-	# $replicates = 10;
-} elsif($splitorsample == 2) {
-	print "Split into what size chunks?";
-	chomp($chunk_size = <>);
+my $use_coi_exemplar = 0;
+GetOptions ("aln=s" 			=> \$fasta_input,
+			"split=s"				=> \$split,
+			"resample=s"			=> \$resample,
+			"sample_size=s"			=> \$sample_size,
+			"replicates=s"			=> \$replicates,
+			"chunksize=s"			=> \$chunk_size,
+			"coiex=s"				=> \$use_coi_exemplar,)
+or die("Error in command line arguments\n");
+
+if($split == 1 && $resample == 1) {
+	die("Must split or resample, not both\n");
 }
 
 my $seqio  = Bio::SeqIO->new(-file => $fasta_input, '-format' => 'Fasta');
@@ -68,8 +68,6 @@ my %unique_seqs = ();
 my $num_seqs = 0;
 my $num_unique_seqs = 0;
 
-
-
 my $seq;
 my @seq_array;
 while( $seq = $seqio->next_seq() ) {
@@ -80,7 +78,7 @@ my $num_sequences = scalar(@seq_array);
 # print $num_sequences."\n";
 
 # Random resampling
-if($splitorsample == 1) {
+if($resample == 1) {
 
 	for(my $rep_number = 1; $rep_number <= $replicates; $rep_number++) {
 		# Generate random numbers
@@ -90,13 +88,13 @@ if($splitorsample == 1) {
 			push(@rand_numbers, $random_number);
 		}
 		
-
-		
 		my $new_file = '';
 		$new_file = $output_name."_resampled_n_".$sample_size."_rep_".$rep_number."_aln.fas";
 		unlink $new_file;
 		open (MYFILE, '>>'.$new_file);
-		
+		if($use_coi_exemplar == 1) {
+			print MYFILE Sequence::ExemplarGenes::print_COI()."\n";
+		}
 		foreach my $random_number (@rand_numbers) {
 			print MYFILE ">".$seq_array[$random_number]->display_id."\n";
 			print MYFILE $seq_array[$random_number]->subseq(1,$seq_array[$random_number]->length)."\n";
@@ -108,7 +106,7 @@ if($splitorsample == 1) {
 }
 
 # Split an alignment into chunks
-if($splitorsample == 2) {
+if($split == 1) {
 	
 	my $number_files = roundup($num_sequences/$chunk_size);
 	print $number_files."\n";
@@ -121,7 +119,9 @@ if($splitorsample == 2) {
 		$new_file = $output_name."_split_".$file_num."_of_".$number_files."_aln.fas";
 		unlink $new_file;
 		open (MYFILE, '>>'.$new_file);
-		
+		if($use_coi_exemplar == 1) {
+			print MYFILE Sequence::ExemplarGenes::print_COI()."\n";
+		}
 		my $seqs_per_file = roundup($num_sequences/$number_files);
 		for(my $split_seq = 0; $split_seq < $seqs_per_file; $split_seq++) {
 			if($seq_counter < $num_sequences) {

@@ -47,6 +47,11 @@ use Storable qw(dclone);
 use File::Copy;
 use Getopt::Long;
 use Scalar::Util qw(looks_like_number);
+##################################################################
+# Start benchmark
+my $t0 = Benchmark->new;
+my $k2p1 = 0;
+##################################################################
 
 my $alignment 	= '';
 my $output 		= '';
@@ -70,6 +75,10 @@ foreach my $seq ($original_aln->each_seq) {
 	push(@starting_sequence_array,$seq);
 }
 
+# Blast output key
+# query id, subject id, % identity, alignment length, mismatches, gap opens, q. start, q. end, s. start, s. end, evalue, bit score
+my $seq_pass_i = 0;
+my $seq_fail_i = 0;
 my $temp_query = 'temp_query.fas';
 open (OUT, '>', $output);
 foreach my $seq (@starting_sequence_array) {
@@ -78,13 +87,36 @@ foreach my $seq (@starting_sequence_array) {
 	open (QUERY, '>'.$temp_query);
 	print QUERY ">".$seq_id."\n";
 	print QUERY $seq->seq."\n";
-	
-	my $blast_output = `blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs 1`;
-	print $blast_output."\n";
 	close (QUERY);
+	
+	my $blast_output = `blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs 1 -num_threads 2`;
+	print $blast_output."\n";
+	if ($blast_output eq '') {
+		$seq_fail_i++;
+		next;
+	}
+	$seq_pass_i++;
+	
+	my @seq_site_code = split(/\|/,$seq_id);
+	my $site_code = $seq_site_code[-1];
+	
+	
+	my @split_blast = split(/\t/,$blast_output);
+	my $new_seq_id = $split_blast[1]."|".$site_code;
+	
+	print OUT ">".$new_seq_id."\n";
+	print OUT $seq->seq."\n";	
+
 	unlink $temp_query;
 	# print OUT ">".$seq->id."\n";
 	# print OUT $seq->seq."\n";
 }
 close (OUT);
 
+print "Failed: ".$seq_fail_i."\n";
+print "Passed: ".$seq_pass_i."\n";
+
+my $t1 = Benchmark->new;
+my $time_diff = timediff($t1, $t0);
+print "\n";
+print timestr($time_diff)."\n";

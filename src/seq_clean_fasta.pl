@@ -86,6 +86,7 @@ foreach my $seq (@starting_sequence_array) {
 	$seq_text =~ s/\-+$//;
 	$seq->seq($seq_text);
 	
+	$seq_id =~ s/ /_/g;
 	$seq->id($seq_id);
 	print OUT ">".$seq->id."\n";
 	print OUT $seq->seq."\n";

@@ -45,6 +45,7 @@ use HTTP::Response;
 use Data::Dumper;
 use Devel::Size qw(size total_size);
 use Test::LeakTrace;
+use Devel::Size;
 
 print "
 ******************************************************************
@@ -81,6 +82,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-db'			=> 'nucleotide',	# Change to a different ncbi database
 													'-pre-dl'		=> '0',				# Use pre-downloaded genbank files
 													'-slow-download'=> '0',				# Slow batch download
+													'-exemplar-only'=> '0',				# Only get 1 sequence per taxa name
 													}
 													);
 # Initiate parameters
@@ -89,7 +91,7 @@ my $taxa_file = $params->options->{'-list'};
 my $ncbi_database = $params->options->{'-db'};
 my $pre_downloaded = $params->options->{'-pre-dl'};
 my $slow_download = $params->options->{'-slow-download'};
-
+my $exemplar_only = $params->options->{'-exemplar-only'};
 my @taxa_list = ();
 
 if ($params->options->{'-term'}) {
@@ -112,9 +114,9 @@ foreach my $taxa (@taxa_list) {
 
 	my ($results) = download_target_taxa($taxa,$taxa_counter,$suppress_output,$params);
 	push(@overall_results, @$results);
+
 	$taxa_counter++;
 }
-
 # Cleaning up GB files...
 foreach my $taxa (@taxa_list) {
 	# $taxa =~ s/\n//g; # replace newlines
@@ -163,7 +165,7 @@ sub download_target_taxa {
 	my $endl = "\n";
 	my $output_file = $target_taxon."_output.csv";
 	my $sleep_time = 1000; # microsends, pause between seconds
-	my $max_num_tries = 5;
+	my $max_num_tries = 2;
 	my $max_pubmed_tries = 2;
 	my $sequence_file = '';
 	
@@ -405,6 +407,7 @@ sub download_target_taxa {
 	my @genbank 						= <GENBANK>;
 	close GENBANK;
 	my %binomial_name_hash				= ();
+	my %exemplar_hash					= ();
 	my %accession_hash					= ();
 	my %taxonomy_hierarchy_hash 		= ();
 	my $current_accession 				= 'NA';
@@ -465,6 +468,7 @@ sub download_target_taxa {
 		}
 	}
 	@genbank = (); # FLUSH.
+	
 	# close(GENBANK);
 	##############################################################################
 	my $seqin = Bio::SeqIO->new(-file   => $sequence_file,
@@ -547,6 +551,15 @@ sub download_target_taxa {
 		# If targetting specimens that only have vouchers.
 		if(($voucher_only == 1) && ($voucher_id eq 'NA')) {
 			next;
+		}
+		# exemplar check
+		if(!defined($binomial_name)) {
+			next;
+		}
+		if(($exemplar_only == 1) && exists($exemplar_hash{$binomial_name})) {
+			next;
+		} else {
+			$exemplar_hash{$binomial_name} = 1; # add binomial name to exemplar hash
 		}
 		if($accession_hash{$accession_number} > 1) {
 			next;
@@ -853,13 +866,21 @@ sub download_target_taxa {
 			push(@cleaned_output, $current_output);
 		}
 		# This will be for the individual output file.
-		push(@output_lines,@cleaned_output,$endl);
+		if($suppress_output ne 'yes') {
+			push(@output_lines,@cleaned_output,$endl);
+		}
 		# This will be returned at the end of the subroutine.
 		push(@return_output_lines,@cleaned_output,$endl);
+		# print "cleaned_output ".total_size(\@cleaned_output)."\n";
+		# print "output_lines ".total_size(\@output_lines)."\n";
+		# print "return_output_lines ".total_size(\@return_output_lines)."\n";
 		##############################################################################
 		$seq_counter++;
+		
+		###
+		###
 	}
-	
+	$seqin = '';
 	# Print to file if output is not suppressed.
 	if($suppress_output ne 'yes') {
 		unlink $output_file;
@@ -968,4 +989,15 @@ sub search_strings {
 	} else {
 		return $short_name;
 	}
+}
+
+sub current_memory {
+	use Data::Dumper;
+	use PadWalker qw(peek_my);
+	use Devel::Size;
+	
+	my $hash_ref = peek_my(0);
+
+	# print Dumper($hash_ref);
+	print "Total mem: ".total_size($hash_ref)."\n";
 }

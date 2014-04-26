@@ -4,6 +4,9 @@ A multi-purpose collection of bioinformatics tools written in Perl, R, and C.
 Authors: Bryan P. White (bpcwhite@gmail.com)
 
 Publications:
+White, B.P., Pilgrim E.M., Boykin L.M., Stein E.D., Mazor R.D. 2014. Comparing 
+four species delimitation methods applied to a DNA barcode data set of insect 
+larvae for use in routine bioassessment. Freshwater Science 33(1), 338-348.
 
 Table of Contents
 I. Toolbox Overview

@@ -67,7 +67,7 @@ distribution of this software.
 my $alignment 	= '';
 my $output 		= '';
 my $identity_level = 80;
-my $aln_length_pcnt = 0.60;
+my $aln_length_pcnt = 0.50;
 my $blastdb_name = '';
 
 GetOptions ("aln=s" 			=> \$alignment,
@@ -76,7 +76,6 @@ GetOptions ("aln=s" 			=> \$alignment,
 			"homology=s"		=> \$identity_level,
 			"aln_length=s"		=> \$aln_length_pcnt)
 or die("Error in command line arguments\n");
-
 
 ##################################################################
 # Import alignment
@@ -120,6 +119,13 @@ foreach my $seq (@starting_sequence_array) {
 									aln_length_pcnt => $aln_length_pcnt,
 									log_file		=> $output."_log.txt",
 									);
+	print $blast_output."\n";
+	$seq_fail_i++ if $blast_output eq 'NA';
+	next if $blast_output eq 'NA';
+	
+	$seq_pass_i++;
+	
+	my @split_blast = split(/\t/,$blast_output);
 	
 	my @seq_site_code = split(/\|/,$seq_id);
 	my $site_code = $seq_site_code[-1];

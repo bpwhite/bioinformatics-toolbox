@@ -29,13 +29,14 @@ sub blast_output {
 	my %p = (
 		seq_string 		=> '',
 		seq_id			=> '',
-		blast_db 		=>'',
+		blast_db 		=> '',
 		outfmt			=> '',
 		max_target_seqs => '',
 		num_threads 	=> '',
-		identity_level	=> '',
-		aln_length_pcnt	=> '',
+		identity_level	=> '80',
+		aln_length_pcnt	=> '.5',
 		log_file		=> '',
+		@_
 	);
 	defined $p{seq_string} or die 'Required parameter "seq_string" not defined';
 	
@@ -54,8 +55,10 @@ sub blast_output {
 	print QUERY ">".$seq_id."\n";
 	print QUERY $seq_string."\n";
 	close (QUERY);
-	
-	my $blast_output = `blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs 5 -num_threads 4`;
+	# my $blast_output = '';
+	my $blast_output = `blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs 1 -num_threads 1`;
+	# print "blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs 1 -num_threads 1";
+	print $blast_output."\n";
 	unlink $temp_query;
 	
 	my $seq_fail_i = 0;
@@ -79,22 +82,25 @@ sub blast_output {
 			# print "Fail homology level\n";
 			next;
 		}
-		# BLAST alignment length
-		my $pcnt_query_match = $split_blast[3]/$query_length;
-		if($pcnt_query_match < $aln_length_pcnt) {
-			$seq_fail_i++;
-			open (OUTLOG, '>>', $output_log);
-			print OUTLOG $blast_output.",Fail alignment length\n";
-			close (OUTLOG);
-			# print $blast_output."\n";
-			# print "Fail alignment length at $pcnt_query_match\n";
-			next;
+		# BLAST alignment length cutoff
+		# Useful for excluding chimeric sequences
+		if ($aln_length_pcnt > 0) {
+			my $pcnt_query_match = $split_blast[3]/$query_length;
+			if($pcnt_query_match < $aln_length_pcnt) {
+				$seq_fail_i++;
+				open (OUTLOG, '>>', $output_log);
+				print OUTLOG $blast_output.",Fail alignment length\n";
+				close (OUTLOG);
+				# print $blast_output."\n";
+				# print "Fail alignment length at $pcnt_query_match\n";
+				next;
+			}
 		}
 		$seq_pass_i++;
 		last;
 	}
-	return 0 if $seq_pass_i == 0;
-	return 0 if (!defined($split_blast[0]));
+	return 'NA' if $seq_pass_i == 0;
+	return 'NA' if (!defined($split_blast[0]));
 	
 	$blast_output =~ s/\n//g;
 	print $blast_output."\n";

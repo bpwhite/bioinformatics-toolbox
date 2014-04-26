@@ -24,6 +24,7 @@ use warnings;
 # Import sequence libs
 use Sequence::Fasta;
 use Sequence::Kimura_Distance;
+use Sequence::BLAST;
 use General::Arguments;
 use Sequence::Bootstrap;
 use Sequence::Garli;
@@ -45,18 +46,35 @@ use String::Random;
 my $t0 = Benchmark->new;
 my $k2p1 = 0;
 ##################################################################
+print "
+******************************************************************
+
+Copyright (c) 2013,2014 Bryan White, bpcwhite\@gmail.com
+
+GNU General Public License, Version 3, 29 June 2007
+
+This program comes with ABSOLUTELY NO WARRANTY; for details type.
+This is free software, and you are welcome to redistribute it
+under certain conditions. 
+
+A full copy of the GPL 3.0 license should be accompanied with any 
+distribution of this software.
+
+******************************************************************
+\n\n
+";
 
 my $alignment 	= '';
 my $output 		= '';
-my $homology_level = 80;
-my $alignment_length_pcnt = 0.60;
+my $identity_level = 80;
+my $aln_length_pcnt = 0.60;
 my $blastdb_name = '';
 
 GetOptions ("aln=s" 			=> \$alignment,
 			"out=s"				=> \$output,
 			"db=s"				=> \$blastdb_name,
-			"homology=s"		=> \$homology_level,
-			"aln_length=s"		=> \$alignment_length_pcnt)
+			"homology=s"		=> \$identity_level,
+			"aln_length=s"		=> \$aln_length_pcnt)
 or die("Error in command line arguments\n");
 
 
@@ -79,9 +97,10 @@ my $seq_pass_i = 0;
 my $seq_fail_i = 0;
 open (OUT, '>', $output);
 open (OUTLOG, '>', $output."_log.txt");
+close (OUTLOG);
 foreach my $seq (@starting_sequence_array) {
 	my $seq_id = $seq->id;
-	$seq->id($seq_id);
+	
 	my $seq_string = $seq->seq;
 	
 	# Remove primer sequences
@@ -93,53 +112,14 @@ foreach my $seq (@starting_sequence_array) {
 	$seq_string =~ s/GGTCAACAAATCATAAAGATATTGG//g;
 	$seq_string =~ s/TAAACTTCAGGGTGACCAAAAAAT//g;
 	$seq_string =~ s/GGTCAACAAATCAATAAAGATATTGG//g;
-
-	my $query_length = fast_seq_length($seq_string);
 	
-    my $temp_query .= 'temp_query_'.int(rand(99999)).'.fas';
-	
-	open (QUERY, '>'.$temp_query);
-	print QUERY ">".$seq_id."\n";
-	print QUERY $seq_string."\n";
-	close (QUERY);
-	
-	my $blast_output = `blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs 5 -num_threads 4`;
-	unlink $temp_query;
-	
-	my @blast_lines = split(/\n/,$blast_output);
-	my @split_blast = ();
-	foreach my $blast_line (@blast_lines) {
-		@split_blast = split(/\t/,$blast_line);
-		if ($blast_output eq '') {
-			$seq_fail_i++;
-			next;
-		}
-		$blast_output =~ s/\n//g;
-		# BLAST % identity
-		if($split_blast[2] < $homology_level) {
-			$seq_fail_i++;
-			print OUTLOG $blast_output.",Fail homology level\n";
-			# print $blast_output."\n";
-			# print "Fail homology level\n";
-			next;
-		}
-		# BLAST alignment length
-		my $pcnt_query_match = $split_blast[3]/$query_length;
-		if($pcnt_query_match < $alignment_length_pcnt) {
-			$seq_fail_i++;
-			print OUTLOG $blast_output.",Fail alignment length\n";
-			# print $blast_output."\n";
-			# print "Fail alignment length at $pcnt_query_match\n";
-			next;
-		}
-		$seq_pass_i++;
-		last;
-	}
-	next if $seq_pass_i == 0;
-	next if (!defined($split_blast[0]));
-	
-	$blast_output =~ s/\n//g;
-	print $blast_output."\n";
+	my $blast_output = blast_output(seq_string 		=> $seq_string,
+									seq_id 			=> $seq_id,
+									blast_db		=> $blastdb_name,
+									identity_level 	=> $identity_level,
+									aln_length_pcnt => $aln_length_pcnt,
+									log_file		=> $output."_log.txt",
+									);
 	
 	my @seq_site_code = split(/\|/,$seq_id);
 	my $site_code = $seq_site_code[-1];
@@ -165,12 +145,3 @@ my $t1 = Benchmark->new;
 my $time_diff = timediff($t1, $t0);
 print "\n";
 print timestr($time_diff)."\n";
-
-sub fast_seq_length {
-	my $seq = shift;
-	
-	$seq =~ s/-/ /g;
-	$seq =~ s/\s+//g;
-	
-	return length($seq);
-}

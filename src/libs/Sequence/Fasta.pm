@@ -26,6 +26,7 @@ our @EXPORT_OK = qw( 	fix_fasta
 						bootstrap_alignment 
 						random_splice_alignment 
 						fisher_yates_shuffle
+						fast_seq_length
 						);
 
 sub fix_fasta {
@@ -195,6 +196,15 @@ sub fisher_yates_shuffle {
         my $j = int rand( $i+1 );
         @$array_ref[$i,$j] = @$array_ref[$j,$i];
     }
+}
+
+sub fast_seq_length {
+	my $seq = shift;
+	
+	$seq =~ s/-/ /g;
+	$seq =~ s/\s+//g;
+	
+	return length($seq);
 }
 
 1;

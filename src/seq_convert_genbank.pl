@@ -50,7 +50,7 @@ use Devel::Size;
 print "
 ******************************************************************
 
-Copyright (c) 2013, Bryan White, bpcwhite\@gmail.com
+Copyright (c) 2013,2014 Bryan White, bpcwhite\@gmail.com
 
 GNU General Public License, Version 3, 29 June 2007
 

@@ -3,6 +3,8 @@ A multi-purpose collection of bioinformatics tools written in Perl, R, and C.
 
 Authors: Bryan P. White (bpcwhite@gmail.com)
 
+Publications:
+
 Table of Contents
 I. Toolbox Overview
 	1. What is this toolbox?
@@ -10,7 +12,7 @@ I. Toolbox Overview
 		2a. Windows
 		2b. Linux
 		2c. Mac
-II. DNA Barcoding
+II. OTU Clustering
 	1. dnab_condense.pl - Condenses sequence data down to either unique haplotypes or 
 	locales.
 	2. dnab_species_delim.pl - For use in DNA barcode species delimitations
@@ -38,8 +40,6 @@ V. Sequence Manipulation
 	unaligned nucleotide sequences.
 	8. seq_convert_genbank.pl - Downloads most genbank info, including nucleotide
 	sequence, for a list of target taxa from NCBI.
-VI. Simulations
-	1. sim_replicators.pl - Particle physics simulator of basic biomolecules
 
 I. Toolbox Overview
 	1. What is this toolbox?
@@ -49,18 +49,7 @@ I. Toolbox Overview
 	top of BioPerl.
 	
 	2. Installation Guide
-		2a. Windows
-		If you are using programs from the BTBox on Windows, do the following:
-			1. Install the latest distribution of ActiveState or Strawberry Perl
-			2. Run the "installer.pl" script inside this folder.
-		2b. Linux
-			Coming soon
-		2c. Mac
-			1. Download and install Xcode
-			2. Go to Preferences > Downloads and install Command Line Tools
-			3. Update Perl by running "curl -L http://xrl.us/installperlosx | bash" in the Terminal
-			4. Check that your Perl version is 5.16 or greater by "Perl -v"
-			5. Run Cpan "Module::Name" until all dependencies are installed.
+		...
 II. DNA Barcoding
 	1. dnab_condense.pl
 		
@@ -108,7 +97,7 @@ II. DNA Barcoding
 			many locations that haplotype is found at.
 			3. Determines how many individuals share that haplotype at each 
 			location.
-			4. Outputs in FASTSA a haplotype identification number (HaplotypeID), 
+			4. Outputs in FASTA a haplotype identification number (HaplotypeID), 
 			a representative sequence from the haplotype (RepSeq), a 
 			representative name from the haplotype (RepName), the location, and 
 			the abundance of individuals sharing that haplotype at that location.

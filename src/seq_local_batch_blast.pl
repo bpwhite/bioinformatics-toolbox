@@ -37,18 +37,8 @@ use Bio::SeqIO;
 use Bio::SeqIO::fasta;
 
 # Non-bio modules
-use Statistics::Descriptive;
 use Benchmark qw(:all);
-use POSIX qw(ceil);
-use File::Copy;
-use Math::Random::MT::Perl qw(srand rand irand);
-use Digest::SHA qw(sha1 sha1_base64);
-use Term::Spinner;
-use Data::Dumper;
-use Storable qw(dclone);
-use File::Copy;
 use Getopt::Long;
-use Scalar::Util qw(looks_like_number);
 use String::Random;
 ##################################################################
 # Start benchmark
@@ -58,8 +48,8 @@ my $k2p1 = 0;
 
 my $alignment 	= '';
 my $output 		= '';
-my $homology_level = 70;
-my $alignment_length_pcnt = 0.70;
+my $homology_level = 80;
+my $alignment_length_pcnt = 0.60;
 my $blastdb_name = '';
 
 GetOptions ("aln=s" 			=> \$alignment,
@@ -156,7 +146,6 @@ foreach my $seq (@starting_sequence_array) {
 	
 	my @seq_read_id = split(/_/,$seq_id);
 	my $read_id = $seq_read_id[0];
-	
 	
 	my $new_seq_id = $read_id."|".$split_blast[1]."|".$split_blast[2]."|".$site_code;
 

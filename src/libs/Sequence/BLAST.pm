@@ -31,13 +31,14 @@ sub blast_output {
 		seq_id			=> '',
 		blast_db 		=> '',
 		outfmt			=> '',
-		max_target_seqs => '',
+		max_target_seqs => '1',
 		num_threads 	=> '',
 		identity_level	=> '80',
 		aln_length_pcnt	=> '.5',
 		log_file		=> '',
 		@_
 	);
+	
 	defined $p{seq_string} or die 'Required parameter "seq_string" not defined';
 	
 	my $seq_string 		= $p{'seq_string'};
@@ -46,6 +47,7 @@ sub blast_output {
 	my $identity_level 	= $p{'identity_level'};
 	my $aln_length_pcnt = $p{'aln_length_pcnt'};
 	my $output_log		= $p{'log_file'};
+	my $max_target_seqs = $p{'max_target_seqs'};
 	
 	my $query_length = fast_seq_length($seq_string);
 	
@@ -56,7 +58,7 @@ sub blast_output {
 	print QUERY $seq_string."\n";
 	close (QUERY);
 	# my $blast_output = '';
-	my $blast_output = `blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs 1 -num_threads 1`;
+	my $blast_output = `blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs $max_target_seqs -num_threads 4`;
 	# print "blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs 1 -num_threads 1";
 	print $blast_output."\n";
 	unlink $temp_query;
@@ -65,6 +67,7 @@ sub blast_output {
 	my $seq_pass_i = 0;
 	my @blast_lines = split(/\n/,$blast_output);
 	my @split_blast = ();
+	my $final_blast_output = '';
 	foreach my $blast_line (@blast_lines) {
 		@split_blast = split(/\t/,$blast_line);
 		if ($blast_output eq '') {
@@ -96,15 +99,16 @@ sub blast_output {
 				next;
 			}
 		}
+		$final_blast_output = $blast_line;
 		$seq_pass_i++;
 		last;
 	}
 	return 'NA' if $seq_pass_i == 0;
 	return 'NA' if (!defined($split_blast[0]));
 	
-	$blast_output =~ s/\n//g;
-	print $blast_output."\n";
-	return $blast_output;
+	$final_blast_output =~ s/\n//g;
+	# print $final_blast_output."\n";
+	return $final_blast_output;
 }
 
 1;

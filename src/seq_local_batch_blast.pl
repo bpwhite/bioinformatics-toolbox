@@ -66,8 +66,8 @@ distribution of this software.
 
 my $alignment 	= '';
 my $output 		= '';
-my $identity_level = 80;
-my $aln_length_pcnt = 0.50;
+my $identity_level = 70;
+my $aln_length_pcnt = 0.60;
 my $blastdb_name = '';
 
 GetOptions ("aln=s" 			=> \$alignment,

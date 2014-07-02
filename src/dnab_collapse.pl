@@ -1,3 +1,4 @@
+#!/usr/bin/env perl
 # Condenses haplotypes based on haplotype and location so that remaining sequences
 # either differ by location or haplotype.
 # 
@@ -16,11 +17,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 use FindBin;
+use lib "$FindBin::Bin/libs/Sequence"; 
+use lib "$FindBin::Bin/libs/";
 
 # Import sequence libs
-use lib "$FindBin::Bin/libs/Sequence";
-use Fasta;
-require 'Kimura_Distance_C.pl';
+use Sequence::Fasta;
+use Sequence::Kimura_Distance;
+use General::Arguments;
+use Sequence::Bootstrap;
+use Getopt::Long;
 
 # Local modules
 
@@ -41,32 +46,49 @@ use Bio::SeqIO;
     # under certain conditions; type `show c' for details.\n\n";
 my $critical_value = 1.96; # Default
 my $alignment_length = 0;
+my $input_file = '';
+GetOptions ("in=s" 			=> \$input_file,)
+or die("Error in command line arguments\n");
 
-# my $input_file = '18s_mega_aln.fas';
-print "Input file name (.fas or .fasta): ";
-chomp(my $input_file = <>);
 fix_fasta($input_file);
 
+my @ambiguous_characters = ('N', 'R', 'Y', 'K', 
+							'M', 'S', 'W', 'B', 
+							'D', 'H');
+							
 my $seqio  = Bio::SeqIO->new(-file => $input_file , '-format' => 'Fasta');
 my @alignment = ();
 my @orig_alignment = ();
 my %orig_seq_hash = ();
 my %unique_seqs = ();
+my %unpacked_sequences = ();
+my %unpacked_filtered_sequences = ();
+
 while((my $seq = $seqio->next_seq())) {
+	my $seq_gapped = $seq->seq;
 	$alignment_length = $seq->length;
+	foreach my $ambiguous_character (@ambiguous_characters) {
+		$seq_gapped =~ s/$ambiguous_character/-/g;
+	}
 	my @delimited_seq = split(/\|/,$seq->id);
 	my $sample_id = $delimited_seq[0];
-	my $tax_id = $delimited_seq[1];
-	my $location = $delimited_seq[2];
+	# my $tax_id = $delimited_seq[1];
+	# my $location = $delimited_seq[2];
 	my $filtered_seq = $seq->seq;
 	$filtered_seq =~ s/-/*/g;
-	$seq->description($location);
+	# $seq->description($location);
 	$seq->object_id($filtered_seq);
-	$seq->primary_id($sample_id."|".$tax_id);
+	# $seq->primary_id($sample_id."|".$tax_id);
 	push(@alignment,$seq);
 	push(@orig_alignment,$seq);
 	$orig_seq_hash{$seq->seq} = $seq;
 	$unique_seqs{$seq->seq} = $seq->id;
+	
+	# Unpack sequences
+	my @unpacked_seq = unpack("C*", $seq_gapped);
+	$unpacked_sequences{$seq_gapped} = \@unpacked_seq;
+	my @unpacked_filtered_seq = unpack("C*", $filtered_seq);
+	$unpacked_filtered_sequences{$filtered_seq} = \@unpacked_filtered_seq;
 }
 my $num_seqs = scalar(@alignment);
 
@@ -83,34 +105,43 @@ my %unique_seqs2 = %unique_seqs;
 print "Uniques: ".(keys %unique_seqs1)."\n";
 
 # Add sequences that differ by some genetic distance to a hash.
-foreach my $seq (@alignment) {
-	my $was_found = 0;
-	my $was_in_distincts = 0;
-	for my $distinct_seqs (sort keys %distinct_hash) {
-		my ($transitions,	$transversions,		$bases_compared,
-			$k2p_distance,	$variance,			$stderror,
-			$mink2p,		$maxk2p,			$p_stderror,
-			$p_min,			$p_max,				$p_dist
-			) = 0;
-		my $search_type = 3;
-		my $cutoff = 0.02;
-		my $filtered_seq = $seq->seq;
-		$filtered_seq =~ s/-/*/g;
-		c_kimura_distance(	$filtered_seq,		$distinct_seqs,		$critical_value,
-							$cutoff, 			$search_type, 		$alignment_length,
-							$transitions,		$transversions,		$bases_compared,
-							$k2p_distance,		$variance,			$stderror,
-							$mink2p,			$maxk2p);
-		if($k2p_distance <= 0) {
-			$was_in_distincts = 1;
-		}
-	}
-	if($was_in_distincts == 0) {
-		$distinct_hash{$seq->seq} = 'a';
-	}
-}
+# foreach my $seq (@alignment) {
+	# my $was_found = 0;
+	# my $was_in_distincts = 0;
+	# for my $distinct_seqs (sort keys %distinct_hash) {
+		# my ($transitions,	$transversions,		$bases_compared,
+			# $k2p_distance,	$variance,			$stderror,
+			# $mink2p,		$maxk2p,			$p_stderror,
+			# $p_min,			$p_max,				$p_dist
+			# ) = 0;
+		# my $search_type = 3;
+		# my $cutoff = 0.02;
+		# my $filtered_seq = $seq->seq;
+		# $filtered_seq =~ s/-/*/g;
+		# if(!defined($distinct_hash{$seq->seq})) {
+			# print "a\n";
+			# $distinct_hash{$seq->seq} = 'a';
+			# last;
+		# }
+		# ($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(	\$unpacked_sequences{$distinct_seqs}, 
+																					# \$unpacked_filtered_sequences{$filtered_seq}, 
+																					# $alignment_length);
+		# print $filtered_seq."\n";
+		# print $distinct_seqs."\n";
+		# print $unpacked_filtered_sequences{$filtered_seq}->[1]."\n";
+		# print $unpacked_sequences{$distinct_seqs}->[1]."\n";
+		# print $alignment_length."\n";
+		# exit;
+		# if($k2p_distance <= 0) {
+			# $was_in_distincts = 1;
+		# }
+	# }
+	# if($was_in_distincts == 0) {
+		# $distinct_hash{$seq->seq} = 'a';
+	# }
+# }
 
-print "Distincts: ".(keys %distinct_hash)."\n";
+print "Distincts: ".(keys %unique_seqs)."\n";
 
 my $test = 0;
 my $haplo_loc_counter = 1;
@@ -122,7 +153,7 @@ my @condensed_sequences = ();
 # 3. Count the number of haplotypes for each location
 # 4. Print a copy of each haplotype for each sequence, it's haplotype number
 # and the abundance of that haplotype at a particular location
-for my $distinct_hap ( sort keys %distinct_hash ) {
+for my $distinct_hap ( sort keys %unique_seqs ) {
 	my $current_haplotype_id = $orig_seq_hash{$distinct_hap}->primary_id;
 	my @haplotype_members = ();
 	my @haplotype_locations = ();
@@ -134,13 +165,18 @@ for my $distinct_hap ( sort keys %distinct_hash ) {
 			$mink2p,		$maxk2p,			$p_stderror,
 			$p_min,			$p_max,				$p_dist
 			) = 0;
-		my $search_type = 3; # don't drop out early.
 		my $cutoff = 0.02;
-		c_kimura_distance(	$filtered_orig_seq,	$distinct_hap,		$critical_value,
-							$cutoff, 			$search_type, 		$alignment_length,
-							$transitions,		$transversions,		$bases_compared,
-							$k2p_distance,		$variance,			$stderror,
-							$mink2p,			$maxk2p);
+		# print $distinct_hap."\n";
+		# print $filtered_orig_seq."\n";
+		# print $unpacked_sequences{$distinct_hap}->[0]."\n";
+		# print $unpacked_filtered_sequences{$filtered_orig_seq}->[0]."\n";
+		# exit;
+		# die if !defined($unpacked_filtered_sequences{$filtered_orig_seq}->[0]);
+		($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(	\$unpacked_sequences{$distinct_hap}, 
+																					\$unpacked_filtered_sequences{$filtered_orig_seq}, 
+																					$alignment_length);
+		# print $k2p_distance."\n";
+		# exit;
 		if($k2p_distance <= 0) {
 			next if $orig_seq->id ~~ @condensed_sequences; # Skip found seqs
 			push(@condensed_sequences, $orig_seq->id);

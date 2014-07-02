@@ -39,16 +39,13 @@ use Bio::SeqIO;
 
 my $fasta_input 		= '';
 my $out_prefix			= 'out';
-my $delimiter_pos		= '';
+
 my $seq_length_cutoff	= 0;
 
 GetOptions ("aln=s" 		=> \$fasta_input,
-			"dpos=s"		=> \$delimiter_pos,
 			"out=s"			=> \$out_prefix,
 			"slength"		=> \$seq_length_cutoff,)
 or die("Error in command line arguments\n");
-
-die("No delimiter selected") if $delimiter_pos eq '';
 
 my $seqio  = Bio::SeqIO->new(-file => $fasta_input, '-format' => 'Fasta');
 my @seq_array = ();
@@ -61,8 +58,12 @@ foreach my $seq (@seq_array) {
 	my $seq_id = $seq->id;
 	my @split_id = split(/\|/,$seq_id);
 	next if fast_seq_length($seq->seq) < $seq_length_cutoff;
-	print TAXAFILE $split_id[$delimiter_pos]."\n";
 	
+	foreach my $split (@split_id) {
+		print TAXAFILE $split.",";
+	}
+	print TAXAFILE "\n";
+
 }
 close TAXAFILE;
 

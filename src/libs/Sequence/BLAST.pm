@@ -33,8 +33,8 @@ sub blast_output {
 		outfmt			=> '',
 		max_target_seqs => '1',
 		num_threads 	=> '',
-		identity_level	=> '80',
-		aln_length_pcnt	=> '.5',
+		identity_level	=> '',
+		aln_length_pcnt	=> '',
 		log_file		=> '',
 		@_
 	);
@@ -58,9 +58,9 @@ sub blast_output {
 	print QUERY $seq_string."\n";
 	close (QUERY);
 	# my $blast_output = '';
-	my $blast_output = `blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs $max_target_seqs -num_threads 4`;
+	my $blast_output = `blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs $max_target_seqs -num_threads 2`;
 	# print "blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs 1 -num_threads 1";
-	print $blast_output."\n";
+	# print $blast_output."\n";
 	unlink $temp_query;
 	
 	my $seq_fail_i = 0;

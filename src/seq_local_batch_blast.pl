@@ -94,6 +94,7 @@ foreach my $seq ($original_aln->each_seq) {
 # query id, subject id, % identity, alignment length, mismatches, gap opens, q. start, q. end, s. start, s. end, evalue, bit score
 my $seq_pass_i = 0;
 my $seq_fail_i = 0;
+my %results_hash = ();
 open (OUT, '>', $output);
 open (OUTLOG, '>', $output."_log.txt");
 close (OUTLOG);
@@ -101,24 +102,20 @@ foreach my $seq (@starting_sequence_array) {
 	my $seq_id = $seq->id;
 	
 	my $seq_string = $seq->seq;
-	
-	# Remove primer sequences
-	# LCO F GGTCAACAAATCATAAAGATATTGG
-	# HCO R TAAACTTCAGGGTGACCAAAAAAT
-	# mLepF1 GCTTTCCCACGAATAAATAATA
-	# mLepR1 TAAACTTCTGGATGTCCAAAAAATCA
-
-	$seq_string =~ s/GGTCAACAAATCATAAAGATATTGG//g;
-	$seq_string =~ s/TAAACTTCAGGGTGACCAAAAAAT//g;
-	$seq_string =~ s/GGTCAACAAATCAATAAAGATATTGG//g;
-	
-	my $blast_output = blast_output(seq_string 		=> $seq_string,
+	my $query_length = fast_seq_length($seq_string);
+	my $blast_output = '';
+	if(exists($results_hash{$seq_string})) {
+		$blast_output = $results_hash{$seq_string};
+	} else {
+		$blast_output = blast_output(seq_string 	=> $seq_string,
 									seq_id 			=> $seq_id,
 									blast_db		=> $blastdb_name,
 									identity_level 	=> $identity_level,
 									aln_length_pcnt => $aln_length_pcnt,
 									log_file		=> $output."_log.txt",
 									);
+		$results_hash{$seq_string} = $blast_output;
+	}
 	print $blast_output."\n";
 	$seq_fail_i++ if $blast_output eq 'NA';
 	next if $blast_output eq 'NA';
@@ -133,7 +130,9 @@ foreach my $seq (@starting_sequence_array) {
 	my @seq_read_id = split(/_/,$seq_id);
 	my $read_id = $seq_read_id[0];
 	
-	my $new_seq_id = $read_id."|".$split_blast[1]."|".$split_blast[2]."|".$site_code;
+	my $pcnt_query_match = sprintf( "%.2f",$split_blast[3]/$query_length);
+	
+	my $new_seq_id = $read_id."|".$split_blast[1]."|".$split_blast[2]."|".$query_length."|".$pcnt_query_match."|".$site_code;
 
 	print OUT ">".$new_seq_id."\n";
 	print OUT $seq_string."\n";	

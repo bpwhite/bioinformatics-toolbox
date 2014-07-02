@@ -206,6 +206,7 @@ sub download_target_taxa {
 		'jrn_pages',$dlm,
 		'jrn_pubdate',$dlm,
 		'nuc_seq',$dlm,
+		'fasta_nuc',$dlm,
 		'prot_seq',$dlm,
 		'primers',$dlm,
 		'codon_start',$dlm,
@@ -502,6 +503,7 @@ sub download_target_taxa {
 		my $journal_pubdate			= 'NA'; # Journal pubdate
 		# Sequence Variables
 		my $nucleotide_seq			= 'NA'; # Nucleotide sequence
+		my $fasta_nucleotide		= 'NA'; # FASTA output
 		my $amino_acid_seq			= 'NA'; # Amino acid/protein sequence
 		my $codon_start				= 'NA'; # Reading frame position
 		my @pcr_primers				= 'NA'; # PCR primer list
@@ -521,6 +523,7 @@ sub download_target_taxa {
 		$accession_number 	= $seq->accession_number if defined $seq->accession_number;
 		$nucleotide_seq		= $seq->seq if defined $seq->seq;
 		$binomial_name		= $binomial_name_hash{$accession_number};
+		$fasta_nucleotide 	= '>'.$accession_number."|".$binomial_name.'$'.$nucleotide_seq;
 		##############################################################################
 		
 		##############################################################################
@@ -796,6 +799,9 @@ sub download_target_taxa {
 		$nucleotide_seq =~ s/\"|^\s+|\s+$//g;
 		$nucleotide_seq =~ s/ |,/_/g;
 		
+		$fasta_nucleotide =~ s/\"|^\s+|\s+$//g;
+		$fasta_nucleotide =~ s/ |,/_/g;
+		
 		$amino_acid_seq =~ s/\"|^\s+|\s+$//g;
 		$amino_acid_seq =~ s/ |,/_/g;
 		
@@ -826,7 +832,7 @@ sub download_target_taxa {
 		$lat_lon =~ s/\"|^\s+|\s+$//g;
 		$lat_lon =~ s/ |,/_/g;
 		
-	
+		
 		my @current_output = (	$target_taxon,$dlm,
 								$taxon_id,$dlm,
 								$accession_number,$dlm,
@@ -848,6 +854,7 @@ sub download_target_taxa {
 								$journal_pages,$dlm,
 								$journal_pubdate,$dlm,
 								$nucleotide_seq,$dlm,
+								$fasta_nucleotide,$dlm,
 								$amino_acid_seq,$dlm,
 								$pcr_primer_print_string,$dlm,
 								$codon_start,$dlm,
@@ -915,6 +922,7 @@ sub download_target_taxa {
 									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,	
+									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,

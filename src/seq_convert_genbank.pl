@@ -523,7 +523,7 @@ sub download_target_taxa {
 		$accession_number 	= $seq->accession_number if defined $seq->accession_number;
 		$nucleotide_seq		= $seq->seq if defined $seq->seq;
 		$binomial_name		= $binomial_name_hash{$accession_number};
-		$fasta_nucleotide 	= '>'.$accession_number."|".$binomial_name.'$'.$nucleotide_seq;
+		$fasta_nucleotide 	= '>'.$binomial_name.'_'.$accession_number.'$'.$nucleotide_seq;
 		##############################################################################
 		
 		##############################################################################
@@ -770,7 +770,7 @@ sub download_target_taxa {
 		$publication_title =~ s/ |,/_/g;
 		
 		$publication_authors =~ s/\"|^\s+|\s+$//g;
-		$publication_authors =~ s/ |,/_/g;
+		# $publication_authors =~ s/ |,/_/g;
 		
 		$abstract_text =~ s/\"|^\s+|\s+$//g;
 		$abstract_text =~ s/ |,/_/g;

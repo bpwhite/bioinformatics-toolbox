@@ -69,12 +69,14 @@ my $output 		= '';
 my $identity_level = 70;
 my $aln_length_pcnt = 0.60;
 my $blastdb_name = '';
+my $qc_only = '';
 
 GetOptions ("aln=s" 			=> \$alignment,
 			"out=s"				=> \$output,
 			"db=s"				=> \$blastdb_name,
 			"homology=s"		=> \$identity_level,
-			"aln_length=s"		=> \$aln_length_pcnt)
+			"aln_length=s"		=> \$aln_length_pcnt,
+			"qc_only=s"			=> \$qc_only)
 or die("Error in command line arguments\n");
 
 ##################################################################
@@ -132,7 +134,12 @@ foreach my $seq (@starting_sequence_array) {
 	
 	my $pcnt_query_match = sprintf( "%.2f",$split_blast[3]/$query_length);
 	
-	my $new_seq_id = $read_id."|".$split_blast[1]."|".$split_blast[2]."|".$query_length."|".$pcnt_query_match."|".$site_code;
+	my $new_seq_id = '';
+	if($qc_only = '') {
+		$new_seq_id = $read_id."|".$split_blast[1]."|".$split_blast[2]."|".$query_length."|".$pcnt_query_match."|".$site_code;
+	} elsif ($qc_only == 1) {
+		$new_seq_id = $seq_id."|".$split_blast[2]."|".$query_length."|".$pcnt_query_match;
+	}
 
 	print OUT ">".$new_seq_id."\n";
 	print OUT $seq_string."\n";	

@@ -184,7 +184,7 @@ my $nw_reroot_bin	= 'nw_reroot';
 my $nw_ed_bin		= 'nw_ed';
 my $raxml_bin		= 'raxmlHPC-SSE3';
 
-if("$^O\n" =~ "win32") {
+if("$^O\n" =~ "Win32") {
 	print "Detected Windows\n";
 	$raxml_path	= '..\bin\win32\raxml\release-win32\raxmlHPC.exe';
 } else {
@@ -208,7 +208,6 @@ if("$^O\n" =~ "win32") {
 		$raxml_bin 		.= '_'.$linux_bit;
 	}
 }
-
 $raxml_path 		.= $raxml_bin;
 $nw_display_path 	.= $nw_display_bin;
 $nw_order_path 		.= $nw_order_bin;
@@ -962,6 +961,113 @@ sub cluster_algorithm {
 			push(@bootstrap_values, $raw_bootstrap_percentage);
 			##################################################################
 			
+			##################################################################
+			# Compute overall sub-morpho names
+			my @overall_names 			= ();
+			my $current_name;
+			foreach my $unique_o_q_match1 (@unique_overall_query_matches) {
+				$current_name 		= filter_one_id($unique_o_q_match1);
+				$current_name 		= convert_id_to_name($current_name);
+				push(@overall_names,$current_name);
+			}
+			# Number of morpho names
+			my %unique_overall_names = map {$_,1} @overall_names;
+			my @unique_overall_names = keys %unique_overall_names;
+			my $num_unique_overall_names = scalar(@unique_overall_names);
+			##################################################################
+
+			##################################################################
+			# Collect sequence lengths and distances.
+			my @num_comparisons			= ();
+			my %unique_alleles			= ();
+			my %distinct_alleles		= ();
+			my @distances 				= ();
+			my $num_unique_oqm 			= keys %current_otu_sequences;
+			my $matrix_count 			= ($num_unique_oqm*$num_unique_oqm-$num_unique_oqm)/2;
+			my $maximum_dist			= 0;
+			my $minimum_possible_max	= 0;
+			my $unique_oqm_i 			= 1;
+			# my ($k2p_distance, $transitions, $transversions, $bases_compared) = 0;
+			if($skip_intra_dist == 0) {
+				for my $seq1_gapped ( sort keys %current_otu_sequences ) {
+					for my $seq2_gapped ( sort keys %current_otu_sequences ) {
+						$unique_alleles{$seq1_gapped} = 'a';
+						$unique_alleles{$seq2_gapped} = 'a';
+						($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(\$unpacked_sequences{$seq1_gapped},
+																								\$unpacked_filtered_sequences{$seq2_gapped}, 
+																								$max_seq_length);				
+						if ($bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
+						if($k2p_distance > 0) {
+							# Store distinct allele sequences greater than 0 dist.
+							$distinct_alleles{$seq1_gapped} = 'a';
+							$distinct_alleles{$seq2_gapped} = 'a';
+						}
+						push(@distances, $k2p_distance);
+						push(@num_comparisons, $bases_compared);
+						last if $unique_oqm_i == $matrix_count;
+						$unique_oqm_i++;
+					}
+					last if $unique_oqm_i == $matrix_count;
+				}
+			}
+			my $num_unique_alleles		= 0;
+			my $num_distinct_alleles	= 0;
+			$num_unique_alleles = keys %unique_alleles;
+			# $num_distinct_alleles = keys %unique_distinct_alleles;
+			$num_distinct_alleles = keys %distinct_alleles;
+			##################################################################
+			## End intra-OTU distance calculations
+			%current_otu_sequences = (); # Flush
+			##################################################################
+						##################################################################
+			# Stat summaries
+			my $mean_sequence_length 	= 0; # Sequence length stats
+			my $min_sequence_length 	= 0;
+			my $max_sequence_length 	= 0;
+			my $se_sequence_length		= 0;
+			my $mean_number_comparisons	= 0; # Num comparisons stats
+			my $min_number_comparisons 	= 0;
+			my $max_number_comparisons 	= 0;
+			my $se_number_comparisons	= 0;
+			my $mean_distance 			= 0; # Normal distance stats
+			my $min_distance 			= 0;
+			my $max_distance			= 0;
+			my $se_distance				= 0;
+			my $percent_dominant_allele	= 100; # Allele stats
+
+			
+			my $seq_rounding 			= "%.1f";
+			my $seq_length_stat 		= Statistics::Descriptive::Full->new();
+			my $num_comparisons_stat 	= Statistics::Descriptive::Full->new();
+			if(scalar(@seq_lengths) > 0) {
+				$seq_length_stat->add_data(@seq_lengths);
+				$mean_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->mean());
+				$min_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->min());
+				$max_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->max());
+				$se_sequence_length		= sprintf($seq_rounding,($seq_length_stat->standard_deviation()/sqrt(scalar(@seq_lengths))));
+			}
+			if(scalar(@num_comparisons)) {
+				$num_comparisons_stat->add_data(@num_comparisons);
+				$mean_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->mean());
+				$min_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->min());
+				$max_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->max());
+				$se_number_comparisons		= sprintf($seq_rounding,($num_comparisons_stat->standard_deviation()/sqrt(scalar(@num_comparisons))));
+			}
+			my $rounding 					= "%.3f";
+			my $distances_stat 				= Statistics::Descriptive::Full->new();
+			my $deflated_distances_stat 	= Statistics::Descriptive::Full->new();
+			my $allele_stats			 	= Statistics::Descriptive::Full->new();
+			if(scalar(@distances) > 0) {
+				$distances_stat->add_data(@distances);
+				$mean_distance 			= sprintf($rounding,$distances_stat->mean())*100;
+				$min_distance 			= sprintf($rounding,$distances_stat->min())*100;
+				$max_distance 			= sprintf($rounding,$distances_stat->max())*100;
+				$se_distance			= sprintf($rounding,($distances_stat->standard_deviation()/sqrt(scalar(@distances))))*100;
+			}
+			##################################################################
+			
+			##################################################################
+			# Print examplars			
 			my @sorted_seq_lengths = (sort { $b <=> $a } @seq_lengths);
 			my @printed_exemplars = ();
 			my @exemplar_keys = keys %exemplars_hash;
@@ -971,7 +1077,14 @@ sub cluster_algorithm {
 					next if $seq_id ~~ @printed_exemplars;
 					if(fast_seq_length($exemplars_hash{$seq_id}) == $sorted_seq_lengths[$exemplar_i]) {
 						#~ print EXEMPLARS '>|'.$otu_i.'|_|'.$bootstrap_percentage.'|_|'.$otu_digest.'|_'.$seq_id."\n";
-						print EXEMPLARS '>|'.$otu_i.'|_|'.$bootstrap_percentage.'|_'.filter_one_id($seq_id)."\n";
+						print EXEMPLARS '>|'.$otu_i.'|_|'
+										.$bootstrap_percentage.'|_|'
+										.filter_one_id($seq_id).'|_|'
+										.$abundance.'|_|'
+										.$num_unique_overall_names.'|_|'
+										.$mean_distance.'|_|'
+										.$min_distance.'|_|'
+										.$max_distance."|\n";
 						print EXEMPLARS $exemplars_hash{$seq_id}."\n";
 						push(@printed_exemplars,$seq_id);
 						$num_exemplars++;
@@ -1021,17 +1134,6 @@ sub cluster_algorithm {
 			##################################################################
 			## End nearest neighbor search
 			
-			##################################################################
-			# Compute overall sub-morpho names
-			my @overall_names 			= ();
-			my $current_name;
-			foreach my $unique_o_q_match1 (@unique_overall_query_matches) {
-				$current_name 		= filter_one_id($unique_o_q_match1);
-				$current_name 		= convert_id_to_name($current_name);
-				push(@overall_names,$current_name);
-			}
-			##################################################################
-
 
 			# Collect the sequences for the current OTU into this array, current_otu_sequences
 			# Output the OTU content (match) results
@@ -1184,93 +1286,10 @@ sub cluster_algorithm {
 				chdir File::Spec->updir;
 				
 			}
-			##################################################################
-			# Collect sequence lengths and distances.
-			my @num_comparisons			= ();
-			my %unique_alleles			= ();
-			my %distinct_alleles		= ();
-			my @distances 				= ();
-			my $num_unique_oqm 			= keys %current_otu_sequences;
-			my $matrix_count 			= ($num_unique_oqm*$num_unique_oqm-$num_unique_oqm)/2;
-			my $maximum_dist			= 0;
-			my $minimum_possible_max	= 0;
-			my $unique_oqm_i 			= 1;
-			# my ($k2p_distance, $transitions, $transversions, $bases_compared) = 0;
-			if($skip_intra_dist == 0) {
-				for my $seq1_gapped ( sort keys %current_otu_sequences ) {
-					for my $seq2_gapped ( sort keys %current_otu_sequences ) {
-						$unique_alleles{$seq1_gapped} = 'a';
-						$unique_alleles{$seq2_gapped} = 'a';
-						($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs(\$unpacked_sequences{$seq1_gapped},
-																								\$unpacked_filtered_sequences{$seq2_gapped}, 
-																								$max_seq_length);				
-						if ($bases_compared < $minimum_sequence_length) { $unique_oqm_i++; next };
-						if($k2p_distance > 0) {
-							# Store distinct allele sequences greater than 0 dist.
-							$distinct_alleles{$seq1_gapped} = 'a';
-							$distinct_alleles{$seq2_gapped} = 'a';
-						}
-						push(@distances, $k2p_distance);
-						push(@num_comparisons, $bases_compared);
-						last if $unique_oqm_i == $matrix_count;
-						$unique_oqm_i++;
-					}
-					last if $unique_oqm_i == $matrix_count;
-				}
-			}
-			##################################################################
-			## End intra-OTU distance calculations
-			%current_otu_sequences = (); # Flush
-			##################################################################
+
 			
 
-			##################################################################
-			# Stat summaries
-			my $mean_sequence_length 	= 0; # Sequence length stats
-			my $min_sequence_length 	= 0;
-			my $max_sequence_length 	= 0;
-			my $se_sequence_length		= 0;
-			my $mean_number_comparisons	= 0; # Num comparisons stats
-			my $min_number_comparisons 	= 0;
-			my $max_number_comparisons 	= 0;
-			my $se_number_comparisons	= 0;
-			my $mean_distance 			= 0; # Normal distance stats
-			my $min_distance 			= 0;
-			my $max_distance			= 0;
-			my $se_distance				= 0;
-			my $percent_dominant_allele	= 100; # Allele stats
-			my $num_unique_alleles		= 0;
-			my $num_distinct_alleles	= 0;
-			
-			my $seq_rounding 			= "%.1f";
-			my $seq_length_stat 		= Statistics::Descriptive::Full->new();
-			my $num_comparisons_stat 	= Statistics::Descriptive::Full->new();
-			if(scalar(@seq_lengths) > 0) {
-				$seq_length_stat->add_data(@seq_lengths);
-				$mean_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->mean());
-				$min_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->min());
-				$max_sequence_length 	= sprintf($seq_rounding,$seq_length_stat->max());
-				$se_sequence_length		= sprintf($seq_rounding,($seq_length_stat->standard_deviation()/sqrt(scalar(@seq_lengths))));
-			}
-			if(scalar(@num_comparisons)) {
-				$num_comparisons_stat->add_data(@num_comparisons);
-				$mean_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->mean());
-				$min_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->min());
-				$max_number_comparisons 	= sprintf($seq_rounding,$num_comparisons_stat->max());
-				$se_number_comparisons		= sprintf($seq_rounding,($num_comparisons_stat->standard_deviation()/sqrt(scalar(@num_comparisons))));
-			}
-			my $rounding 					= "%.3f";
-			my $distances_stat 				= Statistics::Descriptive::Full->new();
-			my $deflated_distances_stat 	= Statistics::Descriptive::Full->new();
-			my $allele_stats			 	= Statistics::Descriptive::Full->new();
-			if(scalar(@distances) > 0) {
-				$distances_stat->add_data(@distances);
-				$mean_distance 			= sprintf($rounding,$distances_stat->mean())*100;
-				$min_distance 			= sprintf($rounding,$distances_stat->min())*100;
-				$max_distance 			= sprintf($rounding,$distances_stat->max())*100;
-				$se_distance			= sprintf($rounding,($distances_stat->standard_deviation()/sqrt(scalar(@distances))))*100;
-			}
-			##################################################################
+
 			
 			##################################################################
 			# Calculate the percentage of query specimens accoutned for in each link step
@@ -1290,15 +1309,7 @@ sub cluster_algorithm {
 			}
 			##################################################################
 			
-			##################################################################
-			# Number of morpho names
-			my %unique_overall_names = map {$_,1} @overall_names;
-			my @unique_overall_names = keys %unique_overall_names;
-			$num_unique_alleles = keys %unique_alleles;
-			# $num_distinct_alleles = keys %unique_distinct_alleles;
-			$num_distinct_alleles = keys %distinct_alleles;
-			##################################################################
-			
+
 			##################################################################
 			# Console output
 			printf	$string_space,

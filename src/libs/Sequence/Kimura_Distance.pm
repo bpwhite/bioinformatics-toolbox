@@ -101,7 +101,7 @@ sub k2p_no_bs{
 	# A->T = 21
 	# C->G = 4
 	# G->T = 19
-	
+
 	my $transitions 		= 0;
 	my $transversions 		= 0;
 	my $num_comparisons 	= 0;
@@ -140,6 +140,70 @@ sub k2p_no_bs{
 		}
 	}
 	if($num_comparisons <= 0) { return (2,$transitions,$transversions,$num_comparisons) };
+	my $P = $transitions/$num_comparisons;
+	my $Q = $transversions/$num_comparisons;
+	my $w1 = 1-2*$P-$Q;
+	my $w2 = 1-2*$Q;
+	if(($w1 <= 0) || ($w2 <= 0)) { return (2,$transitions,$transversions,$num_comparisons) };
+	my $K2P = -log($w1)/2-log($w2)/4;
+
+	return($K2P, $transitions, $transversions, $num_comparisons);
+}
+
+
+sub k2p_no_bs2{
+	my $seq1 			= shift;
+	my $seq2 			= shift;
+	my $length 			= shift;
+	
+	# XOR values for each transition/transversion
+	# Transitions
+	# A->G = 6
+	# C->T = 23
+	# Transversions
+	# A->C = 2
+	# A->T = 21
+	# C->G = 4
+	# G->T = 19
+
+	my $transitions 		= 0;
+	my $transversions 		= 0;
+	my $num_comparisons 	= 0;
+	my $pair = '';
+	for (my $i = 0; $i < $length; $i++) {
+		if ($$seq1->[$i] == $$seq2->[$i]) {
+			$num_comparisons++;
+		} else {
+			$pair = $$seq1->[$i] ^ $$seq2->[$i];
+			# Transitions
+			if($pair 		== 6) { # A->G
+				$transitions++;
+				$num_comparisons++;
+			}
+			elsif($pair 	== 23){ # C->T	
+				$transitions++;
+				$num_comparisons++;
+			} 
+			# Transversions
+			elsif($pair 	== 21){ # A->T
+				$transversions++;
+				$num_comparisons++;
+			}
+			elsif($pair 	== 2){ 	# A->C
+				$transversions++;
+				$num_comparisons++;
+			}
+			elsif($pair 	== 4){ 	# C->G
+				$transversions++;
+				$num_comparisons++;
+			}
+			elsif($pair 	== 19){ # C->T
+				$transversions++;
+				$num_comparisons++;
+			}
+		}
+	}
+	if($num_comparisons <= 0) { return (3,$transitions,$transversions,$num_comparisons) };
 	my $P = $transitions/$num_comparisons;
 	my $Q = $transversions/$num_comparisons;
 	my $w1 = 1-2*$P-$Q;

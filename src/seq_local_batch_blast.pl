@@ -72,6 +72,7 @@ my $blastdb_name = '';
 my $qc_only = 0;
 my $multi_blast = 0;
 my $max_target_seqs = 10;
+my $short_seq = 0;
 
 GetOptions ("aln=s" 			=> \$alignment,
 			"out=s"				=> \$output,
@@ -80,7 +81,8 @@ GetOptions ("aln=s" 			=> \$alignment,
 			"aln_length=s"		=> \$aln_length_pcnt,
 			"qc_only=s"			=> \$qc_only,
 			"multi_blast=s"		=> \$multi_blast,
-			"max_target_seqs=s"	=> \$max_target_seqs)
+			"max_target_seqs=s"	=> \$max_target_seqs,
+			"short_seq=s"		=> \$short_seq)
 or die("Error in command line arguments\n");
 
 ##################################################################
@@ -152,7 +154,11 @@ foreach my $seq (@starting_sequence_array) {
 		}
 
 		print OUT ">".$new_seq_id."\n";
-		print OUT $seq_string."\n";
+		if($short_seq == 0) {
+			print OUT $seq_string."\n";
+		} elsif($short_seq == 1) {
+			print OUT "a\n";
+		}
 		
 	}
 	

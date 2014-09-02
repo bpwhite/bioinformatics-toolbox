@@ -31,11 +31,12 @@ sub blast_output {
 		seq_id			=> '',
 		blast_db 		=> '',
 		outfmt			=> '',
-		max_target_seqs => '1',
+		max_target_seqs => '',
 		num_threads 	=> '',
 		identity_level	=> '',
 		aln_length_pcnt	=> '',
 		log_file		=> '',
+		multi_blast		=> '',
 		@_
 	);
 	
@@ -48,6 +49,7 @@ sub blast_output {
 	my $aln_length_pcnt = $p{'aln_length_pcnt'};
 	my $output_log		= $p{'log_file'};
 	my $max_target_seqs = $p{'max_target_seqs'};
+	my $multi_blast		= $p{'multi_blast'};
 	
 	my $query_length = fast_seq_length($seq_string);
 	
@@ -59,6 +61,7 @@ sub blast_output {
 	close (QUERY);
 	# my $blast_output = '';
 	my $blast_output = `blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs $max_target_seqs -num_threads 2`;
+
 	# print "blastn -query $temp_query -db $blastdb_name -outfmt 6 -max_target_seqs 1 -num_threads 1";
 	# print $blast_output."\n";
 	unlink $temp_query;
@@ -68,20 +71,22 @@ sub blast_output {
 	my @blast_lines = split(/\n/,$blast_output);
 	my @split_blast = ();
 	my $final_blast_output = '';
+	my $num_results = 1;
 	foreach my $blast_line (@blast_lines) {
+		# print $blast_line."\n";
 		@split_blast = split(/\t/,$blast_line);
-		if ($blast_output eq '') {
+		if ($blast_line eq '') {
 			$seq_fail_i++;
 			next;
 		}
-		$blast_output =~ s/\n//g;
+		# $blast_line =~ s/\n//g;
 		# BLAST % identity
 		if($split_blast[2] < $identity_level) {
 			$seq_fail_i++;
 			open (OUTLOG, '>>', $output_log);
-			print OUTLOG $blast_output.",Fail homology level\n";
+			print OUTLOG $blast_line.",Fail homology level\n";
 			close (OUTLOG);
-			# print $blast_output."\n";
+			# print $blast_line."\n";
 			# print "Fail homology level\n";
 			next;
 		}
@@ -92,22 +97,29 @@ sub blast_output {
 			if($pcnt_query_match < $aln_length_pcnt) {
 				$seq_fail_i++;
 				open (OUTLOG, '>>', $output_log);
-				print OUTLOG $blast_output.",Fail alignment length\n";
+				print OUTLOG $blast_line.",Fail alignment length\n";
 				close (OUTLOG);
-				# print $blast_output."\n";
+				# print $blast_line."\n";
 				# print "Fail alignment length at $pcnt_query_match\n";
 				next;
 			}
 		}
-		$final_blast_output = $blast_line;
+		$final_blast_output .= $blast_line."\t$num_results\n";
 		$seq_pass_i++;
-		last;
+		# Done if not multiple blast hits
+		if($multi_blast == 0) {
+			last;
+		}
+		$num_results++;
 	}
 	return 'NA' if $seq_pass_i == 0;
 	return 'NA' if (!defined($split_blast[0]));
 	
-	$final_blast_output =~ s/\n//g;
-	# print $final_blast_output."\n";
+	# Only return a single line if no multiple blast hits
+	if($multi_blast == 0) {
+		$final_blast_output =~ s/\n//g;
+	}
+	
 	return $final_blast_output;
 }
 

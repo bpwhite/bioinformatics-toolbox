@@ -66,17 +66,21 @@ distribution of this software.
 
 my $alignment 	= '';
 my $output 		= '';
-my $identity_level = 70;
-my $aln_length_pcnt = 0.60;
+my $identity_level = 80;
+my $aln_length_pcnt = 0.6;
 my $blastdb_name = '';
-my $qc_only = '';
+my $qc_only = 0;
+my $multi_blast = 0;
+my $max_target_seqs = 10;
 
 GetOptions ("aln=s" 			=> \$alignment,
 			"out=s"				=> \$output,
 			"db=s"				=> \$blastdb_name,
 			"homology=s"		=> \$identity_level,
 			"aln_length=s"		=> \$aln_length_pcnt,
-			"qc_only=s"			=> \$qc_only)
+			"qc_only=s"			=> \$qc_only,
+			"multi_blast=s"		=> \$multi_blast,
+			"max_target_seqs=s"	=> \$max_target_seqs)
 or die("Error in command line arguments\n");
 
 ##################################################################
@@ -115,6 +119,8 @@ foreach my $seq (@starting_sequence_array) {
 									identity_level 	=> $identity_level,
 									aln_length_pcnt => $aln_length_pcnt,
 									log_file		=> $output."_log.txt",
+									multi_blast		=> $multi_blast,
+									max_target_seqs => $max_target_seqs,
 									);
 		$results_hash{$seq_string} = $blast_output;
 	}
@@ -124,26 +130,31 @@ foreach my $seq (@starting_sequence_array) {
 	
 	$seq_pass_i++;
 	
-	my @split_blast = split(/\t/,$blast_output);
+	my @blast_results = split(/\n/,$blast_output);
 	
-	my @seq_site_code = split(/\|/,$seq_id);
-	my $site_code = $seq_site_code[-1];
-	
-	my @seq_read_id = split(/_/,$seq_id);
-	my $read_id = $seq_read_id[0];
-	
-	my $pcnt_query_match = sprintf( "%.2f",$split_blast[3]/$query_length);
-	
-	my $new_seq_id = '';
-	if($qc_only = '') {
-		$new_seq_id = $read_id."|".$split_blast[1]."|".$split_blast[2]."|".$query_length."|".$pcnt_query_match."|".$site_code;
-	} elsif ($qc_only == 1) {
-		$new_seq_id = $seq_id."|".$split_blast[2]."|".$query_length."|".$pcnt_query_match;
+	foreach my $blast_result (@blast_results) {
+		$blast_result =~ s/ //g; # replace whitespace
+		my @split_blast = split(/\t/,$blast_result);
+		
+		my @seq_site_code = split(/\|/,$seq_id);
+		my $site_code = $seq_site_code[-1];
+		
+		my @seq_read_id = split(/_/,$seq_id);
+		my $read_id = $seq_read_id[0];
+		
+		my $pcnt_query_match = sprintf( "%.2f",$split_blast[3]/$query_length);
+		
+		my $new_seq_id = '';
+		if($qc_only == 0) {
+			$new_seq_id = $read_id."|".$split_blast[1]."|".$split_blast[2]."|".$split_blast[10]."|".$split_blast[11]."|".$split_blast[12]."|".$seq_string."|".$query_length."|".$pcnt_query_match."|".$site_code;
+		} elsif ($qc_only == 1) {
+			$new_seq_id = $seq_id."|".$split_blast[2]."|".$query_length."|".$pcnt_query_match;
+		}
+
+		print OUT ">".$new_seq_id."\n";
+		print OUT $seq_string."\n";
+		
 	}
-
-	print OUT ">".$new_seq_id."\n";
-	print OUT $seq_string."\n";	
-
 	
 	# print OUT ">".$seq->id."\n";
 	# print OUT $seq->seq."\n";

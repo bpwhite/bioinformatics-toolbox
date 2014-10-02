@@ -1242,7 +1242,7 @@ sub cluster_algorithm {
 					# print SPLICED $query_seq."\n";
 				# }
 			}
-			print OTU_NEXUS ";\nEND;";
+			print OTU_NEXUS "\t;\nEND;";
 			close(OTU_NEXUS);
 			close(OTU_FASTA);
 			##################################################################

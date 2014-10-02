@@ -4,7 +4,7 @@
 # It is designed for use with the cytochrome oxidase I (COI) gene
 # and to provide species delimitations useful for DNA barcoding.
 
-# Copyright (c) 2013, Bryan White, bpcwhite@gmail.com
+# Copyright (c) 2013, 2014 Bryan White, bpcwhite@gmail.com
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

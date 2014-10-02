@@ -4,7 +4,7 @@
 # It is designed for use with the cytochrome oxidase I (COI) gene
 # and to provide species delimitations useful for DNA barcoding.
 
-# Copyright (c) 2013, Bryan White, bpcwhite@gmail.com
+# Copyright (c) 2013, 2014 Bryan White, bpcwhite@gmail.com
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1142,33 +1142,57 @@ sub cluster_algorithm {
 			my $current_otu_output_path 	= $output_path.$output_prefix.'_'.$otu_i;
 			my $otu_local_path 				= $current_otu_output_path.$file_separator;
 			my $otu_FASTA_file				= $otu_local_path.$current_otu_output_prefix.'.fas';
-			
+			my $otu_NEXUS_file				= $otu_local_path.$current_otu_output_prefix.'.nex';
+
 			unless(-d ($current_otu_output_path)) {
 				# print "Creating output path: ".$current_otu_output_prefix."\n";
 				mkdir $current_otu_output_path;
 			}
 			unlink $otu_FASTA_file;
 			open(OTU_FASTA, '>>'.$otu_FASTA_file);
-			
+			unlink $otu_NEXUS_file;
+			open(OTU_NEXUS, '>>'.$otu_NEXUS_file);
+
+			# Determine total abundance to be printed
+			my $print_nearest_neighbors = 3;
+			my $num_nearest_neighbors = keys %nn_hash;
+			if ($num_nearest_neighbors > $print_nearest_neighbors) {
+				$num_nearest_neighbors = $print_nearest_neighbors;
+			}
+			my $total_abundance = $num_nearest_neighbors + $abundance;
+
+			print OTU_NEXUS "#NEXUS\n";
+			print OTU_NEXUS "BEGIN DATA;\n";
+			print OTU_NEXUS "\tDIMENSIONS nchar=".$alignment_length." ntax=".$total_abundance.";\n";
+			print OTU_NEXUS "\tFORMAT datatype=DNA gap=-;\n";
+			print OTU_NEXUS "\tMATRIX\n";
 			# Print nearest neighbors, if applicable.
 			my $nn_id = '';
 			my $nn_dist = '';
 			my $nn_sequence = '';
 			my $root = '';
+			
 			if((keys %nn_hash) > 0) {
 				# sort neighbor distances by lowest first.
 				my @sorted_neighbor_dists = (sort { $a <=> $b } @neighbor_dists);
-				my $num_nearest_neighbors = 3;
-				for(my $nn_i = 1; $nn_i <= $num_nearest_neighbors; $nn_i++) {
+				
+				for(my $nn_i = 1; $nn_i <= $print_nearest_neighbors; $nn_i++) {
 					my $cur_nn_id = $nn_hash{$sorted_neighbor_dists[$nn_i]};
 					if($nn_i == 1) {
 						$nn_dist 	= sprintf("%.3f",$sorted_neighbor_dists[$nn_i])*100;
 						$nn_id 		= $cur_nn_id;
+						# Check if nearest neighbor is also a closely related intrageneric
+						# species, maybe even sister species.
+						# genus_name
 					}
-					
+					$nn_sequence = $non_unique_sequences{$nn_hash{$sorted_neighbor_dists[$nn_i]}};
+
 					print OTU_FASTA '>NN|'.filter_one_id($cur_nn_id)."\n";
-					print OTU_FASTA $non_unique_sequences{$nn_hash{$sorted_neighbor_dists[$nn_i]}}."\n";
+					print OTU_FASTA $nn_sequence."\n";
 					$root = 'NN|'.filter_one_id($cur_nn_id);
+					my $nn_nex_id = filter_one_id($cur_nn_id);
+					$nn_nex_id =~ s/\||\-/_/g;
+					print OTU_NEXUS "\tNN_".$nn_nex_id." ".$nn_sequence."\n";
 				}
 			}
 			
@@ -1180,9 +1204,13 @@ sub cluster_algorithm {
 				$filtered_otu_id = filter_one_id($otu_seq->id);
 				$filtered_query_id = filter_one_id($query_seq_id);
 				print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
-				print OTU_FASTA '>'.filter_one_id($query_seq_id)."\n";
+				print OTU_FASTA '>'.$filtered_query_id."\n";
 				print OTU_FASTA $query_seq."\n";
-				
+
+				my $nexus_id = $filtered_query_id;
+				$nexus_id =~ s/\||\-/_/g;
+				print OTU_NEXUS "\t".$nexus_id." ".$query_seq."\n";
+
 				if($print_spliced_aln == 1) {
 					if($print_ref_seq == 1) {
 						if($query_seq_id eq $otu_seq->id) {
@@ -1214,6 +1242,8 @@ sub cluster_algorithm {
 					# print SPLICED $query_seq."\n";
 				# }
 			}
+			print OTU_NEXUS ";\nEND;";
+			close(OTU_NEXUS);
 			close(OTU_FASTA);
 			##################################################################
 			

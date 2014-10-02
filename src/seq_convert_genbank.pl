@@ -20,10 +20,6 @@ use lib "$FindBin::Bin/libs";
 use Time::HiRes qw( usleep );
 use General::Arguments;
 
-use Bio::TreeIO;
-use Bio::Tree::Tree;
-use Bio::Tree::TreeFunctionsI;
-use Bio::Tree::Node;
 use Bio::Align::AlignI;
 use Bio::AlignIO::fasta;
 use Bio::Seq;
@@ -524,6 +520,7 @@ sub download_target_taxa {
 		$nucleotide_seq		= $seq->seq if defined $seq->seq;
 		$binomial_name		= $binomial_name_hash{$accession_number};
 		$fasta_nucleotide 	= '>'.$binomial_name.'_'.$accession_number.'$'.$nucleotide_seq;
+		$fasta_to_print		= '>'.$binomial_name.'_'.$accession_number."\n".$nucleotide_seq;
 		##############################################################################
 		
 		##############################################################################
@@ -882,6 +879,8 @@ sub download_target_taxa {
 		# print "output_lines ".total_size(\@output_lines)."\n";
 		# print "return_output_lines ".total_size(\@return_output_lines)."\n";
 		##############################################################################
+		
+		$fasta_to_print
 		$seq_counter++;
 		
 		###

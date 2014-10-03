@@ -328,5 +328,25 @@ sub solve_min_tsv {
 	return ($max_transitions, $max_transversions);
 }
 
+sub k2p_unpack {
+	my $seq1 = shift;
+	my $seq2 = shift;
+	my $aln_length = shift;
+	
+	$seq1 =~ s/-/*/g;
+	my @unpacked_match = unpack("C*", $seq1);
+	my $unpacked_match_ref = \@unpacked_match;
+	my @unpacked_query = unpack("C*", $seq2);
+	my $unpacked_query_ref = \@unpacked_query;
+	
+	my $k2p_distance = 0;
+	my $transitions = 0;
+	my $transversions = 0;
+	my $bases_compared = 0;
+	($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_no_bs2(\$unpacked_match_ref, \$unpacked_query_ref, $aln_length);
+	
+	$k2p_distance = sprintf("%.2f",$k2p_distance);
+	return($k2p_distance, $transitions,$transversions,$bases_compared);
+}
 
 1;

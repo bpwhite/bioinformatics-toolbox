@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # Downloads and parses genbank files given an input taxon name.
 #
-# Copyright (c) 2013, Bryan White, bpcwhite@gmail.com
+# Copyright (c) 2013-2014 Bryan White, bpcwhite@gmail.com
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ use Devel::Size;
 print "
 ******************************************************************
 
-Copyright (c) 2013,2014 Bryan White, bpcwhite\@gmail.com
+Copyright (c) 2013-2014 Bryan White, bpcwhite\@gmail.com
 
 GNU General Public License, Version 3, 29 June 2007
 
@@ -165,8 +165,6 @@ sub download_target_taxa {
 	my $max_pubmed_tries = 2;
 	my $sequence_file = '';
 	
-
-	
 	##############################################################################
 	# Optimization hashes. Swap memory for speed.
 	# Stores the info for a given pubmed article to save download time.
@@ -213,6 +211,8 @@ sub download_target_taxa {
 		'organelle',$dlm,
 		'location',$dlm,
 		'lat_lon',$dlm,
+		'isolate',$dlm,
+		'bio_material',$dlm,
 		$endl);
 		# Output file headers.
 	my @output_lines = ();
@@ -500,6 +500,7 @@ sub download_target_taxa {
 		# Sequence Variables
 		my $nucleotide_seq			= 'NA'; # Nucleotide sequence
 		my $fasta_nucleotide		= 'NA'; # FASTA output
+		my $fasta_to_print			= 'NA'; # FASTA file
 		my $amino_acid_seq			= 'NA'; # Amino acid/protein sequence
 		my $codon_start				= 'NA'; # Reading frame position
 		my @pcr_primers				= 'NA'; # PCR primer list
@@ -513,6 +514,8 @@ sub download_target_taxa {
 		my $organelle				= 'NA'; # 
 		my $country					= 'NA'; # 
 		my $lat_lon					= 'NA'; # 
+		my $isolate_id				= 'NA'; #
+		my $bio_material			= 'NA'; #
 		##############################################################################
 		# Grab some easy variables.
 		$long_name 			= $seq->description if defined $seq->description;
@@ -520,7 +523,7 @@ sub download_target_taxa {
 		$nucleotide_seq		= $seq->seq if defined $seq->seq;
 		$binomial_name		= $binomial_name_hash{$accession_number};
 		$fasta_nucleotide 	= '>'.$binomial_name.'_'.$accession_number.'$'.$nucleotide_seq;
-		$fasta_to_print		= '>'.$binomial_name.'_'.$accession_number."\n".$nucleotide_seq;
+		#$fasta_to_print		= '>'.$binomial_name.'_'.$accession_number."\n".$nucleotide_seq;
 		##############################################################################
 		
 		##############################################################################
@@ -545,6 +548,8 @@ sub download_target_taxa {
 					$protein_id				= $value if($tag =~ m/protein_id/);
 					$amino_acid_seq			= $value if($tag =~ m/translation/);
 					$voucher_id				= $value if($tag =~ m/specimen_voucher/);
+					$isolate_id				= $value if($tag =~ m/isolate/);
+					$bio_material			= $value if($tag =~ m/bio_material/);
 				}
 			}
 		}
@@ -811,8 +816,8 @@ sub download_target_taxa {
 		$collection_date =~ s/\"|^\s+|\s+$//g;
 		$collection_date =~ s/ |,/_/g;
 		
-		$voucher_id =~ s/\"|^\s+|\s+$//g;
-		$voucher_id =~ s/ |,/_/g;
+		#$voucher_id =~ s/\"|^\s+|\s+$//g;
+		#$voucher_id =~ s/ |,/_/g;
 		
 		$collected_by =~ s/\"|^\s+|\s+$//g;
 		$collected_by =~ s/ |,/_/g;
@@ -861,7 +866,9 @@ sub download_target_taxa {
 								$identified_by,$dlm,
 								$organelle,$dlm,
 								$country,$dlm,
-								$lat_lon,$dlm);
+								$lat_lon,$dlm,
+								$isolate_id,$dlm,
+								$bio_material,$dlm);
 		my @cleaned_output = ();
 		foreach my $current_output (@current_output) {
 			# Catch missing values. Probably should output an error here.
@@ -880,7 +887,7 @@ sub download_target_taxa {
 		# print "return_output_lines ".total_size(\@return_output_lines)."\n";
 		##############################################################################
 		
-		$fasta_to_print
+		#$fasta_to_print
 		$seq_counter++;
 		
 		###
@@ -921,6 +928,8 @@ sub download_target_taxa {
 									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,	
+									'NA',$dlm,
+									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,

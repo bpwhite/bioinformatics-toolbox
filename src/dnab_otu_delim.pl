@@ -385,11 +385,17 @@ my $otu_exemplars = $output_prefix.'_exemplars.fas';
 unlink $output_path.$otu_exemplars;
 open(EXEMPLARS, '>'.$output_path.$otu_exemplars);
 
+my $otu_labeled_fas = $output_prefix.'_labeled.fas';
+unlink $output_path.$otu_labeled_fas;
+open(LABELED_FAS, '>'.$output_path.$otu_labeled_fas);
+
+my $otu_labeled_nex = $output_prefix.'_labeled.nex';
+unlink $output_path.$otu_labeled_nex;
+open(LABELED_NEX, '>'.$output_path.$otu_labeled_nex);
+
 my $spliced_align = $output_prefix.'_spliced.fas';
 unlink $output_path.$spliced_align;
 open(SPLICED, '>'.$output_path.$spliced_align);
-
-##################################################################
 
 # Tag sequences
 
@@ -525,6 +531,16 @@ print "Final alignment length: $max_seq_length.\n";
 # }
 my ($max_ts, $max_tv) = solve_min_tsv($max_seq_length, $cutoff);
 my $shortcut_partition = $max_seq_length * $shortcut_freq;
+
+##################################################################
+# Begin the labeled NEXUS file with all sequences
+print LABELED_NEX "#NEXUS\n";
+print LABELED_NEX "BEGIN DATA;\n";
+print LABELED_NEX "\tDIMENSIONS nchar=".$alignment_length." ntax=".$number_query_seqs.";\n";
+print LABELED_NEX "\tFORMAT datatype=DNA gap=-;\n";
+print LABELED_NEX "\tMATRIX\n";
+##################################################################
+
 ##################################################################
 # If we're not boostrapping, skip ahead.
 if ($doing_bootstrap == $bootstrap_flag) {
@@ -1189,10 +1205,14 @@ sub cluster_algorithm {
 
 					print OTU_FASTA '>NN|'.filter_one_id($cur_nn_id)."\n";
 					print OTU_FASTA $nn_sequence."\n";
+
 					$root = 'NN|'.filter_one_id($cur_nn_id);
+
+					# Additional filtering required by PAUP*
 					my $nn_nex_id = filter_one_id($cur_nn_id);
 					$nn_nex_id =~ s/\||\-/_/g;
-					print OTU_NEXUS "\tNN_".$nn_nex_id." ".$nn_sequence."\n";
+					# Print to file containing all sequences
+					print OTU_NEXUS 	"\tNN_".$nn_nex_id." ".$nn_sequence."\n";
 				}
 			}
 			
@@ -1206,11 +1226,14 @@ sub cluster_algorithm {
 				print OTU_RESULTS $filtered_otu_id.','.$filtered_query_id."\n";
 				print OTU_FASTA '>'.$filtered_query_id."\n";
 				print OTU_FASTA $query_seq."\n";
+				print LABELED_FAS '>'.$filtered_query_id."\n";
+				print LABELED_FAS $query_seq."\n";
 
 				my $nexus_id = $filtered_query_id;
 				$nexus_id =~ s/\||\-/_/g;
 				print OTU_NEXUS "\t".$nexus_id." ".$query_seq."\n";
-
+				print LABELED_NEX "\t".$nexus_id." ".$query_seq."\n";
+				
 				if($print_spliced_aln == 1) {
 					if($print_ref_seq == 1) {
 						if($query_seq_id eq $otu_seq->id) {
@@ -1576,6 +1599,9 @@ sub cluster_algorithm {
 close(EXEMPLARS);
 close(OTU_RESULTS);
 close(SPLICED);
+print LABELED_NEX "\t;\nEND;";
+close(LABELED_NEX);
+close(LABELED_FAS);
 
 if($exemplar_tree == 1) {
 	my $exemplar_prefix = $output_prefix.'_exemplars';

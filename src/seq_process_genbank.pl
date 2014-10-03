@@ -47,7 +47,7 @@ distribution of this software.
 my $genbank_csv		= '';
 my $output_tag		= 'output';
 my $match_aln_file  = '';
-my $dist_cutoff 	= '0.70';
+my $dist_cutoff 	= '0.45';
 my $bases_cutoff 	= '0.70';
 GetOptions ("gb=s" 				=> \$genbank_csv,
 			"out=s"				=> \$output_tag,
@@ -77,6 +77,11 @@ my $fasta_output = $output_tag.".fas";
 unlink $fasta_output;
 open (QUERY_FAS, '>>'.$fasta_output);
 
+# Add match sequence to the output FASTA as first sequence
+foreach my $match_seq (@match_aln_array) {
+	print QUERY_FAS ">".$match_seq->id."\n";
+	print QUERY_FAS $match_seq->seq."\n";
+}
 # Loop through Genbank CSV lines and output to a FASTA file
 my %params_hash = ();
 my $line_counter = 0;
@@ -116,53 +121,134 @@ foreach my $line (@genbank_lines) {
 
 			$column_num++;
 		}
-		print QUERY_FAS ">".$binom."|".$accession."\n";
+		print QUERY_FAS ">".$accession."\n";
 		print QUERY_FAS $nuc_seq."\n";		
 	}
 
 	$line_counter++;
 }
 
-# Add match sequence to the output FASTA as first sequence
-foreach my $match_seq (@match_aln_array) {
-	print QUERY_FAS ">".$match_seq->id."\n";
-	print QUERY_FAS $match_seq->seq."\n";
-}
+
 
 close(QUERY_FAS);
 
-my $aligned = $output_tag."_aln.fas";
-unlink($aligned);
+my $alignment_depth = 0;
 
-# Align all query sequences.
-my $mafft_string = "mafft --auto --preservecase --adjustdirection --preservecase $fasta_output > $aligned";
-print "Calling $mafft_string\n";
-system($mafft_string);
+my $final_depth = recursive_alignment();
 
-# Reimport aligned sequences and put in array
-my $qc_alignment = Bio::AlignIO->new(-format => 'fasta',
-								-file   => $aligned );
-my $qc_alignment_obj = $qc_alignment->next_aln;
-my @qc_aln_array = ();
-foreach my $qc_seq ($qc_alignment_obj->each_seq) {
-	print ">".$qc_seq->id."\n";
-	print $qc_seq->seq."\n";
-	push(@qc_aln_array,$qc_seq);
+print "Final file = ".$final_depth."\n";
+
+my $final_alignment_file = $output_tag."_".$final_depth."_aln.fas";
+
+print "Loading... ".$final_alignment_file."\n";
+my $final_alignment = Bio::AlignIO->new(-format => 'fasta',
+								-file   => $final_alignment_file );
+my $final_alignment_obj = $final_alignment->next_aln;
+my @final_alignment_array = ();
+
+foreach my $final_seq ($final_alignment_obj->each_seq) {
+	my $seq_id = $final_seq->id;
+	$seq_id =~ s/^_R_//;
+
+	$final_seq->id($seq_id);
+	push(@final_alignment_array,$final_seq);
+}
+# Delete all the recursively generated alignment files
+for(my $aln_i = 0; $aln_i <= $final_depth; $aln_i++) {
+	unlink( $output_tag."_".$aln_i."_aln.fas")
 }
 
-# Determine alignment length, including gaps
-my $aln_length = length($qc_aln_array[0]->seq);
-
-# Loop through aligned sequences and check distance against the match query
-my $match_seq_original = $qc_aln_array[0];
-my ($k2p_distance, $transitions,$transversions,$bases_compared) = 0;
-foreach my $qc_seq (@qc_aln_array) {
-	my $seq1 = $qc_seq->seq;
-	my $seq2 = $match_seq_original->seq;
-	($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_unpack($seq1,$seq2,$aln_length);
-	print $k2p_distance."\n";
+print "Matching aligned sequence to genbank data\n";
+my $genbank_line_i = 0;
+foreach my $genbank_line (@genbank_lines) {
+	if($genbank_line_i == 0) {
+		$genbank_line_i++;	
+		next;
+	}
+	print $genbank_line."\n";
+	
+	$genbank_line = s/\n//g;
+	foreach my $final_seq (@final_alignment_array) {
+		print $final_seq->id."\n";
+		my $final_seq_id = $final_seq->id;
+		if($genbank_line =~ m/$final_seq_id/) {
+			print $final_seq_id." => ".$genbank_line."\n";
+			print "\"".$genbank_line."\",\"".$final_seq->seq."\"\n";
+			
+		}
+	}
+	$genbank_line_i++;
 }
 
 
-#check_aln($split,$match_aln_file);
+
+
+sub recursive_alignment {
+	my $aligned = $output_tag."_".$alignment_depth."_aln.fas";
+	#unlink($aligned);
+
+	my $last_depth = $alignment_depth-1;
+	my $last_alignment = $output_tag."_".$last_depth."_aln.fas";
+
+	my $mafft_string = '';
+	if($alignment_depth == 0) {
+		unlink($aligned);
+		$mafft_string = "mafft --auto --preservecase --adjustdirection --preservecase --thread 3 --quiet --maxiterate 0 --retree 1 --6merpair $fasta_output > $aligned";
+		print "Calling $mafft_string at depth $alignment_depth\n";
+		system($mafft_string);
+	} else {
+		unlink($aligned);
+		$mafft_string = "mafft --auto --preservecase --adjustdirection --preservecase --thread 3 --quiet --maxiterate 0 --retree 1 --6merpair $last_alignment > $aligned";
+		print "Calling $mafft_string at depth $alignment_depth\n";
+		system($mafft_string);
+	}
+
+	# Reimport aligned sequences and put in array
+	print "Loading... ".$aligned."\n";
+	my $qc_alignment = Bio::AlignIO->new(-format => 'fasta',
+									-file   => $aligned );
+	my $qc_alignment_obj = $qc_alignment->next_aln;
+	my @qc_aln_array = ();
+	foreach my $qc_seq ($qc_alignment_obj->each_seq) {
+		#print $qc_seq->id."\n";
+		push(@qc_aln_array,$qc_seq);
+	}
+	unlink($aligned);
+	print "Printing to ".$aligned."\n";
+	open(ALIGNED, '>>'.$aligned);
+	# Determine alignment length, including gaps
+	my $aln_length = length($qc_aln_array[0]->seq);
+	my $num_bases_cutoff = $aln_length*$bases_cutoff;
+	# Loop through aligned sequences and check distance against the match query
+	my $match_seq_original = $qc_aln_array[0];
+	my $max_k2p = 0;
+	foreach my $qc_seq (@qc_aln_array) {
+		my $seq1 = $qc_seq->seq;
+		my $seq2 = $match_seq_original->seq;
+
+		my ($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_unpack($seq1,$seq2,$aln_length);
+		#print $k2p_distance."\n";
+
+		if($k2p_distance > $max_k2p) {
+			$max_k2p = $k2p_distance;
+			#print $max_k2p."\n";
+		}
+		#if (($k2p_distance < $dist_cutoff) && ($bases_compared > $num_bases_cutoff)) {
+		if ($k2p_distance < $dist_cutoff) {
+			print ALIGNED ">".$qc_seq->id."\n";
+			print ALIGNED $qc_seq->seq."\n";
+		} elsif ($k2p_distance > $dist_cutoff) {
+			print $k2p_distance." with ".$bases_compared." compared at ".$qc_seq->id."\n";
+		}
+	}
+	close(ALIGNED);
+	
+
+	if($max_k2p > $dist_cutoff) {
+		print $max_k2p."\n";
+		$alignment_depth++;
+		recursive_alignment();
+	}
+	return $alignment_depth;
+}
 

@@ -47,7 +47,7 @@ distribution of this software.
 my $genbank_csv		= '';
 my $output_tag		= 'output';
 my $match_aln_file  = '';
-my $dist_cutoff 	= '0.45';
+my $dist_cutoff 	= '0.55';
 my $bases_cutoff 	= '0.70';
 GetOptions ("gb=s" 				=> \$genbank_csv,
 			"out=s"				=> \$output_tag,
@@ -85,8 +85,12 @@ foreach my $match_seq (@match_aln_array) {
 # Loop through Genbank CSV lines and output to a FASTA file
 my %params_hash = ();
 my $line_counter = 0;
+my $column_headers = '';
 foreach my $line (@genbank_lines) {
 	#print $line;
+	if($line_counter == 0) {
+		$column_headers = $line;
+	}
 	$line =~ s/\n//g;
 	$line =~ s/^\"|\"\,$//g;
 
@@ -99,6 +103,7 @@ foreach my $line (@genbank_lines) {
 			#print $split." => ".$column_num."\n";
 			$column_num++;
 		}
+		
 	} else {
 		# Build FASTA format sequences from each line
 		my $column_num = 0;
@@ -149,7 +154,7 @@ my @final_alignment_array = ();
 foreach my $final_seq ($final_alignment_obj->each_seq) {
 	my $seq_id = $final_seq->id;
 	$seq_id =~ s/^_R_//;
-
+	#print $seq_id."\n";
 	$final_seq->id($seq_id);
 	push(@final_alignment_array,$final_seq);
 }
@@ -159,29 +164,41 @@ for(my $aln_i = 0; $aln_i <= $final_depth; $aln_i++) {
 }
 
 print "Matching aligned sequence to genbank data\n";
+my $new_genbank_file = $output_tag."_qchecked.csv";
+unlink($new_genbank_file);
+
+open(QCDONE, '>>'.$new_genbank_file);
+$column_headers =~ s/\n//g;
+print QCDONE $column_headers."aligned_fasta\n";
+
 my $genbank_line_i = 0;
 foreach my $genbank_line (@genbank_lines) {
 	if($genbank_line_i == 0) {
 		$genbank_line_i++;	
 		next;
 	}
-	print $genbank_line."\n";
-	
-	$genbank_line = s/\n//g;
+	#print $genbank_line."\n";
+	my $found_match = 0;
+	$genbank_line =~ s/\n//g;
 	foreach my $final_seq (@final_alignment_array) {
-		print $final_seq->id."\n";
+		#print $final_seq->id."\n";
 		my $final_seq_id = $final_seq->id;
-		if($genbank_line =~ m/$final_seq_id/) {
-			print $final_seq_id." => ".$genbank_line."\n";
-			print "\"".$genbank_line."\",\"".$final_seq->seq."\"\n";
-			
+		if($genbank_line =~ /$final_seq_id/) {
+			#print $final_seq_id." => ".$genbank_line."\n";
+			print QCDONE "\"".$genbank_line."\",\"".$final_seq->seq."\"\n";
+			$found_match = 1;
+			last;
 		}
+	}
+	if($found_match == 0) {
+		print QCDONE "\"".$genbank_line."\",failedqc\n";
 	}
 	$genbank_line_i++;
 }
 
+close(QCDONE);
 
-
+print "Done!\n";
 
 sub recursive_alignment {
 	my $aligned = $output_tag."_".$alignment_depth."_aln.fas";
@@ -195,12 +212,14 @@ sub recursive_alignment {
 		unlink($aligned);
 		$mafft_string = "mafft --auto --preservecase --adjustdirection --preservecase --thread 3 --quiet --maxiterate 0 --retree 1 --6merpair $fasta_output > $aligned";
 		print "Calling $mafft_string at depth $alignment_depth\n";
-		system($mafft_string);
+		my $mafft_output = `$mafft_string`;
+		#system($mafft_string);
 	} else {
 		unlink($aligned);
 		$mafft_string = "mafft --auto --preservecase --adjustdirection --preservecase --thread 3 --quiet --maxiterate 0 --retree 1 --6merpair $last_alignment > $aligned";
 		print "Calling $mafft_string at depth $alignment_depth\n";
-		system($mafft_string);
+		my $mafft_output = `$mafft_string`;
+		#system($mafft_string);
 	}
 
 	# Reimport aligned sequences and put in array

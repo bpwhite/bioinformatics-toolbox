@@ -22,6 +22,37 @@ use FindBin;
 use lib "$FindBin::Bin/libs/Sequence"; 
 use lib "$FindBin::Bin/libs/";
 use Sequence::Fasta;
+# Import sequence libs
+use Sequence::Kimura_Distance;
+use General::Arguments;
+use Sequence::Bootstrap;
+use Sequence::Garli;
+
+# BioPerl libs
+use Bio::TreeIO;
+use Bio::Tree::Tree;
+use Bio::Tree::TreeFunctionsI;
+use Bio::Tree::Node;
+use Bio::Align::AlignI;
+use Bio::AlignIO::fasta;
+use Bio::SimpleAlign;
+use Bio::Seq;
+use Bio::SeqIO;
+use Bio::SeqIO::fasta;
+
+# Non-bio modules
+use Statistics::Descriptive;
+use Benchmark qw(:all);
+use POSIX qw(ceil);
+use Math::Random::MT::Perl qw(srand rand irand);
+use Data::Dumper;
+use Storable qw(dclone);
+use File::Copy;
+
+# Non-bio modules
+use Benchmark qw(:all);
+use Getopt::Long;
+use String::Random;
 
 use Exporter;
 
@@ -35,38 +66,7 @@ sub check_aln {
 					bases => '0.70',
 					@_
 	);
-	# Import sequence libs
-	use Sequence::Fasta;
-	use Sequence::Kimura_Distance;
-	use General::Arguments;
-	use Sequence::Bootstrap;
-	use Sequence::Garli;
 
-	# BioPerl libs
-	use Bio::TreeIO;
-	use Bio::Tree::Tree;
-	use Bio::Tree::TreeFunctionsI;
-	use Bio::Tree::Node;
-	use Bio::Align::AlignI;
-	use Bio::AlignIO::fasta;
-	use Bio::SimpleAlign;
-	use Bio::Seq;
-	use Bio::SeqIO;
-	use Bio::SeqIO::fasta;
-
-	# Non-bio modules
-	use Statistics::Descriptive;
-	use Benchmark qw(:all);
-	use POSIX qw(ceil);
-	use Math::Random::MT::Perl qw(srand rand irand);
-	use Data::Dumper;
-	use Storable qw(dclone);
-	use File::Copy;
-
-	# Non-bio modules
-	use Benchmark qw(:all);
-	use Getopt::Long;
-	use String::Random;
 
 	my $query_aln_file 	= '';
 	my $match_aln_file 		= '';
@@ -145,9 +145,9 @@ sub check_aln {
 		# print $mafft_aln_array[1]->seq."\n";
 		
 		my $match_seq_final = $mafft_aln_array[0]->seq;
-		$match_seq_final =~ s/-/*/g;
 		my $query_seq_final = $mafft_aln_array[1]->seq;
-		
+		$match_seq_final =~ s/-/*/g;
+
 		my @unpacked_match = unpack("C*", $match_seq_final);
 		my $unpacked_match_ref = \@unpacked_match;
 		my @unpacked_query = unpack("C*", $query_seq_final);
@@ -167,12 +167,9 @@ sub check_aln {
 		if(($k2p_distance < $dist_cutoff) && ($bases_compared/$aln_length > $bases_cutoff)) {
 			#print OUTPRISTINE ">".$seq_id."|".$k2p_distance."\n";
 			#print OUTPRISTINE $query_seq_final."\n";
-			if($match_only == 1) {
-				return $query_seq_final;
-			}
 		} elsif(($k2p_distance < $potential_cutoff) && ($bases_compared/$aln_length > $potential_bases)) {
-			#print OUTP ">".$seq_id."|".$k2p_distance."\n";
-			#print OUTP $query_seq_final."\n";
+			print OUTP ">".$seq_id."|".$k2p_distance."\n";
+			print OUTP $query_seq_final."\n";
 		}
 		unlink $temp_output;
 	}

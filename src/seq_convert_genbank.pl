@@ -89,6 +89,7 @@ my $pre_downloaded = $params->options->{'-pre-dl'};
 my $slow_download = $params->options->{'-slow-download'};
 my $exemplar_only = $params->options->{'-exemplar-only'};
 my @taxa_list = ();
+my $seq_length_maximum = 3000;
 
 if ($params->options->{'-term'}) {
 	push(@taxa_list, $params->options->{'-term'});
@@ -521,8 +522,15 @@ sub download_target_taxa {
 		$long_name 			= $seq->description if defined $seq->description;
 		$accession_number 	= $seq->accession_number if defined $seq->accession_number;
 		$nucleotide_seq		= $seq->seq if defined $seq->seq;
+		if(length($nucleotide_seq) > $seq_length_maximum) {
+			$nucleotide_seq = '---';
+		}
 		$binomial_name		= $binomial_name_hash{$accession_number};
-		$fasta_nucleotide 	= '>'.$binomial_name.'_'.$accession_number.'$'.$nucleotide_seq;
+		if(exists($binomial_name_hash{$accession_number})) {
+			$fasta_nucleotide 	= '>'.$binomial_name.'_'.$accession_number.'$'.$nucleotide_seq;
+		} else {
+			$fasta_nucleotide 	= '>NA_'.$accession_number.'$'.$nucleotide_seq;
+		}
 		#$fasta_to_print		= '>'.$binomial_name.'_'.$accession_number."\n".$nucleotide_seq;
 		##############################################################################
 		

@@ -49,11 +49,15 @@ my $output_tag		= 'output';
 my $match_aln_file  = '';
 my $dist_cutoff 	= '0.55';
 my $bases_cutoff 	= '0.70';
+my $otu_cutoff = 0;
+my $threads = 1;
 GetOptions ("gb=s" 				=> \$genbank_csv,
 			"out=s"				=> \$output_tag,
 			"match=s"			=> \$match_aln_file,
 			"cutoff=s"			=> \$dist_cutoff,
-			"bases=s"			=> \$bases_cutoff,)
+			"bases=s"			=> \$bases_cutoff,
+			"otu-cutoff=s"		=> \$otu_cutoff,
+			"threads=s"			=> \$threads)
 or die("Error in command line arguments\n");
 
 # Load the alignment to match query sequences against
@@ -144,7 +148,9 @@ my $final_depth = recursive_alignment();
 print "Final file = ".$final_depth."\n";
 
 my $final_alignment_file = $output_tag."_".$final_depth."_aln.fas";
+my $final_alignment_tag = $output_tag."_".$final_depth."_aln";
 
+# Reload finalized alignment for parsing into output file.
 print "Loading... ".$final_alignment_file."\n";
 my $final_alignment = Bio::AlignIO->new(-format => 'fasta',
 								-file   => $final_alignment_file );
@@ -158,9 +164,34 @@ foreach my $final_seq ($final_alignment_obj->each_seq) {
 	$final_seq->id($seq_id);
 	push(@final_alignment_array,$final_seq);
 }
+
+# Assign OTU tags to qc checked sequences.
+my %otu_hash = ();
+if($otu_cutoff != 0) {
+	my $otu_output = "./dnab_otu_delim.pl -aln1 $final_alignment_file -cutoff $otu_cutoff -skip-intra-dist 1 -skip-nn 1";
+	print $otu_output."\n";
+	my $otu_results = `$otu_output`;
+	my $otu_results_path = "./".$final_alignment_tag."_output/".$final_alignment_tag."_otu_results.csv";
+	print $otu_results_path."\n";
+
+	open(OTU_RESULTS, '<'.$otu_results_path);
+	my @otu_lines = <OTU_RESULTS>;
+	close(OTU_RESULTS);
+	foreach my $otu_line (@otu_lines) {
+		$otu_line =~ s/\n//g;
+		my @split_otu_line = split(/\,/,$otu_line);
+		#foreach my $split_otu (@split_otu_line) {
+		#	print $split_otu." => ";
+		#}
+		#print "\n";
+
+		$otu_hash{$split_otu_line[1]} = $split_otu_line[0];
+	}
+}
+
 # Delete all the recursively generated alignment files
 for(my $aln_i = 0; $aln_i <= $final_depth; $aln_i++) {
-	unlink( $output_tag."_".$aln_i."_aln.fas")
+	#unlink( $output_tag."_".$aln_i."_aln.fas")
 }
 
 print "Matching aligned sequence to genbank data\n";
@@ -169,7 +200,7 @@ unlink($new_genbank_file);
 
 open(QCDONE, '>>'.$new_genbank_file);
 $column_headers =~ s/\n//g;
-print QCDONE $column_headers."aligned_fasta\n";
+print QCDONE $column_headers."otu_id,aligned_fasta\n";
 
 my $genbank_line_i = 0;
 foreach my $genbank_line (@genbank_lines) {
@@ -183,9 +214,12 @@ foreach my $genbank_line (@genbank_lines) {
 	foreach my $final_seq (@final_alignment_array) {
 		#print $final_seq->id."\n";
 		my $final_seq_id = $final_seq->id;
+		my $otu_id = $otu_hash{$final_seq_id};
 		if($genbank_line =~ /$final_seq_id/) {
 			#print $final_seq_id." => ".$genbank_line."\n";
-			print QCDONE "\"".$genbank_line."\",\"".$final_seq->seq."\"\n";
+			print $final_seq_id."\n";
+
+			print QCDONE "\"".$genbank_line."\",\"".$otu_id."\",\"".$final_seq->seq."\"\n";
 			$found_match = 1;
 			last;
 		}
@@ -210,13 +244,13 @@ sub recursive_alignment {
 	my $mafft_string = '';
 	if($alignment_depth == 0) {
 		unlink($aligned);
-		$mafft_string = "mafft --auto --preservecase --adjustdirection --preservecase --thread 3 --quiet --maxiterate 0 --retree 1 --6merpair $fasta_output > $aligned";
+		$mafft_string = "mafft --auto --preservecase --adjustdirection --preservecase --thread $threads --quiet --maxiterate 0 --retree 1 --6merpair $fasta_output > $aligned";
 		print "Calling $mafft_string at depth $alignment_depth\n";
 		my $mafft_output = `$mafft_string`;
 		#system($mafft_string);
 	} else {
 		unlink($aligned);
-		$mafft_string = "mafft --auto --preservecase --adjustdirection --preservecase --thread 3 --quiet --maxiterate 0 --retree 1 --6merpair $last_alignment > $aligned";
+		$mafft_string = "mafft --auto --preservecase --adjustdirection --preservecase --thread $threads --quiet --maxiterate 0 --retree 1 --6merpair $last_alignment > $aligned";
 		print "Calling $mafft_string at depth $alignment_depth\n";
 		my $mafft_output = `$mafft_string`;
 		#system($mafft_string);

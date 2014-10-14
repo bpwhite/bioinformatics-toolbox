@@ -396,6 +396,7 @@ open(LABELED_NEX, '>'.$output_path.$otu_labeled_nex);
 my $spliced_align = $output_prefix.'_spliced.fas';
 unlink $output_path.$spliced_align;
 open(SPLICED, '>'.$output_path.$spliced_align);
+##################################################################
 
 # Tag sequences
 
@@ -1191,28 +1192,37 @@ sub cluster_algorithm {
 			if((keys %nn_hash) > 0) {
 				# sort neighbor distances by lowest first.
 				my @sorted_neighbor_dists = (sort { $a <=> $b } @neighbor_dists);
-				
-				for(my $nn_i = 1; $nn_i <= $print_nearest_neighbors; $nn_i++) {
-					my $cur_nn_id = $nn_hash{$sorted_neighbor_dists[$nn_i]};
-					if($nn_i == 1) {
-						$nn_dist 	= sprintf("%.3f",$sorted_neighbor_dists[$nn_i])*100;
-						$nn_id 		= $cur_nn_id;
-						# Check if nearest neighbor is also a closely related intrageneric
-						# species, maybe even sister species.
-						# genus_name
+
+				if(scalar(@sorted_neighbor_dists) > 0) {
+
+					for(my $nn_i = 1; $nn_i <= $print_nearest_neighbors; $nn_i++) {
+						my $cur_nn_id = '';
+						if(exists($nn_hash{$sorted_neighbor_dists[$nn_i]})) {
+							$cur_nn_id = $nn_hash{$sorted_neighbor_dists[$nn_i]};
+						} else {
+							last;
+						}
+						
+						if($nn_i == 1) {
+							$nn_dist 	= sprintf("%.3f",$sorted_neighbor_dists[$nn_i])*100;
+							$nn_id 		= $cur_nn_id;
+							# Check if nearest neighbor is also a closely related intrageneric
+							# species, maybe even sister species.
+							# genus_name
+						}
+						$nn_sequence = $non_unique_sequences{$nn_hash{$sorted_neighbor_dists[$nn_i]}};
+
+						print OTU_FASTA '>NN|'.filter_one_id($cur_nn_id)."\n";
+						print OTU_FASTA $nn_sequence."\n";
+
+						$root = 'NN|'.filter_one_id($cur_nn_id);
+
+						# Additional filtering required by PAUP*
+						my $nn_nex_id = filter_one_id($cur_nn_id);
+						$nn_nex_id =~ s/\||\-/_/g;
+						# Print to file containing all sequences
+						print OTU_NEXUS 	"\tNN_".$nn_nex_id." ".$nn_sequence."\n";
 					}
-					$nn_sequence = $non_unique_sequences{$nn_hash{$sorted_neighbor_dists[$nn_i]}};
-
-					print OTU_FASTA '>NN|'.filter_one_id($cur_nn_id)."\n";
-					print OTU_FASTA $nn_sequence."\n";
-
-					$root = 'NN|'.filter_one_id($cur_nn_id);
-
-					# Additional filtering required by PAUP*
-					my $nn_nex_id = filter_one_id($cur_nn_id);
-					$nn_nex_id =~ s/\||\-/_/g;
-					# Print to file containing all sequences
-					print OTU_NEXUS 	"\tNN_".$nn_nex_id." ".$nn_sequence."\n";
 				}
 			}
 			
@@ -1233,7 +1243,7 @@ sub cluster_algorithm {
 				$nexus_id =~ s/\||\-/_/g;
 				print OTU_NEXUS "\t".$nexus_id." ".$query_seq."\n";
 				print LABELED_NEX "\t".$nexus_id." ".$query_seq."\n";
-				
+
 				if($print_spliced_aln == 1) {
 					if($print_ref_seq == 1) {
 						if($query_seq_id eq $otu_seq->id) {
@@ -1752,14 +1762,6 @@ sub tag_array_ids_otu {
 	return $id_array_ref;
 }
 
-sub fast_seq_length {
-	my $seq = shift;
-	
-	$seq =~ s/-/ /g;
-	$seq =~ s/\s+//g;
-	
-	return length($seq);
-}
 
 sub genus_name {
 	my $id = shift;

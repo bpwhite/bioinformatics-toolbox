@@ -66,7 +66,9 @@ my $match_aln = Bio::AlignIO->new(-format => 'fasta',
 my $match_aln_obj = $match_aln->next_aln;
 		
 my @match_aln_array = ();
+my @match_seq_ids = ();
 foreach my $match_seq ($match_aln_obj->each_seq) {
+	push(@match_seq_ids, $match_seq->id);
 	push(@match_aln_array,$match_seq);
 }
 
@@ -137,8 +139,6 @@ foreach my $line (@genbank_lines) {
 	$line_counter++;
 }
 
-
-
 close(QUERY_FAS);
 
 my $alignment_depth = 0;
@@ -191,7 +191,7 @@ if($otu_cutoff != 0) {
 
 # Delete all the recursively generated alignment files
 for(my $aln_i = 0; $aln_i <= $final_depth; $aln_i++) {
-	#unlink( $output_tag."_".$aln_i."_aln.fas")
+	unlink( $output_tag."_".$aln_i."_aln.fas")
 }
 
 print "Matching aligned sequence to genbank data\n";
@@ -202,6 +202,7 @@ open(QCDONE, '>>'.$new_genbank_file);
 $column_headers =~ s/\n//g;
 print QCDONE $column_headers."otu_id,aligned_fasta\n";
 
+my $printed_passed_seqs = 0;
 my $genbank_line_i = 0;
 foreach my $genbank_line (@genbank_lines) {
 	if($genbank_line_i == 0) {
@@ -215,11 +216,14 @@ foreach my $genbank_line (@genbank_lines) {
 		#print $final_seq->id."\n";
 		my $final_seq_id = $final_seq->id;
 		my $otu_id = $otu_hash{$final_seq_id};
+		#print $final_seq_id."\n";
+		next if ($final_seq_id ~~ @match_seq_ids);
+
 		if($genbank_line =~ /$final_seq_id/) {
 			#print $final_seq_id." => ".$genbank_line."\n";
-			print $final_seq_id."\n";
-
-			print QCDONE "\"".$genbank_line."\",\"".$otu_id."\",\"".$final_seq->seq."\"\n";
+			#print $final_seq_id."\n";
+			$printed_passed_seqs++;
+			print QCDONE "\"".$genbank_line."\",\"".$otu_id."\",\"\$".$final_seq->seq."\"\n";
 			$found_match = 1;
 			last;
 		}
@@ -232,6 +236,7 @@ foreach my $genbank_line (@genbank_lines) {
 
 close(QCDONE);
 
+print "Printed seqs: $printed_passed_seqs\n";
 print "Done!\n";
 
 sub recursive_alignment {
@@ -275,6 +280,7 @@ sub recursive_alignment {
 	# Loop through aligned sequences and check distance against the match query
 	my $match_seq_original = $qc_aln_array[0];
 	my $max_k2p = 0;
+	my $seqs_passed = 0;
 	foreach my $qc_seq (@qc_aln_array) {
 		my $seq1 = $qc_seq->seq;
 		my $seq2 = $match_seq_original->seq;
@@ -288,14 +294,16 @@ sub recursive_alignment {
 		}
 		#if (($k2p_distance < $dist_cutoff) && ($bases_compared > $num_bases_cutoff)) {
 		if ($k2p_distance < $dist_cutoff) {
+			$seqs_passed++;
+			#print $k2p_distance. " => ".$qc_seq->id."\n";
 			print ALIGNED ">".$qc_seq->id."\n";
 			print ALIGNED $qc_seq->seq."\n";
 		} elsif ($k2p_distance > $dist_cutoff) {
-			print $k2p_distance." with ".$bases_compared." compared at ".$qc_seq->id."\n";
+			#print $k2p_distance." with ".$bases_compared." compared at ".$qc_seq->id."\n";
 		}
 	}
 	close(ALIGNED);
-	
+	print "Seqs passed: $seqs_passed\n";
 
 	if($max_k2p > $dist_cutoff) {
 		print $max_k2p."\n";

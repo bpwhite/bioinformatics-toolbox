@@ -132,7 +132,7 @@ foreach my $line (@genbank_lines) {
 
 			$column_num++;
 		}
-		print QUERY_FAS ">".$accession."\n";
+		print QUERY_FAS ">".$binom."|".$accession."\n";
 		print QUERY_FAS $nuc_seq."\n";		
 	}
 
@@ -215,15 +215,18 @@ foreach my $genbank_line (@genbank_lines) {
 	foreach my $final_seq (@final_alignment_array) {
 		#print $final_seq->id."\n";
 		my $final_seq_id = $final_seq->id;
+		my @split_final_seq_id = split(/\|/,$final_seq_id);
+		my $final_seq_accession = $split_final_seq_id[-1];
+
 		my $otu_id = $otu_hash{$final_seq_id};
 		#print $final_seq_id."\n";
 		next if ($final_seq_id ~~ @match_seq_ids);
 
-		if($genbank_line =~ /$final_seq_id/) {
+		if($genbank_line =~ /$final_seq_accession/) {
 			#print $final_seq_id." => ".$genbank_line."\n";
 			#print $final_seq_id."\n";
 			$printed_passed_seqs++;
-			print QCDONE "\"".$genbank_line."\",\"".$otu_id."\",\"\$".$final_seq->seq."\"\n";
+			print QCDONE "\"".$genbank_line."\",\"".$otu_id."\",\">".$final_seq_id."\$".$final_seq->seq."\"\n";
 			$found_match = 1;
 			last;
 		}
@@ -278,29 +281,45 @@ sub recursive_alignment {
 	my $aln_length = length($qc_aln_array[0]->seq);
 	my $num_bases_cutoff = $aln_length*$bases_cutoff;
 	# Loop through aligned sequences and check distance against the match query
-	my $match_seq_original = $qc_aln_array[0];
+	
 	my $max_k2p = 0;
 	my $seqs_passed = 0;
 	foreach my $qc_seq (@qc_aln_array) {
 		my $seq1 = $qc_seq->seq;
-		my $seq2 = $match_seq_original->seq;
 
-		my ($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_unpack($seq1,$seq2,$aln_length);
-		#print $k2p_distance."\n";
+		my $match_seq_i = 0;
+		my $local_maxk2p;
+		foreach my $match_seq (@match_aln_array) {
+			my $match_seq_original = $qc_aln_array[$match_seq_i];
+			$match_seq_i++;
 
-		if($k2p_distance > $max_k2p) {
+			my $seq2 = $match_seq_original->seq;
+
+			my ($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_unpack($seq1,$seq2,$aln_length);
+			#print $k2p_distance."\n";
+
+
+			#if (($k2p_distance < $dist_cutoff) && ($bases_compared > $num_bases_cutoff)) {
+			if ($k2p_distance <= $dist_cutoff) {
+				$seqs_passed++;
+				#print $k2p_distance. " => ".$qc_seq->id."\n";
+				print ALIGNED ">".$qc_seq->id."\n";
+				print ALIGNED $qc_seq->seq."\n";
+				$local_maxk2p = $k2p_distance;
+				last;
+			} elsif ($k2p_distance > $dist_cutoff) {
+				#print $k2p_distance." with ".$bases_compared." compared at ".$qc_seq->id."\n";
+				if($k2p_distance > $local_maxk2p) {
+					$local_maxk2p = $k2p_distance;
+				}
+			}
+
+		}
+		if($local_maxk2p > $max_k2p) {
 			$max_k2p = $k2p_distance;
 			#print $max_k2p."\n";
 		}
-		#if (($k2p_distance < $dist_cutoff) && ($bases_compared > $num_bases_cutoff)) {
-		if ($k2p_distance < $dist_cutoff) {
-			$seqs_passed++;
-			#print $k2p_distance. " => ".$qc_seq->id."\n";
-			print ALIGNED ">".$qc_seq->id."\n";
-			print ALIGNED $qc_seq->seq."\n";
-		} elsif ($k2p_distance > $dist_cutoff) {
-			#print $k2p_distance." with ".$bases_compared." compared at ".$qc_seq->id."\n";
-		}
+		# last if $seqs_passed > 0;
 	}
 	close(ALIGNED);
 	print "Seqs passed: $seqs_passed\n";

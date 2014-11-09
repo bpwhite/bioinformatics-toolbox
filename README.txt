@@ -16,48 +16,70 @@ Genbank Downloader: seq_convert_genbank.pl
 	seq_convert_genbank.pl -query COI_full -batch-cap 500 -term Gastropoda
 
 	Only download sequences with a voucher ID:
-	seq_convert_genbank.pl -query COI_full -voucher-only 1 -batch-cap 500 -term Gastropoda
+	seq_convert_genbank.pl -query COI_full -voucher-only 1 -batch-cap 500 
+	-term Gastropoda
 
 	Use a list of taxa:
-	seq_convert_genbank.pl -list Gastropoda_list.txt -query COI_full -voucher-only 1 -batch-cap 500
+	seq_convert_genbank.pl -list Gastropoda_list.txt -query COI_full 
+	-voucher-only 1 -batch-cap 500
 
 	Include pubmed information such as abstracts:
-	seq_convert_genbank.pl -list Gastropoda_list.txt -query ND2_full -batch-cap 500 -pubmed 1 -outp OutputFile
+	seq_convert_genbank.pl -list Gastropoda_list.txt -query ND2_full 
+	-batch-cap 500 -pubmed 1 -outp OutputFile
 
-Process genbank files:
+Process genbank files: seq_process_genbank.pl
 
-	Automatically quality check and align sequences downloading using the Genbank Downloader
-	seq_process_genbank.pl -gb Gastropoda_COI.csv -out Gastropoda_COI_qc -match COI_Match.fas -otu-cutoff 0.01
+	Automatically quality check sequences downloaded using the Genbank Downloader
+	seq_process_genbank.pl -gb Gastropoda_COI.csv -out Gastropoda_COI_qc 
+	-match COI_Match.fas -otu-cutoff 0.01
 
 	Use a specific match sequence, use 3 threads during MAFFT alignment
-	seq_process_genbank.pl -gb Gastropoda_COI.csv -out Gastropoda_COI_qc -match COI_Gastropoda_Match.fas -otu-cutoff 0.01 -threads 3
+	seq_process_genbank.pl -gb Gastropoda_COI.csv -out Gastropoda_COI_qc 
+	-match COI_Gastropoda_Match.fas -otu-cutoff 0.01 -threads 3
 
-Clustering/OTU Delimitation:
+Clustering/OTU Delimitation: dnab_otu_delim.pl
 
 	Delimit clusters at a 2% genetic distance cutoff (Kimura 2-parameter)
 	dnab_otu_delim.pl -aln1 sample_baetis_seqs.fas -cutoff 0.02
 
 	Just count OTU's, skip intra dist, randomly splice the alignment
-	dnab_otu_delim.pl -aln1 sample_baetis_seqs.fas -shortcut-freq 0.05 -ran-splice 1 -skip-intra-dist 1 -pseudo-reps 1
+	dnab_otu_delim.pl -aln1 sample_baetis_seqs.fas -shortcut-freq 0.05 
+	-ran-splice 1 -skip-intra-dist 1 -pseudo-reps 1
 
-	dnab_otu_delim.pl -shortcut-freq 0.05 -ran-splice 1 -skip-intra-dist 1 -pseudo-reps 1 -aln1 sample_baetis_seqs.fas
-	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 10 -ran-splice 1 -aln1 sample_baetis_seqs.fas
-	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 100 -ran-splice 1 -aln1 sample_baetis_seqs.fas
-	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 2000 -specific-splice 1:50 -aln1 sample_baetis_seqs.fas
+	Various bootstrapping methods
+	dnab_otu_delim.pl -shortcut-freq 0.05 -ran-splice 1 -skip-intra-dist 1 
+	-pseudo-reps 1 -aln1 sample_baetis_seqs.fas
+
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 
+	-bootstrap-size 500 -pseudo-reps 10 -ran-splice 1 -aln1 sample_baetis_seqs.fas
+
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 
+	-bootstrap-size 500 -pseudo-reps 100 -ran-splice 1 -aln1 sample_baetis_seqs.fas
+
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 
+	-bootstrap-size 500 -pseudo-reps 2000 -specific-splice 1:50 -aln1 sample_baetis_seqs.fas
+
 	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -aln1 sample_baetis_seqs.fas
 
-	pseudo-repping correspondence:
-	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 100 -skip-nn 1 -aln1 sample_baetis_seqs.fas
+	Pseudo-repping correspondence:
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1
+	 -bootstrap-size 500 -pseudo-reps 100 -skip-nn 1 -aln1 sample_baetis_seqs.fas
 
 	pseudo-repping splicing:
-	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 1000 -skip-nn 1 -min-aln-length 25 -ran-splice 1 -aln1 
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 
+	-bootstrap-size 500 -pseudo-reps 1000 -skip-nn 1 -min-aln-length 25 -ran-splice 1 -aln1 
 
 	specific splice for primer:
-	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 1000 -skip-nn 1 -min-aln-length 25 -specific-splice 1:135 -aln1 sample_baetis_seqs.fas
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 
+	-bootstrap-size 500 -pseudo-reps 1000 -skip-nn 1 -min-aln-length 25 
+	-specific-splice 1:135 -aln1 sample_baetis_seqs.fas
 
-	printing short-read simulation (short splice)
-	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -skip-nn 1 -min-aln-length 654 -aln1 sample_baetis_seqs.fas -print-spliced-aln 1 -spliced-aln-size 400 -print-ref-seq 0
-	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -skip-nn 1 -aln1 sample_baetis_seqs.fas -print-spliced-aln 1 -spliced-aln-size 135 -print-ref-seq 1
+	Printing short-read simulation (short splice)
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -skip-nn 1 
+	-min-aln-length 654 -aln1 sample_baetis_seqs.fas -print-spliced-aln 1 -spliced-aln-size 400 -print-ref-seq 0
+	
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -skip-nn 1 
+	-aln1 sample_baetis_seqs.fas -print-spliced-aln 1 -spliced-aln-size 135 -print-ref-seq 1
 
 454 Pipeline
 	
@@ -68,7 +90,8 @@ Clustering/OTU Delimitation:
 	makeblastdb -in metazoan_db.fas -dbtype nucl
 
 	BLAST uknown sequences against a BLAST database
-	seq_local_batch_blast.pl -aln 454_output.fas -out 454_output_labeled.fas -db metazoan_db.fas -max_target_seqs 10
+	seq_local_batch_blast.pl -aln 454_output.fas -out 454_output_labeled.fas 
+	-db metazoan_db.fas -max_target_seqs 10
 
 	Summarize results
 	seq_output_taxa.pl -aln TD90_1_test1.fas -out TD90_1_test1.csv

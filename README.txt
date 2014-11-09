@@ -42,6 +42,10 @@ Clustering/OTU Delimitation: dnab_otu_delim.pl
 	Delimit clusters at a 2% genetic distance cutoff (Kimura 2-parameter)
 	dnab_otu_delim.pl -aln1 sample_baetis_seqs.fas -cutoff 0.02
 
+	Skip calculating intra-OTU pairwise distances
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 
+	-aln1 sample_baetis_seqs.fas
+
 	Just count OTU's, skip intra dist, randomly splice the alignment
 	dnab_otu_delim.pl -aln1 sample_baetis_seqs.fas -shortcut-freq 0.05 
 	-ran-splice 1 -skip-intra-dist 1 -pseudo-reps 1
@@ -57,29 +61,31 @@ Clustering/OTU Delimitation: dnab_otu_delim.pl
 	-bootstrap-size 500 -pseudo-reps 100 -ran-splice 1 -aln1 sample_baetis_seqs.fas
 
 	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 
-	-bootstrap-size 500 -pseudo-reps 2000 -specific-splice 1:50 -aln1 sample_baetis_seqs.fas
-
-	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -aln1 sample_baetis_seqs.fas
+	-bootstrap-size 500 -pseudo-reps 2000 -specific-splice 1:50 
+	-aln1 sample_baetis_seqs.fas
 
 	Pseudo-repping correspondence:
 	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1
 	 -bootstrap-size 500 -pseudo-reps 100 -skip-nn 1 -aln1 sample_baetis_seqs.fas
 
-	pseudo-repping splicing:
+	Pseudo-repping splicing:
 	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 
-	-bootstrap-size 500 -pseudo-reps 1000 -skip-nn 1 -min-aln-length 25 -ran-splice 1 -aln1 
+	-bootstrap-size 500 -pseudo-reps 1000 -skip-nn 1 -min-aln-length 25 -ran-splice 1 
+	-aln1 sample_baetis_seqs.fas
 
-	specific splice for primer:
+	Specific splice for primer:
 	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 
 	-bootstrap-size 500 -pseudo-reps 1000 -skip-nn 1 -min-aln-length 25 
 	-specific-splice 1:135 -aln1 sample_baetis_seqs.fas
 
 	Printing short-read simulation (short splice)
 	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -skip-nn 1 
-	-min-aln-length 654 -aln1 sample_baetis_seqs.fas -print-spliced-aln 1 -spliced-aln-size 400 -print-ref-seq 0
+	-min-aln-length 654 -aln1 sample_baetis_seqs.fas -print-spliced-aln 1 
+	-spliced-aln-size 400 -print-ref-seq 0
 	
 	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -skip-nn 1 
-	-aln1 sample_baetis_seqs.fas -print-spliced-aln 1 -spliced-aln-size 135 -print-ref-seq 1
+	-aln1 sample_baetis_seqs.fas -print-spliced-aln 1 -spliced-aln-size 135 
+	-print-ref-seq 1
 
 454 Pipeline
 	

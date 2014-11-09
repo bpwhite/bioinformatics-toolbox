@@ -28,6 +28,7 @@ Genbank Downloader: seq_convert_genbank.pl
 	-batch-cap 500 -pubmed 1 -outp OutputFile
 
 Process genbank files: seq_process_genbank.pl
+*Requires MAFFT to be in the path already
 
 	Automatically quality check sequences downloaded using the Genbank Downloader
 	seq_process_genbank.pl -gb Gastropoda_COI.csv -out Gastropoda_COI_qc 
@@ -88,7 +89,8 @@ Clustering/OTU Delimitation: dnab_otu_delim.pl
 	-print-ref-seq 1
 
 454 Pipeline
-	
+*Requires NCBI Standalone BLAST+ to be in the path already
+
 	Parse raw 454 output
 	extract_fasta_454.pl -aln 454_output -out 454_output.fas -clean 1
 

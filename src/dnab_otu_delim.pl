@@ -118,6 +118,7 @@ my $params = General::Arguments->new(
 					'-nw-utils-abs-path'	=> 0,			# Set path for nw_utils
 					'-nw-order-abs-path'	=> 0,			# Set path for nw_order
 					'-check-coverage'		=> 0,			# Check alignment coverage
+					'-location-file'		=> '',			# File containing location information
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -154,6 +155,7 @@ my $raxml_abs_path				= $params->options->{'-raxml-abs-path'};
 my $nw_utils_abs_path			= $params->options->{'-nw-utils-abs-path'};
 my $nw_order_abs_path			= $params->options->{'-nw-order-abs-path'};
 my $check_coverage				= $params->options->{'-check-coverage'};
+my $location_file				= $params->options->{'-location-file'};
 
 # Detect OS
 my $file_separator = "\\";
@@ -264,7 +266,7 @@ my $delimiter = ",";
 # Parameters
 
 my $minimum_catch_distance = 0.05;
-my $num_examplars = 5;
+my $num_exemplars = 1;
 my %output_summary = ();
 
 fix_bold_fasta($alignment_file);
@@ -837,7 +839,7 @@ sub cluster_algorithm {
 	##################################################################
 	my @query_seqs_found = ();
 	my @found_links_OTUs = ();
-	my $num_exemplars = 0;
+	my $num_exemplars_printed = 0;
 
 	my %morpho_name_hash = ();
 	my %morpho_used_once = ();
@@ -1089,7 +1091,7 @@ sub cluster_algorithm {
 			my @printed_exemplars = ();
 			my @exemplar_keys = keys %exemplars_hash;
 			fisher_yates_shuffle( \@exemplar_keys );    # permutes @array in place
-			for (my $exemplar_i = 0; ($exemplar_i < $num_examplars) && ($exemplar_i < scalar(@seq_lengths)); $exemplar_i++) {
+			for (my $exemplar_i = 0; ($exemplar_i < $num_exemplars) && ($exemplar_i < scalar(@seq_lengths)); $exemplar_i++) {
 				foreach my $seq_id (@exemplar_keys) {
 					next if $seq_id ~~ @printed_exemplars;
 					if(fast_seq_length($exemplars_hash{$seq_id}) == $sorted_seq_lengths[$exemplar_i]) {
@@ -1104,7 +1106,7 @@ sub cluster_algorithm {
 										.$max_distance."|\n";
 						print EXEMPLARS $exemplars_hash{$seq_id}."\n";
 						push(@printed_exemplars,$seq_id);
-						$num_exemplars++;
+						$num_exemplars_printed++;
 						last;
 					}
 				}
@@ -1276,6 +1278,13 @@ sub cluster_algorithm {
 				# }
 			}
 			print OTU_NEXUS "\t;\nEND;";
+			##################################################################
+			
+			if($location_file ne '') {
+				print OTU_NEXUS "";
+				print OTU_NEXUS "\t;\nEND;";
+			}
+			
 			close(OTU_NEXUS);
 			close(OTU_FASTA);
 			##################################################################
@@ -1507,7 +1516,7 @@ sub cluster_algorithm {
 			}
 		}
 
-		print "Exemplars printed: ".$num_exemplars."\n";
+		print "Exemplars printed: ".$num_exemplars_printed."\n";
 
 		print "\n\n";
 		print "Identification Sucess:\n\n";

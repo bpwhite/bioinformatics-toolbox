@@ -1,126 +1,76 @@
 Bioinformatics Toolbox (BTBox)
 A multi-purpose collection of bioinformatics tools written in Perl, R, and C.
 
-Authors: Bryan P. White (bpcwhite@gmail.com)
+Contributors: Bryan P. White
 
-Publications:
+Citations:
 White, B.P., Pilgrim E.M., Boykin L.M., Stein E.D., Mazor R.D. 2014. Comparing 
 four species delimitation methods applied to a DNA barcode data set of insect 
 larvae for use in routine bioassessment. Freshwater Science 33(1), 338-348.
 
-Table of Contents
-I. Toolbox Overview
-	1. What is this toolbox?
-	2. Installation guide.
-		2a. Windows
-		2b. Linux
-		2c. Mac
-II. OTU Clustering
-	1. dnab_condense.pl - Condenses sequence data down to either unique haplotypes or 
-	locales.
-	2. dnab_species_delim.pl - For use in DNA barcode species delimitations
-III. Genome Annotation
-	1. gen_concatenate_alignments.pl - Concatenates alignments to create a combined 
-	data set.
-	2. gen_concatenate_contigs.pl - Concatenates contigs to form a single contig.
-	3. gen_make_blast_db.pl - Creates a blast database.
-	4. gen_extract_genes.pl - Extracts target genes from a BLAST database 
-IV. Population Genetics
-	1. pop_rename_fasta_arlequin.pl - Converts a FASTA file to an Arlequin file.
-V. Sequence Manipulation
-	1. seq_convert_fasta_nexus.pl - Converts a FASTA file toa  NEXUS file.
-	2. seq_order_specimens.pl - Orders FASTA sequences based on an input list.
-	3. seq_print_sequences.pl - Prints FASTA sequences with some info about each 
-	sequence.
-	4. seq_reading_frame.pl - Attempts to put a protein coding sequence into a 
-	reading frame that does not have any stop codons.
-	5. seq_rename_fasta.pl - Converts the ID's of a genbank FASTA file into a 
-	readable format.
-	6. seq_rename_fasta_from_list.pl - Renames the ID's of a Fasta file based on a 
-	list.
-	7. seq_codon_translate.pl - Translate from a protein alignment back to a
-	nucleotide alignment. Input is a protein alignment and the original,
-	unaligned nucleotide sequences.
-	8. seq_convert_genbank.pl - Downloads most genbank info, including nucleotide
-	sequence, for a list of target taxa from NCBI.
+Commonly used commands:
 
-I. Toolbox Overview
-	1. What is this toolbox?
+Genbank Downloader: seq_convert_genbank.pl
+
+	Download all COI sequences for Gastropoda from NCBI:
+	seq_convert_genbank.pl -query COI_full -batch-cap 500 -term Gastropoda
+
+	Only download sequences with a voucher ID:
+	seq_convert_genbank.pl -query COI_full -voucher-only 1 -batch-cap 500 -term Gastropoda
+
+	Use a list of taxa:
+	seq_convert_genbank.pl -list Gastropoda_list.txt -query COI_full -voucher-only 1 -batch-cap 500
+
+	Include pubmed information such as abstracts:
+	seq_convert_genbank.pl -list Gastropoda_list.txt -query ND2_full -batch-cap 500 -pubmed 1 -outp OutputFile
+
+Process genbank files:
+
+	Automatically quality check and align sequences downloading using the Genbank Downloader
+	seq_process_genbank.pl -gb Gastropoda_COI.csv -out Gastropoda_COI_qc -match COI_Match.fas -otu-cutoff 0.01
+
+	Use a specific match sequence, use 3 threads during MAFFT alignment
+	seq_process_genbank.pl -gb Gastropoda_COI.csv -out Gastropoda_COI_qc -match COI_Gastropoda_Match.fas -otu-cutoff 0.01 -threads 3
+
+Clustering/OTU Delimitation:
+
+	Delimit clusters at a 2% genetic distance cutoff (Kimura 2-parameter)
+	dnab_otu_delim.pl -aln1 sample_baetis_seqs.fas -cutoff 0.02
+
+	Just count OTU's, skip intra dist, randomly splice the alignment
+	dnab_otu_delim.pl -aln1 sample_baetis_seqs.fas -shortcut-freq 0.05 -ran-splice 1 -skip-intra-dist 1 -pseudo-reps 1
+
+	dnab_otu_delim.pl -shortcut-freq 0.05 -ran-splice 1 -skip-intra-dist 1 -pseudo-reps 1 -aln1 sample_baetis_seqs.fas
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 10 -ran-splice 1 -aln1 sample_baetis_seqs.fas
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 100 -ran-splice 1 -aln1 sample_baetis_seqs.fas
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 2000 -specific-splice 1:50 -aln1 sample_baetis_seqs.fas
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -aln1 sample_baetis_seqs.fas
+
+	pseudo-repping correspondence:
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 100 -skip-nn 1 -aln1 sample_baetis_seqs.fas
+
+	pseudo-repping splicing:
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 1000 -skip-nn 1 -min-aln-length 25 -ran-splice 1 -aln1 
+
+	specific splice for primer:
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 -bootstrap-size 500 -pseudo-reps 1000 -skip-nn 1 -min-aln-length 25 -specific-splice 1:135 -aln1 sample_baetis_seqs.fas
+
+	printing short-read simulation (short splice)
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -skip-nn 1 -min-aln-length 654 -aln1 sample_baetis_seqs.fas -print-spliced-aln 1 -spliced-aln-size 400 -print-ref-seq 0
+	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -skip-nn 1 -aln1 sample_baetis_seqs.fas -print-spliced-aln 1 -spliced-aln-size 135 -print-ref-seq 1
+
+454 Pipeline
 	
-	If BioPerl is the glue of bioinformatics, then Bioinformatics Toolbox (BTBox) 
-	is a series of already glued together programs, with lots of additions on 
-	top of BioPerl.
-	
-	2. Installation Guide
-		...
-II. DNA Barcoding
-	1. dnab_condense.pl
-		
-		This script takes an input of aligned FASTSA sequences and outputs 
-		representative sequences of distinct haplotypes, and the number of 
-		those distinct haplotypes at each location. Input sequences must be formatted
-		in the following input format from the example.
-		
-		Example: 
-		
-		Input: SampleID|Name|Location
-		#####################################################
-		>10-SCCWRP-4787|Simulium|19354
-		ACTTTA.....
-		>10-SCCWRP-4788|Simulium|19354
-		ACTTTA.....
-		>10-SCCWRP-4789|Simulium|19354
-		ACTTTA.....
-		>10-SCCWRP-4790|Simulium|19354
-		ACTTTA.....
-		>10-SCCWRP-4791|Simulium|19355
-		ACTTTA.....
-		>10-SCCWRP-4792|Simulium|19351
-		ACTTTA.....
-		>10-SCCWRP-4793|Simulium|19349
-		ACTTTA.....
-		
-		Output: HaplotypeID|RepSeq|RepName|Location|Abundance
-		#####################################################
-		>27|10-SCCWRP-4787|Simulium|19354|4
-		ACTTTA.....
-		>27|10-SCCWRP-4787|Simulium|19355|1
-		ACTTTA.....
-		>27|10-SCCWRP-4787|Simulium|19351|1
-		ACTTTA.....
-		>27|10-SCCWRP-4787|Simulium|19349|1
-		ACTTTA.....
-		
-		This script implements out the following algorithm:
-			1. Reduce sequences to distinct haplotype. Distinct haplotypes are
-			those haplotyes that differ by nucleotide differences rather than 
-			by gaps, spaces, or extra/special/different characters. In other 
-			words, these are truly distinct haplotypes.
-			2. Iterates through those distinct haplotypes and determines how 
-			many locations that haplotype is found at.
-			3. Determines how many individuals share that haplotype at each 
-			location.
-			4. Outputs in FASTA a haplotype identification number (HaplotypeID), 
-			a representative sequence from the haplotype (RepSeq), a 
-			representative name from the haplotype (RepName), the location, and 
-			the abundance of individuals sharing that haplotype at that location.
-		
-	2. dnab_species_delimitation.pl
-	
-	This script inputs a FASTA file of aligned sequences and outputs species-level
-	putative delimitations (AKA. Molecular Operational Taxonomic Units MOTUs). The
-	input requirements are that the sequence ID's must follow a particular format
-	outlined below.
-V. 
-	8.  seq_convert_genbank.pl
-	8a. Parameters
-		-query = COI_full, 16S_full, ND2_full, etc.
-		-voucher-only = 1, only download sequences with a voucher tag
-	8a. Common commands
-		1. Download all COI sequences for a taxa, limit the number of sequences 
-		per batch to 500, and give the output file a name:
-		seq_convert_genbank.pl 	-query COI_full 
-								-voucher-only 1 
-								-batch-cap 500 
-								-term Gastropoda
-								-outp Gastropoda_COI
+	Parse raw 454 output
+	extract_fasta_454.pl -aln 454_output -out 454_output.fas -clean 1
+
+	Create a standalone BLAST database to check sequences against
+	makeblastdb -in metazoan_db.fas -dbtype nucl
+
+	BLAST uknown sequences against a BLAST database
+	seq_local_batch_blast.pl -aln 454_output.fas -out 454_output_labeled.fas -db metazoan_db.fas -max_target_seqs 10
+
+	Summarize results
+	seq_output_taxa.pl -aln TD90_1_test1.fas -out TD90_1_test1.csv
+
+

@@ -70,8 +70,8 @@ Clustering/OTU Delimitation: dnab_otu_delim.pl
 
 	Pseudo-repping splicing:
 	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 
-	-bootstrap-size 500 -pseudo-reps 1000 -skip-nn 1 -min-aln-length 25 -ran-splice 1 
-	-aln1 sample_baetis_seqs.fas
+	-bootstrap-size 500 -pseudo-reps 1000 -skip-nn 1 -min-aln-length 25 
+	-ran-splice 1 -aln1 sample_baetis_seqs.fas
 
 	Specific splice for primer:
 	dnab_otu_delim.pl -shortcut-freq 0.05 -skip-intra-dist 1 -bootstrap 1 

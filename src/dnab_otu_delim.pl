@@ -119,6 +119,8 @@ my $params = General::Arguments->new(
 					'-nw-order-abs-path'	=> 0,			# Set path for nw_order
 					'-check-coverage'		=> 0,			# Check alignment coverage
 					'-location-file'		=> '',			# File containing location information
+					'-exemplar-type'		=> 2,			# Print simple exemplar name or one with stats
+					'-min-seq-length'		=> 50,			# Minimum sequence length to include in analysis
 					}
 					);
 my $alignment_file 				= $params->options->{'-aln1'};
@@ -156,6 +158,8 @@ my $nw_utils_abs_path			= $params->options->{'-nw-utils-abs-path'};
 my $nw_order_abs_path			= $params->options->{'-nw-order-abs-path'};
 my $check_coverage				= $params->options->{'-check-coverage'};
 my $location_file				= $params->options->{'-location-file'};
+my $exemplar_type				= $params->options->{'-exemplar-type'};
+my $alignment_length_cutoff		= $params->options->{'-min-seq-length'};
 
 # Detect OS
 my $file_separator = "\\";
@@ -350,7 +354,7 @@ if($ran_splice == 1) {
 		next if $orig_aln_length <= 0;
 		last;
 	}
-	($original_sequence_array_ref, $splice_start, $splice_end) = random_splice_alignment($original_sequence_array_ref, 25, $orig_aln_length);
+	($original_sequence_array_ref, $splice_start, $splice_end) = random_splice_alignment($original_sequence_array_ref, 100, $orig_aln_length);
 }
 
 if($specific_splice ne '0') {
@@ -496,6 +500,11 @@ foreach my $seq (@original_sequence_array) {
 	# if(length($seq_degapped) > $max_seq_length) { $max_seq_length = length($seq_degapped) } ;
 	
 	if(length($seq_gapped) > $max_seq_length) { $max_seq_length = length($seq_gapped) } ;
+	
+	if(length($seq_degapped) < $alignment_length_cutoff) {
+		print $seq_id." => ".length($seq_degapped)."\n";
+		next;
+	}
 	
 	$alignment_length = length($seq_gapped);
 	my $filtered_seq = $seq_gapped;
@@ -1096,6 +1105,7 @@ sub cluster_algorithm {
 					next if $seq_id ~~ @printed_exemplars;
 					if(fast_seq_length($exemplars_hash{$seq_id}) == $sorted_seq_lengths[$exemplar_i]) {
 						#~ print EXEMPLARS '>|'.$otu_i.'|_|'.$bootstrap_percentage.'|_|'.$otu_digest.'|_'.$seq_id."\n";
+						if($exemplar_type == 1) {
 						print EXEMPLARS '>|'.$otu_i.'|_|'
 										.$bootstrap_percentage.'|_|'
 										.filter_one_id($seq_id).'|_|'
@@ -1104,6 +1114,9 @@ sub cluster_algorithm {
 										.$mean_distance.'|_|'
 										.$min_distance.'|_|'
 										.$max_distance."|\n";
+						} elsif ($exemplar_type == 2) {
+							print EXEMPLARS '>'.filter_one_id($seq_id)."\n";
+						}
 						print EXEMPLARS $exemplars_hash{$seq_id}."\n";
 						push(@printed_exemplars,$seq_id);
 						$num_exemplars_printed++;

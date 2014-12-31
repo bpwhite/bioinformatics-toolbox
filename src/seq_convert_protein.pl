@@ -19,6 +19,9 @@ use FindBin;
 use lib "$FindBin::Bin/libs/Sequence"; 
 use lib "$FindBin::Bin/libs/";
 
+use strict;
+use warnings;
+
 # Import sequence libs
 use Sequence::Fasta;
 use Sequence::Kimura_Distance;
@@ -53,6 +56,8 @@ my $query_aln_file 	= '';
 GetOptions ("aln=s" 			=> \$query_aln_file,)
 or die("Error in command line arguments\n");
 
+fix_fasta($query_aln_file);
+
 ##################################################################
 # Import alignment
 print "Importing alignment file ".$query_aln_file."...\n";
@@ -75,19 +80,27 @@ foreach my $query_seq (@query_sequence_array) {
 	my $seq_id = $query_seq->id;
 	my $seq_string = $query_seq->seq;
 	
-	print $seq_string."\n\n";
+	#print $seq_string."\n\n";
 
-	my $rev_complement = reverse_complement($seq_string);
+	#my $rev_complement = reverse_complement($seq_string);
 	#print $rev_complement."\n\n";
 
-	my $orf1 = translate_protein($seq_string,1);
-	print $orf1."\n";
+	# my $rf1 = translate_protein($seq_string,1);
+	# print $rf1."\n";
 
-	my $orf4 = translate_protein($rev_complement,1);
-	print $orf4."\n";
+	#my $rf4 = translate_protein($rev_complement,1);
+	#print $rf4."\n";
 
 	#exit;
+	#print $seq_id."\n";
+	#print $seq_string."\n";
+	
+	my ($rf, $num_sc, $best_rf, $min_sc, $max_sc) = best_translation($seq_string);
 
+	print $seq_id."\n";
+	print $rf.":".$num_sc." => ".$best_rf."\n";
+
+	#exit;
 	# open (QUERY, '>'.$temp_query);
 	# foreach my $match_seq (@match_aln_array) {
 	# 	print QUERY '>Match|'.$match_seq->id."\n";
@@ -106,9 +119,9 @@ close(OUTP);
 sub translate_protein {
 
 	my $seq 	= shift;
-	my $orfnum 	= shift;
+	my $rfnum 	= shift;
 
-	if ($orfnum > 6 || $orfnum < 1) {
+	if ($rfnum > 3 || $rfnum < 1) {
 		die("Invalid reading frame");
 	}
 
@@ -176,18 +189,26 @@ sub translate_protein {
 		GGT => 'G',
 		GGC => 'G',
 		GGA => 'G',
-		GGG => 'G'
+		GGG => 'G',
+		"---" => "---"
 	);
 
 	my $length = length($seq);
 	my $amino_acid_seq = '';
-	for (my $i = $orfnum-1; $i < $length; $i+=3) {
+	for (my $i = $rfnum-1; $i < $length; $i+=3) {
 		
 		#print substr $seq, $i, $codon_end;
-		my $codon = substr $seq, $i, 3;
+		my $codon = '';
+		if(defined(substr $seq, $i, 3)) {
+			$codon = substr $seq, $i, 3;
+		}
 		#print $codon."\n";
 		#exit;
-		my $amino_acid = $codons{$codon} or "\?";
+		#print $codons{$codon}."\n";
+		my $amino_acid = "\?";
+		if(exists($codons{$codon})) {
+			$amino_acid = $codons{$codon};
+		}
 		#print $amino_acid;
 
 		$amino_acid_seq .= $amino_acid;
@@ -199,11 +220,12 @@ sub translate_protein {
 sub reverse_complement {
 	my $seq = shift;
 
-	%complementary_bases = (
+	my %complementary_bases = (
 		A => 'T',
 		T => 'A',
 		G => 'C',
-		C => 'G'
+		C => 'G',
+		"-" => "-"
 	);
 
 	my $reverse = reverse $seq;
@@ -221,3 +243,91 @@ sub reverse_complement {
 
 	return $rev_complement;
 }
+
+sub best_translation {
+	my $seq = shift;
+
+	my %reading_frames = (
+		1 => '',
+		2 => '',
+		3 => '',
+		4 => '',
+		5 => '',
+		6 => ''
+	);
+
+	my $rev_complement = reverse_complement($seq);
+
+	for(my $i = 1; $i <= 3; $i++) {
+		#print $i."\n";
+		$reading_frames{$i} = translate_protein($seq,$i);
+		$reading_frames{$i+3} = translate_protein($rev_complement,$i);
+	}
+
+	my $max_stop_codons = 0;
+	my $min_stop_codons = 999;
+	my $most_stop_codons = '';
+	my $least_stop_codons = '';
+	while (my ($rf,$aaseq) = each (%reading_frames)) {
+		my @stop_codons = $aaseq =~ /\*/g;
+		my $num_stop_codons = scalar @stop_codons;
+		my @start_codons = $aaseq =~ /M/g;
+		my $num_start_codons = scalar @start_codons;
+		#print scalar $num_stop_codons."\n";
+		if($num_stop_codons > $max_stop_codons) {
+			$max_stop_codons = $num_stop_codons;
+			$most_stop_codons = $rf;
+		}
+		if($num_stop_codons < $min_stop_codons) {
+			$min_stop_codons = $num_stop_codons;
+			$least_stop_codons = $rf;
+		}
+
+		my @split_aa = split(//,$aaseq);
+		my $open_frame = 0;
+		my $num_orfs = 0;
+		my $orf_length = 0;
+		my @orf_lengths = ();
+		foreach my $residue (@split_aa) {
+			if($residue eq 'M') {
+				$open_frame = 1;
+			}
+			if($open_frame == 1) {
+				$orf_length++;
+			}
+			if(($open_frame == 1) && ($residue eq '*')) {
+				$open_frame = 0;
+				#print "Orf Length: ".$orf_length."\n";
+				push(@orf_lengths, $orf_length);
+				$orf_length = 0;
+				$num_orfs++;
+			}
+		}
+
+		my $rounding = "%.1f";
+		my $orf_length_stat = Statistics::Descriptive::Full->new();
+		$orf_length_stat->add_data(@orf_lengths);
+		#print scalar @orf_lengths."\n";
+		my $mean_orf_length = $orf_length_stat->mean();
+		# MAX #
+		###
+		###
+		
+		#print $mean_orf_length."\n";
+		$mean_orf_length = sprintf($rounding, $orf_length_stat->mean());
+		#print $rf." => ".$aaseq."\n";
+		print $rf." => ".$num_stop_codons." => ".$num_start_codons." => ".$num_orfs." => ".$mean_orf_length."\n";
+	}
+	print "Least stop codons:\n";
+	print $min_stop_codons.": RF: ".$least_stop_codons."\n";
+	print "Most stop codons\n";
+	print $max_stop_codons.": RF: ".$most_stop_codons."\n";
+
+	return ($least_stop_codons,
+			$min_stop_codons,
+			$reading_frames{$least_stop_codons},
+			$min_stop_codons,
+			$max_stop_codons);
+}
+
+

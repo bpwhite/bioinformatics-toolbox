@@ -19,6 +19,7 @@ use FindBin;
 use lib "$FindBin::Bin/libs";
 use Time::HiRes qw( usleep );
 use General::Arguments;
+use Sequence::Fasta;
 
 use Bio::Align::AlignI;
 use Bio::AlignIO::fasta;
@@ -42,7 +43,7 @@ use Data::Dumper;
 use Devel::Size qw(size total_size);
 use Test::LeakTrace;
 use Devel::Size;
-use Startup;
+use Text::Fuzzy::PP;
 
 print "
 ******************************************************************
@@ -80,6 +81,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-pre-dl'		=> '0',				# Use pre-downloaded genbank files
 													'-slow-download'=> '0',				# Slow batch download
 													'-exemplar-only'=> '0',				# Only get 1 sequence per taxa name
+													'-match'		=> '',				# Match against a query sequence
 													}
 													);
 # Initiate parameters
@@ -89,9 +91,24 @@ my $ncbi_database = $params->options->{'-db'};
 my $pre_downloaded = $params->options->{'-pre-dl'};
 my $slow_download = $params->options->{'-slow-download'};
 my $exemplar_only = $params->options->{'-exemplar-only'};
+my $match_aln_file = $params->options->{'-match'};
 my @taxa_list = ();
 my $seq_length_maximum = 3000;
 
+my $match_seq = '';
+if($match_aln_file ne '') {
+	print "Importing alignment file ".$match_aln_file."...\n";
+	my $match_aln = Bio::AlignIO->new(-format => 'fasta',
+									-file   => $match_aln_file );
+	my $match_aln_obj = $match_aln->next_aln;
+	my @match_seqs;
+	foreach my $seq ($match_aln_obj->each_seq) {
+		push(@match_seqs,$seq->seq);
+	}
+	$match_seq = $match_seqs[0];
+}
+
+	
 if ($params->options->{'-term'}) {
 	push(@taxa_list, $params->options->{'-term'});
 	# $params->options->{'-outp'} = $params->options->{'-term'};
@@ -529,6 +546,7 @@ sub download_target_taxa {
 		$binomial_name		= $binomial_name_hash{$accession_number};
 
 		if(exists($binomial_name_hash{$accession_number})) {
+			# Strip punctuation from binomial name
 			$binomial_name =~ s/[^\w\s]//g;
 			$binomial_name =~ s/\s/_/g;
 			$fasta_nucleotide 	= '>'.$binomial_name.'_'.$accession_number.'$'.$nucleotide_seq;
@@ -846,7 +864,11 @@ sub download_target_taxa {
 		$lat_lon =~ s/\"|^\s+|\s+$//g;
 		$lat_lon =~ s/ |,/_/g;
 
-
+		## Check nucleotide sequence against query
+		my $distance = 0;
+		aln2seq($nucleotide_seq, $match_seq);
+		
+		
 		my @current_output = (	$target_taxon,$dlm,
 								$taxon_id,$dlm,
 								$accession_number,$dlm,
@@ -870,6 +892,7 @@ sub download_target_taxa {
 								$nucleotide_seq,$dlm,
 								$fasta_nucleotide,$dlm,
 								$amino_acid_seq,$dlm,
+								$distance,$dlm,
 								$pcr_primer_print_string,$dlm,
 								$codon_start,$dlm,
 								$collection_date,$dlm,
@@ -930,6 +953,7 @@ sub download_target_taxa {
 									'NA',$dlm,
 									$search_options,$dlm,
 									$number_seqs_found,$dlm,
+									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,

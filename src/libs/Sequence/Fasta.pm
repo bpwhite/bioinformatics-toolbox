@@ -17,6 +17,7 @@
 use strict;
 use warnings;
 use Math::Random;
+use Text::Fuzzy::PP;
 
 use Exporter;
 
@@ -27,8 +28,56 @@ our @EXPORT_OK = qw( 	fix_fasta
 						random_splice_alignment 
 						fisher_yates_shuffle
 						fast_seq_length
+						aln2seq
 						);
 
+sub aln2seq {
+	my $seq1 = shift;
+	my $seq2 = shift;
+	
+	my $length1 = fast_seq_length($seq1);
+	my $length2 = fast_seq_length($seq2);
+	
+	my @seq1_arr = split('',$seq1);
+	my @seq2_arr = split('',$seq2);
+	
+	print "Seq1:";
+	foreach my $char (@seq1_arr) {
+		print $char;
+	}
+	print "\n";
+	
+	print "Seq2:";
+	foreach my $char (@seq2_arr) {
+		print $char;
+	}
+	print "\n";
+	
+	use Align::NW;
+  
+    my $payoff = {	match      => 4,
+					mismatch   => -3,
+					gap_open   => -2,
+					gap_extend => -1 };
+  
+    my $nw = new Align::NW $a, $b, $payoff, %options;
+    $nw->score;
+    $nw->align;
+  
+    my $score = $nw->get_score;
+    my $align = $nw->get_align;
+    $nw->print_align;
+    $nw->dump_score;
+	
+	print $new_seq1."\n";
+	print $gap_call."\n";
+	print $new_seq2."\n";
+
+	
+	exit;
+	my $tf = Text::Fuzzy::PP->new ($seq1);
+	my $distance =  $tf->distance ('ATGC'), "\n";
+}
 sub fix_fasta {
 	my ( $f ) = shift;
 	open F, "< $f" or die "Can't open $f : $!";

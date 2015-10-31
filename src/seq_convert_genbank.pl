@@ -42,6 +42,7 @@ use Data::Dumper;
 use Devel::Size qw(size total_size);
 use Test::LeakTrace;
 use Devel::Size;
+use Startup;
 
 print "
 ******************************************************************
@@ -52,9 +53,9 @@ GNU General Public License, Version 3, 29 June 2007
 
 This program comes with ABSOLUTELY NO WARRANTY; for details type.
 This is free software, and you are welcome to redistribute it
-under certain conditions. 
+under certain conditions.
 
-A full copy of the GPL 3.0 license should be accompanied with any 
+A full copy of the GPL 3.0 license should be accompanied with any
 distribution of this software.
 
 ******************************************************************
@@ -141,7 +142,7 @@ sub download_target_taxa {
 	my $suppress_output = shift;
 	my $params = shift;
 	##############################################################################
-	
+
 	##############################################################################
 	my $sequence_limit = $params->options->{'-slim'};
 	my $skip_pubmed_search = $params->options->{'-pubmed'};
@@ -165,7 +166,7 @@ sub download_target_taxa {
 	my $max_num_tries = 2;
 	my $max_pubmed_tries = 2;
 	my $sequence_file = '';
-	
+
 	##############################################################################
 	# Optimization hashes. Swap memory for speed.
 	# Stores the info for a given pubmed article to save download time.
@@ -178,7 +179,7 @@ sub download_target_taxa {
 	my %failed_search_hash = ();
 	my $failed_search_hash_ref = \%failed_search_hash;
 	##############################################################################
-	
+
 	##############################################################################
 	my @output_header = ('taxon_query',$dlm,
 		'taxon_id',$dlm,
@@ -194,7 +195,7 @@ sub download_target_taxa {
 		'pub_authors',$dlm,
 		'pub_abstract_text',$dlm,
 		'jrn_name',$dlm,
-		'jrn_doi',$dlm,	
+		'jrn_doi',$dlm,
 		'jrn_so',$dlm,
 		'jrn_volume',$dlm,
 		'jrn_issue',$dlm,
@@ -222,7 +223,7 @@ sub download_target_taxa {
 	push(@return_output_lines, @output_lines) if($taxa_counter == 0);
 	##############################################################################
 	# Retrieve taxon ID
-	
+
 	print "[".$taxa_counter."] Searching for $target_taxon\n";
 	my @taxon_ids = ();
 	print "\tSearching taxonomy\n";
@@ -246,14 +247,14 @@ sub download_target_taxa {
 		usleep($sleep_time); 	# Sleep so you don't overload NCBI's servers.
 		goto taxonomy_eutil;
 	}
-	
+
 	my $taxon_id = $taxon_ids[0];
 	print "\tFound taxon ID: $taxon_id\n";
 	##############################################################################
 
 	##############################################################################
 	# Retrieve nucleotide sequences
-	if($pre_downloaded == 1) { 
+	if($pre_downloaded == 1) {
 		$sequence_file = 'seqs_'.$target_taxon.'.gb';
 		# unlink($sequence_file);
 		goto use_pre_downloaded;
@@ -324,7 +325,7 @@ sub download_target_taxa {
 			push(@sub_batch_list, $sequence_ids[$total_batched]);
 			$total_batched++;
 		}
-		
+
 		sequence_download:
 		my $starting_count = 0;
 		if ($batch_i == 0) {
@@ -384,7 +385,7 @@ sub download_target_taxa {
 		push(@concatenated_batch_file, @current_file);
 		close CURRENT or die $!;
 	}
-	
+
 	# exit;
 	open(CONCAT, ">$sequence_file") or die $!;
 	foreach my $line (@concatenated_batch_file) {
@@ -396,7 +397,7 @@ sub download_target_taxa {
 	}
 	use_pre_downloaded:
 	##############################################################################
-	
+
 
 	##############################################################################
 	# Open genbank file into needed locations.
@@ -426,13 +427,13 @@ sub download_target_taxa {
 			$found_accession = 0;
 			$organism_line_i = 0;
 		}
-		if($genbank_line =~ m/ACCESSION/) { 
+		if($genbank_line =~ m/ACCESSION/) {
 			$found_accession = 1;
 			$current_accession = $genbank_line;
 			$current_accession =~ s/ACCESSION//g; # Parse off the ORGANISM tag
 			$current_accession =~ s/^\s+//; # remove leading spaces
 			my @accession_split = split(/ +/,$current_accession);
-			$current_accession = $accession_split[0];			
+			$current_accession = $accession_split[0];
 			$current_accession =~ s/\s+$//; # remove trailing spaces
 			$current_accession =~ s/ /_/g; 	# replace inner whitespace
 			if(exists($accession_hash{$current_accession})) {
@@ -466,7 +467,7 @@ sub download_target_taxa {
 		}
 	}
 	@genbank = (); # FLUSH.
-	
+
 	# close(GENBANK);
 	##############################################################################
 	my $seqin = Bio::SeqIO->new(-file   => $sequence_file,
@@ -508,13 +509,13 @@ sub download_target_taxa {
 		my $pcr_primer_print_string = 'NA'; # Concatenated PCR primer string
 		my $protein_id				= 'NA'; # Protein NCBI ID
 		# Sample Information
-		my $collection_date			= 'NA'; # 
-		my $voucher_id				= 'NA'; # 
-		my $collected_by			= 'NA'; # 
-		my $identified_by			= 'NA'; # 
-		my $organelle				= 'NA'; # 
-		my $country					= 'NA'; # 
-		my $lat_lon					= 'NA'; # 
+		my $collection_date			= 'NA'; #
+		my $voucher_id				= 'NA'; #
+		my $collected_by			= 'NA'; #
+		my $identified_by			= 'NA'; #
+		my $organelle				= 'NA'; #
+		my $country					= 'NA'; #
+		my $lat_lon					= 'NA'; #
 		my $isolate_id				= 'NA'; #
 		my $bio_material			= 'NA'; #
 		##############################################################################
@@ -526,19 +527,22 @@ sub download_target_taxa {
 			$nucleotide_seq = '---';
 		}
 		$binomial_name		= $binomial_name_hash{$accession_number};
+
 		if(exists($binomial_name_hash{$accession_number})) {
+			$binomial_name =~ s/[^\w\s]//g;
+			$binomial_name =~ s/\s/_/g;
 			$fasta_nucleotide 	= '>'.$binomial_name.'_'.$accession_number.'$'.$nucleotide_seq;
 		} else {
 			$fasta_nucleotide 	= '>NA_'.$accession_number.'$'.$nucleotide_seq;
 		}
 		#$fasta_to_print		= '>'.$binomial_name.'_'.$accession_number."\n".$nucleotide_seq;
 		##############################################################################
-		
+
 		##############################################################################
 		# Obtain sequence feature information.
 		# print "\t\t[".$seq_counter."] ".$long_name."\n";
 		for my $feat_object ($seq->get_SeqFeatures) {
-			for my $tag ($feat_object->get_all_tags) {             			
+			for my $tag ($feat_object->get_all_tags) {
 				for my $value ($feat_object->get_tag_values($tag)) {
 					next if !defined($value); # Make sure value is defined.
 					# print "    value: ", $value, "\n";
@@ -586,17 +590,17 @@ sub download_target_taxa {
 			for my $value ( @annotations ) {
 				if ($value->tagname eq "reference") {
 					# Store only the FIRST MOST RECENT reference.
-					if(defined($value->authors) && ($publication_authors eq 'NA')) { 
+					if(defined($value->authors) && ($publication_authors eq 'NA')) {
 						$publication_authors = $value->authors;
-					}				
-					if(defined($value->title) && ($publication_title eq 'NA')) { 
+					}
+					if(defined($value->title) && ($publication_title eq 'NA')) {
 						$publication_title = $value->title;
 					}
 				}
 		   }
 		}
 		##############################################################################
-		
+
 		##############################################################################
 		# Search for the pubmed article, get its ID, download the pubmed file.
 		# Use the pubmed summary to get
@@ -611,7 +615,7 @@ sub download_target_taxa {
 			# print "\tUsing cached results for pubmed article.\n";
 			goto stored_pubmed;
 		}
-		
+
 		# Begin pubmed searching
 		my $pubmed_esearch_tries = 0;
 		my @pubmed_ids = ();
@@ -643,7 +647,7 @@ sub download_target_taxa {
 			}
 			goto pubmed_search;
 		}
-		
+
 		my $pubmed_summary_tries = 0;
 		pubmed_summary:
 		my $ds_pubmed = '';
@@ -657,11 +661,11 @@ sub download_target_taxa {
 		eval { $ds_pubmed = $seq_pubmed_summary->next_DocSum; };
 		if($@) {
 			print "\tProblem in pubmed summary. Retrying...\n";
-			
+
 			goto skip_pubmed if $pubmed_summary_tries == $max_pubmed_tries;
 			$pubmed_summary_tries++;
 			goto pubmed_summary;
-		}		
+		}
 		while (my $item = $ds_pubmed->next_Item('flattened'))  {
 			next if !defined($item->get_content);
 			$journal_name									= $item->get_content if $item->get_name =~ m/FullJournalName/;
@@ -679,7 +683,7 @@ sub download_target_taxa {
 			$journal_pubdate 								= $item->get_content if $item->get_name =~ m/PubDate/;
 			$pubmed_hash_ref->{$cleaned_title}->{'pubdate'} = $item->get_content if $item->get_name =~ m/PubDate/;
 		}
-		
+
 		my $pubmed_fetch_tries = 0;
 		pubmed_fetch:
 		my $pubmed_fetch = Bio::DB::EUtilities->new( -eutil   => 'efetch',
@@ -724,7 +728,7 @@ sub download_target_taxa {
 			$journal_pubdate 	= $pubmed_hash_ref->{$cleaned_title}->{'pubdate'};
 		}
 		##############################################################################
-		
+
 		#############################################################################
 		# Concatenate list data like taxonomy hierarchy and primer list.
 		if (exists $taxonomy_hierarchy_hash{$accession_number}) {
@@ -740,109 +744,109 @@ sub download_target_taxa {
 			$pcr_primer_print_string .= $pcr_primers[$primer_i].';' if ($primer_i > 0);
 		}
 		#############################################################################
-		
+
 		#############################################################################
 		# Prepare output strings
-		
+
 		$target_taxon =~ s/\"|^\s+|\s+$//g;
 		$target_taxon =~ s/ |,/_/g;
-		
+
 		$taxon_id =~ s/\"|^\s+|\s+$//g;
 		$taxon_id =~ s/ |,/_/g;
-		
+
 		$accession_number =~ s/\"|^\s+|\s+$//g;
 		$accession_number =~ s/ |,/_/g;
-		
+
 		$search_options =~ s/\"|^\s+|\s+$//g;
 		$search_options =~ s/ |,/_/g;
-		
+
 		$number_seqs_found =~ s/\"|^\s+|\s+$//g;
 		$number_seqs_found =~ s/ |,/_/g;
-		
+
 		$long_name =~ s/\"|^\s+|\s+$//g;
 		$long_name =~ s/ |,/_/g;
-		
+
 		$gene_name =~ s/\"|^\s+|\s+$//g;
 		$gene_name =~ s/ |,/_/g;
-		
+
 		$product_name =~ s/\"|^\s+|\s+$//g;
 		$product_name =~ s/ |,/_/g;
-		
+
 		if(defined($binomial_name)) {
 			$binomial_name =~ s/\"|^\s+|\s+$//g;
 			$binomial_name =~ s/ |,/_/g;
 		}
-		
+
 		$taxonomy_print_string =~ s/\"|^\s+|\s+$//g;
 		$taxonomy_print_string =~ s/ |,/_/g;
-		
+
 		$publication_title =~ s/\"|^\s+|\s+$//g;
 		$publication_title =~ s/ |,/_/g;
-		
+
 		$publication_authors =~ s/\"|^\s+|\s+$//g;
 		# $publication_authors =~ s/ |,/_/g;
-		
+
 		$abstract_text =~ s/\"|^\s+|\s+$//g;
 		$abstract_text =~ s/ |,/_/g;
-		
+
 		$journal_name =~ s/\"|^\s+|\s+$//g;
 		$journal_name =~ s/ |,/_/g;
-		
+
 		$journal_DOI =~ s/\"|^\s+|\s+$//g;
 		$journal_DOI =~ s/ |,/_/g;
-		
+
 		$journal_SO =~ s/\"|^\s+|\s+$//g;
 		$journal_SO =~ s/ |,/_/g;
-		
+
 		$journal_volume =~ s/\"|^\s+|\s+$//g;
 		$journal_volume =~ s/ |,/_/g;
-		
+
 		$journal_issue =~ s/\"|^\s+|\s+$//g;
 		$journal_issue =~ s/ |,/_/g;
-		
+
 		$journal_pages =~ s/\"|^\s+|\s+$//g;
 		$journal_pages =~ s/ |,/_/g;
-		
+
 		$journal_pubdate =~ s/\"|^\s+|\s+$//g;
 		$journal_pubdate =~ s/ |,/_/g;
-		
+
 		$nucleotide_seq =~ s/\"|^\s+|\s+$//g;
 		$nucleotide_seq =~ s/ |,/_/g;
-		
+
 		$fasta_nucleotide =~ s/\"|^\s+|\s+$//g;
 		$fasta_nucleotide =~ s/ |,/_/g;
-		
+
 		$amino_acid_seq =~ s/\"|^\s+|\s+$//g;
 		$amino_acid_seq =~ s/ |,/_/g;
-		
+
 		$pcr_primer_print_string =~ s/\"|^\s+|\s+$//g;
 		$pcr_primer_print_string =~ s/ |,/_/g;
-		
+
 		$codon_start =~ s/\"|^\s+|\s+$//g;
 		$codon_start =~ s/ |,/_/g;
-		
+
 		$collection_date =~ s/\"|^\s+|\s+$//g;
 		$collection_date =~ s/ |,/_/g;
-		
+
 		#$voucher_id =~ s/\"|^\s+|\s+$//g;
 		#$voucher_id =~ s/ |,/_/g;
-		
+
 		$collected_by =~ s/\"|^\s+|\s+$//g;
 		$collected_by =~ s/ |,/_/g;
-		
+
 		$identified_by =~ s/\"|^\s+|\s+$//g;
 		$identified_by =~ s/ |,/_/g;
-		
+
 		$organelle =~ s/\"|^\s+|\s+$//g;
 		$organelle =~ s/ |,/_/g;
-		
+
 		$country =~ s/\"|^\s+|\s+$//g;
 		$country =~ s/ |,/_/g;
-		
+
 		$lat_lon =~ s/\"|^\s+|\s+$//g;
 		$lat_lon =~ s/ |,/_/g;
-		
-		
+
+
 		my @current_output = (	$target_taxon,$dlm,
 								$taxon_id,$dlm,
 								$accession_number,$dlm,
@@ -857,7 +861,7 @@ sub download_target_taxa {
 								$publication_authors,$dlm,
 								$abstract_text,$dlm,
 								$journal_name,$dlm,
-								$journal_DOI,$dlm,	
+								$journal_DOI,$dlm,
 								$journal_SO,$dlm,
 								$journal_volume,$dlm,
 								$journal_issue,$dlm,
@@ -894,10 +898,10 @@ sub download_target_taxa {
 		# print "output_lines ".total_size(\@output_lines)."\n";
 		# print "return_output_lines ".total_size(\@return_output_lines)."\n";
 		##############################################################################
-		
+
 		#$fasta_to_print
 		$seq_counter++;
-		
+
 		###
 		###
 	}
@@ -915,13 +919,13 @@ sub download_target_taxa {
 		close(OUTPUT);
 	}
 	#############################################################################
-	
+
 	taxa_failed:
 	sequence_failed:
 	just_count_seqs:
 	if (exists $failed_search_hash_ref->{$target_taxon}) {
 		my $failed_seq_taxa_id = $failed_search_hash_ref->{$target_taxon}->{'taxa_id'};
-		push(@return_output_lines, 	$target_taxon, $dlm, 
+		push(@return_output_lines, 	$target_taxon, $dlm,
 									$failed_seq_taxa_id, $dlm,
 									'NA',$dlm,
 									$search_options,$dlm,
@@ -935,7 +939,7 @@ sub download_target_taxa {
 									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,
-									'NA',$dlm,	
+									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,
@@ -983,11 +987,11 @@ sub download_target_taxa {
 		        # :proteinclusters, pcassay, pccompound, pcsubstance,
 		        # :seqannot, snp, sra, taxonomy, toolkit, toolkitall,
 		        # :unigene, unists
-				
+
 sub search_strings {
 	my $short_name = shift;
 	my $query_file = shift;
-	
+
 	my %search_string_hash = ();
 	$search_string_hash{'COI'} 	= "AND (COI[All Fields] OR \"cytochrome oxidase I\"[All Fields] OR \"cytochrome oxidase subunit I\"[All Fields] OR COX1[All Fields] OR \"COXI\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
 	$search_string_hash{'16S'} 	= "AND (16S[All Fields] OR \"16S ribosomal RNA\"[All Fields] OR \"16S rRNA\"[All Fields]) NOT (\"complete genome\"[title] OR \"complete DNA\"[title])";
@@ -1019,7 +1023,7 @@ sub current_memory {
 	use Data::Dumper;
 	use PadWalker qw(peek_my);
 	use Devel::Size;
-	
+
 	my $hash_ref = peek_my(0);
 
 	# print Dumper($hash_ref);

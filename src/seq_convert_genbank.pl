@@ -44,11 +44,12 @@ use Devel::Size qw(size total_size);
 use Test::LeakTrace;
 use Devel::Size;
 use Text::Fuzzy::PP;
+use Align::NW;
 
 print "
 ******************************************************************
 
-Copyright (c) 2013-2014 Bryan White, bpcwhite\@gmail.com
+Copyright (c) 2013-2015 Bryan White, bpcwhite\@gmail.com
 
 GNU General Public License, Version 3, 29 June 2007
 
@@ -108,7 +109,7 @@ if($match_aln_file ne '') {
 	$match_seq = $match_seqs[0];
 }
 
-	
+
 if ($params->options->{'-term'}) {
 	push(@taxa_list, $params->options->{'-term'});
 	# $params->options->{'-outp'} = $params->options->{'-term'};
@@ -220,6 +221,8 @@ sub download_target_taxa {
 		'jrn_pubdate',$dlm,
 		'nuc_seq',$dlm,
 		'fasta_nuc',$dlm,
+		'aln_seq',$dlm,
+		'aln_score',$dlm,
 		'prot_seq',$dlm,
 		'primers',$dlm,
 		'codon_start',$dlm,
@@ -866,9 +869,19 @@ sub download_target_taxa {
 
 		## Check nucleotide sequence against query
 		my $distance = 0;
-		aln2seq($nucleotide_seq, $match_seq);
-		
-		
+		my ($nw, $align) = '';
+		my $aligned_seq = "NA";
+		my $match_score = "NA";
+		if($match_aln_file ne '') {
+			#($nw, $align) = aln2seq($nucleotide_seq, $match_seq);
+			aln2seq($nucleotide_seq, $match_seq);
+
+			#$nw->print_align;
+			#$match_score = $nw->dump_score;
+			#$aligned_seq = $align->{'a'};
+
+		}
+
 		my @current_output = (	$target_taxon,$dlm,
 								$taxon_id,$dlm,
 								$accession_number,$dlm,
@@ -891,6 +904,8 @@ sub download_target_taxa {
 								$journal_pubdate,$dlm,
 								$nucleotide_seq,$dlm,
 								$fasta_nucleotide,$dlm,
+								$aligned_seq,$dlm,
+								$match_score,$dlm,
 								$amino_acid_seq,$dlm,
 								$distance,$dlm,
 								$pcr_primer_print_string,$dlm,
@@ -953,6 +968,7 @@ sub download_target_taxa {
 									'NA',$dlm,
 									$search_options,$dlm,
 									$number_seqs_found,$dlm,
+									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,
 									'NA',$dlm,

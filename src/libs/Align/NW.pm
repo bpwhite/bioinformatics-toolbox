@@ -198,7 +198,7 @@ sub _align_tail
     my @a = @$a[$row+1..$#$a];
     my @s = ();
     my @b = @$b[$col+1..$#$b];
-    
+
     $nw->_unshift_align(\@a, \@s, \@b);
 }
 
@@ -210,11 +210,11 @@ sub _align_body
     my $dp = $nw->{dp};
     my $a  = $nw->{a};
     my $b  = $nw->{b};
- 
+
     my(@a, @s, @b);
 
     for (;;)
-    {	
+    {
 	my $row = $cell->{row};
 	my $col = $cell->{col};
 	$row and $col or last;
@@ -292,7 +292,7 @@ sub _join_align
 	my $x = $nw->{align}{$key};
 	$nw->{align}{$key} = join('', @$x);
     }
-}    
+}
 
 
 sub get_align
@@ -334,16 +334,16 @@ Align::NW - Needleman-Wunsch algorithm for optimal global sequence alignment
 =head1 SYNOPSIS
 
     use Align::NW;
-  
+
     $payoff = { match      => $match,
 		mismatch   => $mismatch,
 		gap_open   => $gap_open,
 		gap_extend => $gap_extend };
-  
+
     $nw = new Align::NW $a, $b, $payoff, %options
     $nw->score;
     $nw->align;
-  
+
     $score = $nw->get_score;
     $align = $nw->get_align;
 
@@ -358,8 +358,8 @@ C<$a> and C<$b>, subject to the C<$payoff> matrix.
 =head2 Algorithm
 
 C<Align::NW> uses the Needleman-Wunsch dynamic programming algorithm.
-This algorithm runs in O(a*b*(a+b)), where a and b are the 
-lengths of the two sequences to be aligned. 
+This algorithm runs in O(a*b*(a+b)), where a and b are the
+lengths of the two sequences to be aligned.
 
 =head2 Alignments
 
@@ -381,7 +381,7 @@ For example, the two sequences
 could be aligned like this
 
     abcdefghajklm
-    || |   | || 
+    || |   | ||
     abbd...hijk
 
 As shown, there are 6 matches, 2 mismatches, and one gap of length 3.
@@ -392,7 +392,7 @@ C<Align::NW> retuns an alignment as a hash
 	       s => $s,
 	       b => $b };
 
-I<$a> and I<$b> are the two sequences. 
+I<$a> and I<$b> are the two sequences.
 I<$s> is the line of symbols.
 
 =head2 The Payoff Matrix
@@ -404,7 +404,7 @@ The alignment is scored according to a payoff matrix
 		gap_open   => $gap_open,
 		gap_extend => $gap_extend };
 
-The entries in the matrix are the number of points added to the score 
+The entries in the matrix are the number of points added to the score
 
 =over
 
@@ -426,7 +426,7 @@ for each position that a gap is extended (including the first)
 
 =back
 
-For correct operation, match must be positive, 
+For correct operation, match must be positive,
 and the other entries must be negative.
 
 =head2 Example
@@ -446,15 +446,15 @@ The sequences
 are aligned and scored like this
 
                 a b c d e f g h a j k l m
-                | |   |       |   | | 
+                | |   |       |   | |
                 a b b d . . . h i j k
 
-    match       4 4   4       4   4 4  
+    match       4 4   4       4   4 4
     mismatch       -3          -3
     gap_open           -2
     gap_extend         -1-1-1
 
-for a total score of 24-6-2-3 = 15. 
+for a total score of 24-6-2-3 = 15.
 The algorithm guarantees that no other alignment of these two sequences
 has a higher score under this payoff matrix.
 
@@ -477,7 +477,7 @@ This is the O(a*b*(a+b)) operation.
 
 =item I<$nw>->C<align>
 
-Backtracks through the score matrix and generates an alignment for 
+Backtracks through the score matrix and generates an alignment for
 the two sequences.
 C<score> must be called before C<align>.
 
@@ -488,7 +488,7 @@ C<score> must be called before C<get_score>.
 
 =item I<$align> = I<$nw>->C<get_align>
 
-Returns the alignment of the two sequences, as described above in 
+Returns the alignment of the two sequences, as described above in
 L</Alignments>.
 C<align> must be called before C<get_align>.
 

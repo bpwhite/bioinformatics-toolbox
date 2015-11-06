@@ -18,14 +18,15 @@ use strict;
 use warnings;
 use Math::Random;
 use Text::Fuzzy::PP;
+use Align::NW;
 
 use Exporter;
 
 our @ISA= qw( Exporter );
-our @EXPORT_OK = qw( 	fix_fasta 
-						clean_file_name 
-						bootstrap_alignment 
-						random_splice_alignment 
+our @EXPORT_OK = qw( 	fix_fasta
+						clean_file_name
+						bootstrap_alignment
+						random_splice_alignment
 						fisher_yates_shuffle
 						fast_seq_length
 						aln2seq
@@ -34,50 +35,68 @@ our @EXPORT_OK = qw( 	fix_fasta
 sub aln2seq {
 	my $seq1 = shift;
 	my $seq2 = shift;
-	
+
+	use Algorithm::NeedlemanWunsch;
+
+	my @a = split('',$seq1);
+	my @b = split('',$seq2);
+
+	sub score_sub {
+	    if (!@_) {
+	        return -2; # gap penalty
+	    }
+
+	    return ($_[0] eq $_[1]) ? 1 : -1;
+	}
+
+	my $matcher = Algorithm::NeedlemanWunsch->new(\&score_sub);
+	my $score = $matcher->align(
+	           \@a,
+	           \@b,
+	           {  #	align => \&align,
+	             		shift_a => \&shift_a,
+	               	shift_b => \&shift_b,
+	               #select_align => \&on_select_align
+	           }
+						 );
+
+	print $score."\n";
+	exit;
+	}
+
+
+sub aln2seq2 {
+	my $seq1 = shift;
+	my $seq2 = shift;
+
 	my $length1 = fast_seq_length($seq1);
 	my $length2 = fast_seq_length($seq2);
-	
-	my @seq1_arr = split('',$seq1);
-	my @seq2_arr = split('',$seq2);
-	
-	print "Seq1:";
-	foreach my $char (@seq1_arr) {
-		print $char;
-	}
-	print "\n";
-	
-	print "Seq2:";
-	foreach my $char (@seq2_arr) {
-		print $char;
-	}
-	print "\n";
-	
-	use Align::NW;
-  
-    my $payoff = {	match      => 4,
-					mismatch   => -3,
-					gap_open   => -2,
-					gap_extend => -1 };
-  
-    my $nw = new Align::NW $a, $b, $payoff, %options;
-    $nw->score;
-    $nw->align;
-  
-    my $score = $nw->get_score;
-    my $align = $nw->get_align;
-    $nw->print_align;
-    $nw->dump_score;
-	
-	print $new_seq1."\n";
-	print $gap_call."\n";
-	print $new_seq2."\n";
 
-	
-	exit;
-	my $tf = Text::Fuzzy::PP->new ($seq1);
-	my $distance =  $tf->distance ('ATGC'), "\n";
+	my $a = $seq1;
+	my $b = $seq2;
+
+	my $payoff = {	match      => 4,
+									mismatch   => -3,
+									gap_open   => -2,
+									gap_extend => -1 };
+	print "Aligning sequences...\n";
+
+	my $nw = new Align::NW $a, $b, $payoff;
+	$nw->score;
+	$nw->align;
+
+	my $score = $nw->get_score;
+	my $align = $nw->get_align;
+	$nw->print_align;
+	$nw->dump_score;
+
+	print $align->{'a'};
+	print $align->{'s'};
+	print $align->{'b'};
+
+	return ($nw, $align);
 }
+
 sub fix_fasta {
 	my ( $f ) = shift;
 	open F, "< $f" or die "Can't open $f : $!";
@@ -89,7 +108,7 @@ sub fix_fasta {
 			$line =~ s/ /_/g; # replace whitespace with _
 		}
 	}
-	
+
 	unlink $f;
 	open (MYFILE, '>>'.$f);
 	foreach my $line(@fasta) {
@@ -111,7 +130,7 @@ sub alignment_coverage {
 # Reduces an alignment to only positions that are covered by a certain percentage
 	my $alignment 		= shift;
 	my $coverage_pcnt 	= shift;
-	
+
 	my %position_counter = ();
 	my $min_coverage = 0;
 	my $current_seq = 0;
@@ -157,18 +176,18 @@ sub random_splice_alignment {
 	my $alignment_ref	= shift;
 	my $splice_min 		= shift;
 	my $splice_max		= shift;
-	
+
 	my $splice_size = abs int rand ($splice_max);
 	while($splice_size < $splice_min) {
 		$splice_size = abs int rand ($splice_max);
 	}
-	
+
 	my $splice_start = abs int rand ($splice_max);
 	$splice_start = ($splice_max - $splice_size) if ($splice_start + $splice_size) > $splice_max;
 	$splice_start = 1 if $splice_start < 1;
-	
+
 	my $splice_end = $splice_size + $splice_start;
-	
+
 	print "Splicing Size: $splice_size => Start: $splice_start => End: $splice_end\n";
 	foreach my $seq (@$alignment_ref) {
 		my $new_seq = $seq->subseq($splice_start,$splice_end);
@@ -181,7 +200,7 @@ sub specific_splice_alignment {
 	my $alignment_ref	= shift;
 	my $splice_start 	= shift;
 	my $splice_end		= shift;
-	
+
 	my $splice_size = $splice_end - $splice_start;
 	print "Splicing Size: $splice_size => Start: $splice_start => End: $splice_end\n";
 	foreach my $seq (@$alignment_ref) {
@@ -198,7 +217,7 @@ sub splice_one_string_normal_dist {
 	my $start_mean		 = shift;
 	my $start_std_dev	 = shift;
 	my $prob_short		 = shift;
-	
+
 	my $ran_length = int random_normal(1, $splice_mean_size, $splice_std_dev);
 	$ran_length = 1 if $ran_length < 0;
 	my $ran_start = int random_normal(1, $start_mean, $start_std_dev);
@@ -212,14 +231,14 @@ sub splice_one_string_normal_dist {
 	} else {
 		my $spliced_seq = substr($seq_string, 0, $splice_mean_size);
 		return $spliced_seq;
-	}	
+	}
 }
 
 sub bootstrap_alignment {
 # Resample alignment with replacement
 	my $alignment_ref	= shift;
 	my $sample_size		= shift;
-	
+
 	my $num_sequences = scalar @$alignment_ref;
 	my @subsampled_alignment = ();
 	my @rand_numbers = ();
@@ -231,10 +250,10 @@ sub bootstrap_alignment {
 		# print $alignment_ref->[$random_number]->seq."\n";
 		push(@subsampled_alignment, $alignment_ref->[$random_number]);
 	}
-	
+
 	my $subsampled_alignment_ref = \@subsampled_alignment;
 	return $subsampled_alignment_ref;
-	
+
 }
 
 sub fisher_yates_shuffle {
@@ -249,10 +268,10 @@ sub fisher_yates_shuffle {
 
 sub fast_seq_length {
 	my $seq = shift;
-	
+
 	$seq =~ s/-/ /g;
 	$seq =~ s/\s+//g;
-	
+
 	return length($seq);
 }
 

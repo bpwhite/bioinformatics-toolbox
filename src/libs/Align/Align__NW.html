@@ -1,0 +1,331 @@
+<HTML>
+<HEAD>
+<TITLE>Align::NW</TITLE>
+<link rel="stylesheet" href="http://world.std.com/~swmcd/steven/style.css">
+</HEAD>
+<BODY BGCOLOR="#ffffff" TEXT="#000000">
+<!-- mark in -->
+<!-- mark out -->
+<UL>
+<LI><A HREF="#NAME">NAME
+
+</A></LI>
+<LI><A HREF="#SYNOPSIS">SYNOPSIS
+
+</A></LI>
+<LI><A HREF="#DESCRIPTION">DESCRIPTION
+
+</A></LI>
+<UL>
+<LI><A HREF="#Algorithm">Algorithm
+
+</A></LI>
+<LI><A HREF="#Alignments">Alignments
+
+</A></LI>
+<LI><A HREF="#The%20Payoff%20Matrix">The Payoff Matrix
+
+</A></LI>
+<LI><A HREF="#Example">Example
+
+</A></LI>
+</UL>
+<LI><A HREF="#METHODS">METHODS
+
+</A></LI>
+<LI><A HREF="#OPTIONS">OPTIONS
+
+</A></LI>
+<LI><A HREF="#SEE%20ALSO">SEE ALSO
+
+</A></LI>
+<LI><A HREF="#ACKNOWLEDGMENTS">ACKNOWLEDGMENTS
+
+</A></LI>
+<LI><A HREF="#AUTHOR">AUTHOR
+
+</A></LI>
+<LI><A HREF="#COPYRIGHT">COPYRIGHT
+
+</A></LI>
+</UL>
+<HR>
+<H1><A NAME="NAME">NAME
+
+</A></H1>
+
+<P>Align::NW - Needleman-Wunsch algorithm for optimal global sequence alignment
+
+</P><H1><A NAME="SYNOPSIS">SYNOPSIS
+
+</A></H1>
+
+<PRE>    use Align::NW;
+  
+    $payoff = { match      =&gt; $match,
+		mismatch   =&gt; $mismatch,
+		gap_open   =&gt; $gap_open,
+		gap_extend =&gt; $gap_extend };
+  
+    $nw = new Align::NW $a, $b, $payoff, %options
+    $nw-&gt;score;
+    $nw-&gt;align;
+  
+    $score = $nw-&gt;get_score;
+    $align = $nw-&gt;get_align;</PRE>
+
+<PRE>    $nw-&gt;print_align;
+    $nw-&gt;dump_score;</PRE>
+<H1><A NAME="DESCRIPTION">DESCRIPTION
+
+</A></H1>
+
+<P><CODE>Align::NW</CODE> finds the optimal global alignment of the sequences
+<CODE>$a</CODE> and <CODE>$b</CODE>, subject to the <CODE>$payoff</CODE> matrix.
+
+</P><H2><A NAME="Algorithm">Algorithm
+
+</A></H2>
+
+<P><CODE>Align::NW</CODE> uses the Needleman-Wunsch dynamic programming algorithm.
+This algorithm runs in O(a*b*(a+b)), where a and b are the 
+lengths of the two sequences to be aligned. 
+
+</P><H2><A NAME="Alignments">Alignments
+
+</A></H2>
+
+<P>An alignment of two sequences is represented by three lines.
+The first line shows the first sequence,
+and the third line shows the second sequence.
+
+</P>
+<P>The second line has a row of symbols.
+The symbol is a vertical bar where ever characters in the two sequences match,
+and a space where ever they do not.
+
+</P>
+<P>Dots may be inserted in either sequence to represent gaps.
+
+</P>
+<P>For example, the two sequences
+
+</P>
+<PRE>    abcdefghajklm
+    abbdhijk</PRE>
+
+<P>could be aligned like this
+
+</P>
+<PRE>    abcdefghajklm
+    || |   | || 
+    abbd...hijk</PRE>
+
+<P>As shown, there are 6 matches, 2 mismatches, and one gap of length 3.
+
+</P>
+<P><CODE>Align::NW</CODE> retuns an alignment as a hash
+
+</P>
+<PRE>    $align = { a =&gt; $a,
+	       s =&gt; $s,
+	       b =&gt; $b };</PRE>
+
+<P><I>$a</I> and <I>$b</I> are the two sequences. 
+<I>$s</I> is the line of symbols.
+
+</P><H2><A NAME="The%20Payoff%20Matrix">The Payoff Matrix
+
+</A></H2>
+
+<P>The alignment is scored according to a payoff matrix
+
+</P>
+<PRE>    $payoff = { match      =&gt; $match,
+		mismatch   =&gt; $mismatch,
+		gap_open   =&gt; $gap_open,
+		gap_extend =&gt; $gap_extend };</PRE>
+
+<P>The entries in the matrix are the number of points added to the score 
+
+</P><UL>
+<LI>for each match
+
+</LI>
+<LI>for each mismatch
+
+</LI>
+<LI>when a gap is opened in either sequence
+
+</LI>
+<LI>for each position that a gap is extended (including the first)
+
+</LI>
+</UL>
+
+<P>For correct operation, match must be positive, 
+and the other entries must be negative.
+
+</P><H2><A NAME="Example">Example
+
+</A></H2>
+
+<P>Given the payoff matrix
+
+</P>
+<PRE>   $payoff = { match      =&gt;  4,
+	       mismatch   =&gt; -3,
+	       gap_open   =&gt; -2,
+	       gap_extend =&gt; -1 };</PRE>
+
+<P>The sequences
+
+</P>
+<PRE>    abcdefghajklm
+    abbdhijk</PRE>
+
+<P>are aligned and scored like this
+
+</P>
+<PRE>                a b c d e f g h a j k l m
+                | |   |       |   | | 
+                a b b d . . . h i j k</PRE>
+
+<PRE>    match       4 4   4       4   4 4  
+    mismatch       -3          -3
+    gap_open           -2
+    gap_extend         -1-1-1</PRE>
+
+<P>for a total score of 24-6-2-3 = 15. 
+The algorithm guarantees that no other alignment of these two sequences
+has a higher score under this payoff matrix.
+
+</P><H1><A NAME="METHODS">METHODS
+
+</A></H1>
+<DL><DT><A NAME="%24nw%20%3d%20new%20Align%3a%3aNW%20%24a%2c%20%24b%2c%20%24payoff%2c%20%25options"><I>$nw</I> = <CODE>new</CODE> <CODE>Align::NW</CODE> <I>$a</I>, <I>$b</I>, <I>$payoff</I>, <I>%options</I>
+
+</A></DT>
+<DD>
+Creates and returns a new <CODE>Align::NW</CODE> object.
+<I>$a</I> and <I>$b</I> are the sequences to be aligned.
+<I>$payoff</I> is the payoff matrix, described above.
+Additional options maybe passed in the <I>%options</I> hash;
+see <A HREF="#OPTIONS">/OPTIONS</A> for details.
+
+</DD>
+<DT><A NAME="%24nw-%3escore"><I>$nw</I>-&gt;<CODE>score</CODE>
+
+</A></DT>
+<DD>
+Fills in the score matrix for <I>$nw</I>.
+This is the O(a*b*(a+b)) operation.
+
+</DD>
+<DT><A NAME="%24nw-%3ealign"><I>$nw</I>-&gt;<CODE>align</CODE>
+
+</A></DT>
+<DD>
+Backtracks through the score matrix and generates an alignment for 
+the two sequences.
+<CODE>score</CODE> must be called before <CODE>align</CODE>.
+
+</DD>
+<DT><A NAME="%24score%20%3d%20%24nw-%3eget_score"><I>$score</I> = <I>$nw</I>-&gt;<CODE>get_score</CODE>
+
+</A></DT>
+<DD>
+Returns the score of the alignment.
+<CODE>score</CODE> must be called before <CODE>get_score</CODE>.
+
+</DD>
+<DT><A NAME="%24align%20%3d%20%24nw-%3eget_align"><I>$align</I> = <I>$nw</I>-&gt;<CODE>get_align</CODE>
+
+</A></DT>
+<DD>
+Returns the alignment of the two sequences, as described above in 
+<A HREF="#Alignments">/Alignments</A>.
+<CODE>align</CODE> must be called before <CODE>get_align</CODE>.
+
+</DD>
+<DT><A NAME="%24nw-%3eprint_align"><I>$nw</I>-&gt;<CODE>print_align</CODE>
+
+</A></DT>
+<DD>
+Pretty prints the alignment to STDOUT.
+<CODE>align</CODE> must be called before <CODE>print_align</CODE>.
+
+</DD>
+<DT><A NAME="%24nw-%3edump_score"><I>$nw</I>-&gt;<CODE>dump_score</CODE>
+
+</A></DT>
+<DD>
+Dumps the score matrix to STDOUT.
+This is useful mainly for debugging.
+The matrix is <I>not</I> pretty printed;
+line wrapping makes large matrices difficult to read.
+
+</DD>
+</DL>
+<H1><A NAME="OPTIONS">OPTIONS
+
+</A></H1>
+
+<P>Options may be passed to <CODE>new</CODE> in the <CODE>%options</CODE> hash.
+The following options are defined.
+
+</P><DL><DT><A NAME="-v"><B>-v</B>
+
+</A></DT>
+<DD>
+Verbose output.
+Prints some dots to STDERR.
+Useful for monitoring the progress of large alignments.
+
+</DD>
+</DL>
+<H1><A NAME="SEE%20ALSO">SEE ALSO
+
+</A></H1>
+<UL>
+<LI>Needleman, S.B. and Wunsch, C.D. 1970. &quot;A general method applicable to
+the search for similarities in the amino acid sequences of two
+proteins&quot; <I>Journal of Molecular Biology</I>. 48: 443-453.
+
+</LI>
+<LI>Smith, T.F. and Waterman, M.S. 1981. &quot;Identification of common
+molecular subsequences&quot; <I>Journal of Molecular Biology</I>. 147: 195-197
+
+</LI>
+</UL>
+
+<P>There are usually some some tutorials on Needleman-Wunsch and
+Smith-Waterman alignment floating around on the web. I used to provide
+links to some, but they kept going 404. If you Google around a bit you
+can probably find a current one.
+
+</P><H1><A NAME="ACKNOWLEDGMENTS">ACKNOWLEDGMENTS
+
+</A></H1>
+<UL>
+<LI>Andreas Doms &lt;ad11@inf.tu-dresden.de&gt;
+
+</LI>
+</UL>
+<H1><A NAME="AUTHOR">AUTHOR
+
+</A></H1>
+
+<P>Steven W. McDougall &lt;swmcd@world.std.com&gt;
+
+</P><H1><A NAME="COPYRIGHT">COPYRIGHT
+
+</A></H1>
+
+<P>Copyright 1999-2003 by Steven W. McDougall. This module is free
+software; you can redistribute it and/or modify it under the same
+terms as Perl itself.
+
+</P>
+</BODY>
+</HTML>

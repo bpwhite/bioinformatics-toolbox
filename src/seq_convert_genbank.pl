@@ -44,7 +44,14 @@ use Devel::Size qw(size total_size);
 use Test::LeakTrace;
 use Devel::Size;
 use Text::Fuzzy::PP;
-use Align::NW;
+use Benchmark qw(:all);
+
+##################################################################
+# Start benchmark
+my $t0 = Benchmark->new;
+my $k2p1 = 0;
+##################################################################
+
 
 print "
 ******************************************************************
@@ -872,14 +879,10 @@ sub download_target_taxa {
 		my ($nw, $align) = '';
 		my $aligned_seq = "NA";
 		my $match_score = "NA";
+		my ($k2p_distance, $transitions,$transversions,$bases_compared) = 0;
+		my $aln_seq = '';
 		if($match_aln_file ne '') {
-			#($nw, $align) = aln2seq($nucleotide_seq, $match_seq);
-			aln2seq($nucleotide_seq, $match_seq);
-
-			#$nw->print_align;
-			#$match_score = $nw->dump_score;
-			#$aligned_seq = $align->{'a'};
-
+			($k2p_distance, $transitions,$transversions,$bases_compared, $aln_seq) = aln2seq($nucleotide_seq, $match_seq);
 		}
 
 		my @current_output = (	$target_taxon,$dlm,
@@ -904,8 +907,8 @@ sub download_target_taxa {
 								$journal_pubdate,$dlm,
 								$nucleotide_seq,$dlm,
 								$fasta_nucleotide,$dlm,
-								$aligned_seq,$dlm,
-								$match_score,$dlm,
+								$aln_seq,$dlm,
+								$k2p_distance,$dlm,
 								$amino_acid_seq,$dlm,
 								$distance,$dlm,
 								$pcr_primer_print_string,$dlm,
@@ -1017,6 +1020,11 @@ sub download_target_taxa {
 	}
 	return \@return_output_lines;
 }
+
+my $t1 = Benchmark->new;
+my $time_diff = timediff($t1, $t0);
+print "\n";
+print timestr($time_diff)."\n";
 
 # Available database:
 # :pubmed, protein, nucleotide, nuccore, nucgss, nucest, structure, genome,

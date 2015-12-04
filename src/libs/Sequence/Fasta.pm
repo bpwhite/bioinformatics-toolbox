@@ -19,6 +19,10 @@ use warnings;
 use Math::Random;
 use Text::Fuzzy::PP;
 use Align::NW;
+use FindBin;
+use lib "$FindBin::Bin/libs";
+use lib "$FindBin::Bin/../bin";
+use Sequence::Kimura_Distance;
 
 use Exporter;
 
@@ -36,34 +40,45 @@ sub aln2seq {
 	my $seq1 = shift;
 	my $seq2 = shift;
 
-	use Algorithm::NeedlemanWunsch;
+	# Detect OS
+	my $file_separator = "\\";
+	my $detected_os = 'win32';
+	my $mafft_path 	= "..\\bin\\win32\\mafft";
+	if("$^O\n" =~ "Win32") {
 
-	my @a = split('',$seq1);
-	my @b = split('',$seq2);
-
-	sub score_sub {
-	    if (!@_) {
-	        return -2; # gap penalty
-	    }
-
-	    return ($_[0] eq $_[1]) ? 1 : -1;
+	} else {
+		print "Detected Linux\n";
+		$file_separator = "/";
+		$detected_os = 'linux';
+		$mafft_path = "..//bin//linux//mafft";
 	}
-
-	my $matcher = Algorithm::NeedlemanWunsch->new(\&score_sub);
-	my $score = $matcher->align(
-	           \@a,
-	           \@b,
-	           {  #	align => \&align,
-	             		shift_a => \&shift_a,
-	               	shift_b => \&shift_b,
-	               #select_align => \&on_select_align
-	           }
-						 );
-
-	print $score."\n";
-	exit;
+		
+	my $mafft_string = '';
+	
+	open(OUTPUT, '>seq_match_in.txt') or die "Couldn't open: $!";
+	print OUTPUT ">Seq1\n$seq1\n";
+	print OUTPUT ">Seq2\n$seq2\n";
+	close(OUTPUT);
+	
+	#unlink($aligned);
+	$mafft_string = $mafft_path.$file_separator."mafft --auto --preservecase --adjustdirection --preservecase --thread 1 --quiet seq_match_in.txt > seq_match_out.txt 2> nul";
+	print "Calling $mafft_string at depth a\n";
+	my $mafft_output = `$mafft_string`;
+	
+	# Import alignment
+	my $alignin = Bio::AlignIO->new(-format => 'fasta',
+									-file   => 'seq_match_out.txt' );
+	my $original_aln = $alignin->next_aln;
+	my @seqs = ();
+	foreach my $seq ($original_aln->each_seq) {
+		push(@seqs,$seq->seq);
 	}
+	
+	my $length = fast_seq_length($seqs[0]);
+	my ($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_unpack($seqs[0], $seqs[1], $length);
+	return ($k2p_distance, $transitions,$transversions,$bases_compared,$seqs[1]);
 
+}
 
 sub aln2seq2 {
 	my $seq1 = shift;

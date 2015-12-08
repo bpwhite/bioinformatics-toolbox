@@ -49,40 +49,46 @@ random_scan = 1
 r_scan_size = 100
 
 # Load query file names
+print("Reading queries...")
 queries = []
 with open(query_file) as inputfile:
         for line in inputfile:
                 queries.append(line.strip().split(','))
 
 # Load database file names
+print("Reading databases...")
 databases = []
 with open(db_file) as inputfile:
         for line in inputfile:
                 databases.append(line.strip().split(','))
 
 # Load sequences into dictionary
+print("Loading sequences...")
 sequences = {}
 for qfile in queries:
-	print(qfile)
-	qfile = ''.join(qfile)
-	print(qfile)
+	qfile = os.path.expanduser(''.join(qfile))
 	with open(qfile) as inputfiles:
 		current_id = ''
 		current_seq = ''
 		for line in inputfiles:
+			line = line.strip('\n')
 			if('>' in line):
-				# Dump previous sequence, start new
-				if(current_seq != ''):
-					sequences[current_id] = current_seq
-				# reset id
+				# Set ID
 				current_id = line.strip('>')
-				# reset seq
-				current_seq = ''
+				# Dump previous sequence, start new
+				sequences[current_id] = ''
 			else:
-				current_seq += line
+				# Append sequence to dictionary
+				sequences[current_id] += line
+
+# Iterate through sequence dictionary
+print("Merging contigs...")
+merged_contigs = ''
 for key, value in sequences.iteritems():
-	print(key + " => " + value)			
-exit()
+	merged_contigs += value			
+
+
+
 scandb_command = blast_path + seq_type + " -query " + ''.join(queries[0]) + " -db " + ''.join(databases[0]) +\
 		" -outfmt \"6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore\"" +\
 		" -out test.tsv"

@@ -8,13 +8,14 @@ import os
 
 db_file = "target_genomes.txt"
 blast_path = "~/data_analysis/apps/ncbi-blast-2.2.31+/bin/" 
+db_type = "nucl"
 
 results = [] 
 with open(db_file) as inputfile:
 	for line in inputfile:
 		results.append(line.strip().split(','))
 
-makedb_command = blast_path+"makeblastdb"+" -dbtype nucleotide" + " -in " + ''.join(results[0])
+makedb_command = blast_path+"makeblastdb"+" -dbtype "+db_type + " -in " + ''.join(results[0])
 
 print(makedb_command)
 

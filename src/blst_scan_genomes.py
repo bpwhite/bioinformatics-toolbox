@@ -38,15 +38,19 @@ Use '-help' to print detailed descriptions of command line arguments
 '''
 
 import os
+import random
+import subprocess
 
 query_file = "query_targets.txt"
 db_file = "target_genomes.txt"
 
+output_path = "~/data_analysis/data/genome_assemblies/"
 blast_path = "~/data_analysis/apps/ncbi-blast-2.2.31+/bin/"
 seq_type = "blastn"
 
 random_scan = 1
 r_scan_size = 100
+r_scan_n = 10
 
 # Load query file names
 print("Reading queries...")
@@ -62,41 +66,70 @@ with open(db_file) as inputfile:
         for line in inputfile:
                 databases.append(line.strip().split(','))
 
-# Load sequences into dictionary
-print("Loading sequences...")
-sequences = {}
-for qfile in queries:
-	qfile = os.path.expanduser(''.join(qfile))
-	with open(qfile) as inputfiles:
-		current_id = ''
-		current_seq = ''
-		for line in inputfiles:
-			line = line.strip('\n')
-			if('>' in line):
-				# Set ID
-				current_id = line.strip('>')
-				# Dump previous sequence, start new
-				sequences[current_id] = ''
-			else:
-				# Append sequence to dictionary
-				sequences[current_id] += line
+# Start main loop of query sequence files
+for query_file in queries:
+	query_file = ''.join(query_file[0])
+	# Begin analysis of query file
+	print("Loading query file: "+query_file)
 
-# Iterate through sequence dictionary
-print("Merging contigs...")
-merged_contigs = ''
-for key, value in sequences.iteritems():
-	merged_contigs += value			
+	# Load sequences into dictionary
+	print("Loading sequences...")
+	sequences = {}
+	for qfile in queries:
+		qfile = os.path.expanduser(''.join(qfile))
+		with open(qfile) as inputfiles:
+			current_id = ''
+			current_seq = ''
+			for line in inputfiles:
+				line = line.strip('\n')
+				if('>' in line):
+					# Set ID
+					current_id = line.strip('>')
+					# Dump previous sequence, start new
+					sequences[current_id] = ''
+				else:
+					# Append sequence to dictionary
+					sequences[current_id] += line
 
+	# Iterate through sequence dictionary
+	print("Merging contigs...")
+	merged_contigs = ''
+	for key, value in sequences.iteritems():
+		merged_contigs += value			
+	print("Merged contigs into one string of size: "+str(len(merged_contigs)))
 
-
-scandb_command = blast_path + seq_type + " -query " + ''.join(queries[0]) + " -db " + ''.join(databases[0]) +\
-		" -outfmt \"6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore\"" +\
-		" -out test.tsv"
- 
-
-print(scandb_command)
-
-os.system(scandb_command)
+	# Generate random slices if enabled
+	random_scan = 1
+	r_scan_size = 100
+	r_scan_n = 10
+	#r_scan_sub_file = os.path.expanduser(output_path+"r_scan_contigs.fas")
+	r_scan_sub_file = output_path+"r_scan_contigs.fas"	
+	if(random_scan == 1):
+		print("Generating "+str(r_scan_n)+" slices of size "+str(r_scan_size)+"...")
+		r_scan_f = open(os.path.expanduser(r_scan_sub_file), 'w')
+		for i in range(0,r_scan_n):
+			sub_seq = ''
+			# Ensure sub sequence size is sufficient (equal to r_scan_size)
+			while True:
+				start = random.randint(0, len(merged_contigs))
+				end = start+r_scan_size
+				sub_seq = merged_contigs[start:end]
+				if(len(sub_seq) == r_scan_size):
+					break
+			print >> r_scan_f, ">Sub" + str(i) + "\n" + sub_seq
+		print("Printed "+str(r_scan_n)+" random sub-sequences to "+r_scan_sub_file)
+		r_scan_f.close()
+		# Set query file to sub sequence file
+		query_file = r_scan_sub_file
+	
+	# Form blastn command
+	scandb_command = blast_path + seq_type + " -query " + query_file + " -db " + ''.join(databases[0]) +\
+			" -outfmt \"6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore\"" +\
+			" -out test.tsv"
+	print("Running: ")
+	print(scandb_command)
+	#sts = subprocess.Popen(scandb_command, shell=True).wait()
+	os.system(scandb_command)
 
 
 '''

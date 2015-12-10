@@ -75,21 +75,21 @@ for query_file in queries:
 	# Load sequences into dictionary
 	print("Loading sequences...")
 	sequences = {}
-	for qfile in queries:
-		qfile = os.path.expanduser(''.join(qfile))
-		with open(qfile) as inputfiles:
-			current_id = ''
-			current_seq = ''
-			for line in inputfiles:
-				line = line.strip('\n')
-				if('>' in line):
-					# Set ID
-					current_id = line.strip('>')
-					# Dump previous sequence, start new
-					sequences[current_id] = ''
-				else:
-					# Append sequence to dictionary
-					sequences[current_id] += line
+	#for qfile in queries:
+	qfile = os.path.expanduser(query_file)
+	with open(qfile) as inputfiles:
+		current_id = ''
+		current_seq = ''
+		for line in inputfiles:
+			line = line.strip('\n')
+			if('>' in line):
+				# Set ID
+				current_id = line.strip('>')
+				# Dump previous sequence, start new
+				sequences[current_id] = ''
+			else:
+				# Append sequence to dictionary
+				sequences[current_id] += line
 
 	# Iterate through sequence dictionary
 	print("Merging contigs...")

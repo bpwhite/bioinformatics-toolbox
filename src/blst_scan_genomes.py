@@ -85,12 +85,14 @@ for query_file in queries:
 			if('>' in line):
 				# Set ID
 				current_id = line.strip('>')
+				print(current_id)
 				# Dump previous sequence, start new
 				sequences[current_id] = ''
 			else:
 				# Append sequence to dictionary
 				sequences[current_id] += line
-
+	print("Loaded "+str(len(sequences))+" sequences")
+	
 	# Iterate through sequence dictionary
 	print("Merging contigs...")
 	merged_contigs = ''

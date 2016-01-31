@@ -1,0 +1,1 @@
+wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF_000246855.1_ASM24685v1/GCF_000246855.1_ASM24685v1_genomic.fna.gz

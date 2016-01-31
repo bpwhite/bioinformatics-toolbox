@@ -43,7 +43,7 @@ import subprocess
 import textwrap
 
 ## Local libraries
-from libs.blst_libs import tstamp
+from blst_libs import tistamp
 
 query_file = "query_targets.txt"
 db_file = "target_genomes.txt"
@@ -53,19 +53,32 @@ blast_path = "~/data_analysis/apps/ncbi-blast-2.2.31+/bin/"
 seq_type = "blastn"
 
 random_scan = 1
-r_scan_size = 1000
+r_scan_size = 500
 r_scan_n = 10
 merge_contigs = 1
 
+'''
+-word_size <Integer, >=4>
+   Word size for wordfinder algorithm (length of best perfect match)
+ -gapopen <Integer>
+   Cost to open a gap
+ -gapextend <Integer>
+   Cost to extend a gap
+ -penalty <Integer, <=0>
+   Penalty for a nucleotide mismatch
+ -reward <Integer, >=0>
+   Reward for a nucleotide match
+'''
+
 # Load query file names
-print(tstamp()+"\tReading queries...")
+print(tistamp(1)+"\tReading queries...")
 queries = []
 with open(query_file) as inputfile:
         for line in inputfile:
                 queries.append(line.strip().split(','))
 
 # Load database file names
-print(tstamp()+"\tReading databases...")
+print(tistamp(1)+"\tReading databases...")
 databases = []
 with open(db_file) as inputfile:
         for line in inputfile:
@@ -75,16 +88,17 @@ with open(db_file) as inputfile:
 for query_file in queries:
 	query_file = ''.join(query_file[0])
 	# Begin analysis of query file
-	print(tstamp()+"\tLoading query file: "+query_file)
+	print(tistamp(1)+"\tLoading query file: "+query_file)
 
 	# Determine query file path
 	split_query = query_file.split('/')
+	query_file_name = split_query[-1]
 	split_query.pop()
 	query_path = '/'.join(split_query)
-	print(tstamp()+"\tQuery File path: " + query_path)
+	print(tistamp(1)+"\tQuery File path: " + query_path)
 
 	# Load sequences into dictionary
-	print(tstamp()+"\tLoading sequences...")
+	print(tistamp(1)+"\tLoading sequences...")
 	sequences = {}
 	qfile = os.path.expanduser(query_file)
 	with open(qfile) as inputfiles:
@@ -97,7 +111,7 @@ for query_file in queries:
 				if('>' in line):
 					# Set ID
 					current_id = line.strip('>')
-					print(current_id)
+					print(tistamp(1)+"\tLoading: "+current_id)
 					# Dump previous sequence, start new
 					sequences[current_id] = ''
 				else:
@@ -108,23 +122,27 @@ for query_file in queries:
 				if('>' in line and line_i == 0):
 					# Set ID
 					current_id = line.strip('>')
-					print(current_id)
+					print(tistamp(1)+"\tLoading: "+current_id)
 					# Dump previous sequence, start new
 					sequences[current_id] = ''
+				elif('>' in line and line_i > 0):
+					# skip additional ID's
+					continue
 				else:
 					# Append sequence to dictionary
 					sequences[current_id] += line
 
 			line_i = line_i + 1
 
-	print(tstamp()+"\tLoaded "+str(len(sequences))+" sequences")
+	print(tistamp(1)+"\tLoaded "+str(len(sequences))+" sequences")
 
 	#r_scan_sub_file = os.path.expanduser(output_path+"r_scan_contigs.fas")
-	r_scan_sub_file = output_path+"r_scan_contigs.fas"
+	r_scan_sub_file = query_path+"/r_scan_contigs.fas"
+	scan_file = query_file # Actual file that will be blasted against the database
 	if(random_scan == 1 and merge_contigs == 1):
 		# Access first sequence in dict (should be merged)
 		merged_contigs = next (iter (sequences.values()))
-		print(tstamp()+"\tGenerating "+str(r_scan_n)+" slices of size "+str(r_scan_size)+"...")
+		print(tistamp(1)+"\tGenerating "+str(r_scan_n)+" slices of size "+str(r_scan_size)+"...")
 		r_scan_f = open(os.path.expanduser(r_scan_sub_file), 'w')
 		for i in range(0,r_scan_n):
 			sub_seq = ''
@@ -137,20 +155,29 @@ for query_file in queries:
 				if(len(sub_seq) == r_scan_size):
 					break
 			r_scan_f.write(">Sub" + str(i) + "\n" + sub_seq + "\n")
-		print(tstamp()+"\tPrinted "+str(r_scan_n)+" random sub-sequences to "+r_scan_sub_file)
+		print(tistamp(1)+"\tPrinted "+str(r_scan_n)+" random sub-sequences to "+r_scan_sub_file)
 		r_scan_f.close()
 		# Set query file to sub sequence file
-		query_file = r_scan_sub_file
+		scan_file = r_scan_sub_file
 
 	for database in databases:
 		database = ''.join(database[0])
-		print(tstamp()+"\tTargeting "+database+" with ")
+		# Determine database name
+		split_database = database.split('/')
+		database_file_name = split_database[-1]
+		split_database.pop()
+		database_path = '/'.join(split_database)
+
+		# format output path
+		print(tistamp(1)+"\tTargeting "+database+" with ")
+		blst_results_file = query_path+"/qry_"+query_file_name+"_db_"+database_file_name+"_results_"+tistamp(2)+".tsv"
+		print(tistamp(1)+"\tOutputing BLAST results to "+blst_results_file)
 		# Form blastn command
-		scandb_command = blast_path + seq_type + " -query " + query_file + " -db " + ''.join(database) +\
+		scandb_command = blast_path + seq_type + " -query " + scan_file + " -db " + ''.join(database) +\
 			" -outfmt \"6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore\"" +\
-			" -out test.tsv"
-		print(tstamp()+"\tRunning: ")
-		print(scandb_command)
+			" -out " + blst_results_file
+		print(tistamp(1)+"\tRunning: ")
+		print(tistamp(1)+"\t"+scandb_command)
 		#sts = subprocess.Popen(scandb_command, shell=True).wait()
 		os.system(scandb_command)
 

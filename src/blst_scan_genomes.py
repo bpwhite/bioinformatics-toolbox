@@ -131,7 +131,6 @@ for query_file in queries:
 				else:
 					# Append sequence to dictionary
 					sequences[current_id] += line
-
 			line_i = line_i + 1
 
 	print(tistamp(1)+"\tLoaded "+str(len(sequences))+" sequences")

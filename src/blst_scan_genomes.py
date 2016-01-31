@@ -1,8 +1,8 @@
-# Scan a genome database using BLAST 
+# Scan a genome database using BLAST
 # Created by Bryan White, 2015
 # input: list of FASTA files
 # output: completed BLAST database
-# 
+#
 '''
 USAGE
   blastn [-h] [-help] [-import_search_strategy filename]
@@ -40,6 +40,10 @@ Use '-help' to print detailed descriptions of command line arguments
 import os
 import random
 import subprocess
+import textwrap
+
+## Local libraries
+from libs.blst_libs import tstamp
 
 query_file = "query_targets.txt"
 db_file = "target_genomes.txt"
@@ -49,18 +53,19 @@ blast_path = "~/data_analysis/apps/ncbi-blast-2.2.31+/bin/"
 seq_type = "blastn"
 
 random_scan = 1
-r_scan_size = 100
+r_scan_size = 1000
 r_scan_n = 10
+merge_contigs = 1
 
 # Load query file names
-print("Reading queries...")
+print(tstamp()+"\tReading queries...")
 queries = []
 with open(query_file) as inputfile:
         for line in inputfile:
                 queries.append(line.strip().split(','))
 
 # Load database file names
-print("Reading databases...")
+print(tstamp()+"\tReading databases...")
 databases = []
 with open(db_file) as inputfile:
         for line in inputfile:
@@ -70,68 +75,84 @@ with open(db_file) as inputfile:
 for query_file in queries:
 	query_file = ''.join(query_file[0])
 	# Begin analysis of query file
-	print("Loading query file: "+query_file)
+	print(tstamp()+"\tLoading query file: "+query_file)
+
+	# Determine query file path
+	split_query = query_file.split('/')
+	split_query.pop()
+	query_path = '/'.join(split_query)
+	print(tstamp()+"\tQuery File path: " + query_path)
 
 	# Load sequences into dictionary
-	print("Loading sequences...")
+	print(tstamp()+"\tLoading sequences...")
 	sequences = {}
-	#for qfile in queries:
 	qfile = os.path.expanduser(query_file)
 	with open(qfile) as inputfiles:
 		current_id = ''
 		current_seq = ''
+		line_i = 0
 		for line in inputfiles:
 			line = line.strip('\n')
-			if('>' in line):
-				# Set ID
-				current_id = line.strip('>')
-				print(current_id)
-				# Dump previous sequence, start new
-				sequences[current_id] = ''
-			else:
-				# Append sequence to dictionary
-				sequences[current_id] += line
-	print("Loaded "+str(len(sequences))+" sequences")
-	
-	# Iterate through sequence dictionary
-	print("Merging contigs...")
-	merged_contigs = ''
-	for key, value in sequences.iteritems():
-		merged_contigs += value			
-	print("Merged contigs into one string of size: "+str(len(merged_contigs)))
+			if(merge_contigs == 0):
+				if('>' in line):
+					# Set ID
+					current_id = line.strip('>')
+					print(current_id)
+					# Dump previous sequence, start new
+					sequences[current_id] = ''
+				else:
+					# Append sequence to dictionary
+					sequences[current_id] += line
+			# Only read first ID, thus merging contigs
+			if(merge_contigs == 1):
+				if('>' in line and line_i == 0):
+					# Set ID
+					current_id = line.strip('>')
+					print(current_id)
+					# Dump previous sequence, start new
+					sequences[current_id] = ''
+				else:
+					# Append sequence to dictionary
+					sequences[current_id] += line
 
-	# Generate random slices if enabled
-	random_scan = 1
-	r_scan_size = 100
-	r_scan_n = 10
+			line_i = line_i + 1
+
+	print(tstamp()+"\tLoaded "+str(len(sequences))+" sequences")
+
 	#r_scan_sub_file = os.path.expanduser(output_path+"r_scan_contigs.fas")
-	r_scan_sub_file = output_path+"r_scan_contigs.fas"	
-	if(random_scan == 1):
-		print("Generating "+str(r_scan_n)+" slices of size "+str(r_scan_size)+"...")
+	r_scan_sub_file = output_path+"r_scan_contigs.fas"
+	if(random_scan == 1 and merge_contigs == 1):
+		# Access first sequence in dict (should be merged)
+		merged_contigs = next (iter (sequences.values()))
+		print(tstamp()+"\tGenerating "+str(r_scan_n)+" slices of size "+str(r_scan_size)+"...")
 		r_scan_f = open(os.path.expanduser(r_scan_sub_file), 'w')
 		for i in range(0,r_scan_n):
 			sub_seq = ''
 			# Ensure sub sequence size is sufficient (equal to r_scan_size)
+			# Extract a substring from the contig
 			while True:
 				start = random.randint(0, len(merged_contigs))
 				end = start+r_scan_size
 				sub_seq = merged_contigs[start:end]
 				if(len(sub_seq) == r_scan_size):
 					break
-			print >> r_scan_f, ">Sub" + str(i) + "\n" + sub_seq
-		print("Printed "+str(r_scan_n)+" random sub-sequences to "+r_scan_sub_file)
+			r_scan_f.write(">Sub" + str(i) + "\n" + sub_seq + "\n")
+		print(tstamp()+"\tPrinted "+str(r_scan_n)+" random sub-sequences to "+r_scan_sub_file)
 		r_scan_f.close()
 		# Set query file to sub sequence file
 		query_file = r_scan_sub_file
-	
-	# Form blastn command
-	scandb_command = blast_path + seq_type + " -query " + query_file + " -db " + ''.join(databases[0]) +\
+
+	for database in databases:
+		database = ''.join(database[0])
+		print(tstamp()+"\tTargeting "+database+" with ")
+		# Form blastn command
+		scandb_command = blast_path + seq_type + " -query " + query_file + " -db " + ''.join(database) +\
 			" -outfmt \"6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore\"" +\
 			" -out test.tsv"
-	print("Running: ")
-	print(scandb_command)
-	#sts = subprocess.Popen(scandb_command, shell=True).wait()
-	os.system(scandb_command)
+		print(tstamp()+"\tRunning: ")
+		print(scandb_command)
+		#sts = subprocess.Popen(scandb_command, shell=True).wait()
+		os.system(scandb_command)
 
 
 '''
@@ -153,7 +174,7 @@ for query_file in queries:
     12 = JSON Seqalign output,
     13 = JSON Blast output,
     14 = XML2 Blast output
-   
+
    Options 6, 7, and 10 can be additionally configured to produce
    a custom format specified by space delimited format specifiers.
    The supported format specifiers are:
@@ -198,7 +219,7 @@ for query_file in queries:
         sblastnames means unique Subject Blast Name(s), separated by a ';'
                          (in alphabetical order)
         sskingdoms means unique Subject Super Kingdom(s), separated by a ';'
-                         (in alphabetical order) 
+                         (in alphabetical order)
             stitle means Subject Title
         salltitles means All Subject Title(s), separated by a '<>'
            sstrand means Subject Strand

@@ -90,6 +90,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-slow-download'=> '0',				# Slow batch download
 													'-exemplar-only'=> '0',				# Only get 1 sequence per taxa name
 													'-match'		=> '',				# Match against a query sequence
+													'-batch-output'	=> '', # Output without headers for merging large lists of taxa 
 													}
 													);
 # Initiate parameters
@@ -100,6 +101,8 @@ my $pre_downloaded = $params->options->{'-pre-dl'};
 my $slow_download = $params->options->{'-slow-download'};
 my $exemplar_only = $params->options->{'-exemplar-only'};
 my $match_aln_file = $params->options->{'-match'};
+my $batch_output = $params->options->{'-batch-output'};
+
 my @taxa_list = ();
 my $seq_length_maximum = 3000;
 
@@ -246,7 +249,9 @@ sub download_target_taxa {
 		# Output file headers.
 	my @output_lines = ();
 	my @return_output_lines = ();
-	push(@output_lines, @output_header);
+	if($batch_output ne 1) {
+		push(@output_lines, @output_header);
+	}
 	push(@return_output_lines, @output_lines) if($taxa_counter == 0);
 	##############################################################################
 	# Retrieve taxon ID

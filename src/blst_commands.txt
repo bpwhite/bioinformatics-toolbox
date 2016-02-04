@@ -1,2 +1,5 @@
 wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF_000246855.1_ASM24685v1/GCF_000246855.1_ASM24685v1_genomic.fna.gz
 ~/data_analysis/apps/Python-3.5.1/python blst_scan_genomes.py
+
+# Single sequence no headers
+/seq_convert_genbank.pl -term Mopalia -query COI -exemplar-only 1 -sflim 1 -slim 1 -batch-output 1

@@ -90,7 +90,8 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-slow-download'=> '0',				# Slow batch download
 													'-exemplar-only'=> '0',				# Only get 1 sequence per taxa name
 													'-match'		=> '',				# Match against a query sequence
-													'-batch-output'	=> '', # Output without headers for merging large lists of taxa 
+													'-batch-output'	=> '', # Output without headers for merging large lists of taxa
+													'-std-out' => 0, # print to std out instead of output files
 													}
 													);
 # Initiate parameters
@@ -102,13 +103,16 @@ my $slow_download = $params->options->{'-slow-download'};
 my $exemplar_only = $params->options->{'-exemplar-only'};
 my $match_aln_file = $params->options->{'-match'};
 my $batch_output = $params->options->{'-batch-output'};
+my $std_outp = $params->options->{'-std-out'};
 
 my @taxa_list = ();
 my $seq_length_maximum = 3000;
 
 my $match_seq = '';
 if($match_aln_file ne '') {
-	print "Importing alignment file ".$match_aln_file."...\n";
+	if ($std_outp != 1) {
+		print "Importing alignment file ".$match_aln_file."...\n";
+	}
 	my $match_aln = Bio::AlignIO->new(-format => 'fasta',
 									-file   => $match_aln_file );
 	my $match_aln_obj = $match_aln->next_aln;
@@ -154,12 +158,19 @@ foreach my $taxa (@taxa_list) {
 ##############################################################################
 # Print successful output
 unlink $overall_output_file;
-open (OVEROUTPUT, '>>'.$overall_output_file);
-foreach my $output_line (@overall_results) {
-	print OVEROUTPUT "\"".	$output_line if $output_line ne $endl;
-	print OVEROUTPUT 		$output_line if $output_line eq $endl;
+if($std_outp == 1) {
+	foreach my $output_line (@overall_results) {
+		print "\"".	$output_line if $output_line ne $endl;
+		print $output_line if $output_line eq $endl;
+	}
+} else {
+	open (OVEROUTPUT, '>>'.$overall_output_file);
+	foreach my $output_line (@overall_results) {
+		print OVEROUTPUT "\"".	$output_line if $output_line ne $endl;
+		print OVEROUTPUT 		$output_line if $output_line eq $endl;
+	}
+	close(OVEROUTPUT);
 }
-close(OVEROUTPUT);
 ##############################################################################
 
 sub download_target_taxa {
@@ -954,6 +965,7 @@ sub download_target_taxa {
 	$seqin = '';
 	# Print to file if output is not suppressed.
 	if($suppress_output ne 'yes') {
+
 		unlink $output_file;
 		# open (OUTPUT, '>>'.$output_file);
 		open(OUTPUT, '>>'.$output_file) or die "Couldn't open: $!";
@@ -963,6 +975,7 @@ sub download_target_taxa {
 			print OUTPUT 		$output_line if $output_line eq $endl;
 		}
 		close(OUTPUT);
+
 	}
 	#############################################################################
 

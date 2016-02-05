@@ -58,6 +58,8 @@ r_scan_n = 10
 merge_contigs = 1
 
 '''
+
+
 -word_size <Integer, >=4>
    Word size for wordfinder algorithm (length of best perfect match)
  -gapopen <Integer>

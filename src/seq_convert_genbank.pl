@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # Downloads and parses genbank files given an input taxon name.
 #
-# Copyright (c) 2013-2014 Bryan White, bpcwhite@gmail.com
+# Copyright (c) 2013-2016 Bryan White, bpcwhite@gmail.com
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,23 +53,7 @@ my $k2p1 = 0;
 ##################################################################
 
 
-print "
-******************************************************************
 
-Copyright (c) 2013-2015 Bryan White, bpcwhite\@gmail.com
-
-GNU General Public License, Version 3, 29 June 2007
-
-This program comes with ABSOLUTELY NO WARRANTY; for details type.
-This is free software, and you are welcome to redistribute it
-under certain conditions.
-
-A full copy of the GPL 3.0 license should be accompanied with any
-distribution of this software.
-
-******************************************************************
-\n\n
-";
 
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
 									option_defs => {'-list' 		=> '', 				# List file name
@@ -105,14 +89,35 @@ my $match_aln_file = $params->options->{'-match'};
 my $batch_output = $params->options->{'-batch-output'};
 my $std_outp = $params->options->{'-std-out'};
 
+# Create output files
+my $overall_output_file = $params->options->{'-outp'}.'.csv';
+my $output_log = $params->options->{'-outp'}.'_log.log';
+open (OUTPLOG, '>'.$output_log);
+
+print OUTPLOG "
+******************************************************************
+
+Copyright (c) 2013-2015,2016 Bryan White, bpcwhite\@gmail.com
+
+GNU General Public License, Version 3, 29 June 2007
+
+This program comes with ABSOLUTELY NO WARRANTY; for details type.
+This is free software, and you are welcome to redistribute it
+under certain conditions.
+
+A full copy of the GPL 3.0 license should be accompanied with any
+distribution of this software.
+
+******************************************************************
+\n\n
+";
+
 my @taxa_list = ();
 my $seq_length_maximum = 3000;
 
 my $match_seq = '';
 if($match_aln_file ne '') {
-	if ($std_outp != 1) {
-		print "Importing alignment file ".$match_aln_file."...\n";
-	}
+		print OUTPLOG "Importing alignment file ".$match_aln_file."...\n";
 	my $match_aln = Bio::AlignIO->new(-format => 'fasta',
 									-file   => $match_aln_file );
 	my $match_aln_obj = $match_aln->next_aln;
@@ -135,7 +140,6 @@ if ($params->options->{'-term'}) {
 ##############################################################################
 my @overall_results = ();
 my $taxa_counter = 0;
-my $overall_output_file = $params->options->{'-outp'}.'.csv';
 my $endl = "\n";
 my $suppress_output = 'yes';
 foreach my $taxa (@taxa_list) {
@@ -267,9 +271,9 @@ sub download_target_taxa {
 	##############################################################################
 	# Retrieve taxon ID
 
-	print "[".$taxa_counter."] Searching for $target_taxon\n";
+	print OUTPLOG "[".$taxa_counter."] Searching for $target_taxon\n";
 	my @taxon_ids = ();
-	print "\tSearching taxonomy\n";
+	print OUTPLOG "\tSearching taxonomy\n";
 	my $taxonomy_eutil_tries = 1;
 
 	taxonomy_eutil:
@@ -281,7 +285,7 @@ sub download_target_taxa {
 												   -term    => $target_taxon);
 	eval { @taxon_ids = $taxonomy_eutil->get_ids(); };
 	if ($@ || (scalar(@taxon_ids) == 0)) {
-		print "\tProblem in taxonomy_eutil. Retrying...$taxonomy_eutil_tries\n";
+		print OUTPLOG "\tProblem in taxonomy_eutil. Retrying...$taxonomy_eutil_tries\n";
 		if ($taxonomy_eutil_tries == $max_num_tries) {
 			$failed_search_hash_ref->{$target_taxon}->{'taxa_id'} = 'NA';
 			goto taxa_failed;
@@ -292,7 +296,7 @@ sub download_target_taxa {
 	}
 
 	my $taxon_id = $taxon_ids[0];
-	print "\tFound taxon ID: $taxon_id\n";
+	print OUTPLOG "\tFound taxon ID: $taxon_id\n";
 	##############################################################################
 
 	##############################################################################
@@ -307,9 +311,9 @@ sub download_target_taxa {
 	}
 	my $sequence_search_tries = 1;
 	sequence_search:
-	print "\tRetrieving sequences...\n";
+	print OUTPLOG "\tRetrieving sequences...\n";
 	my $sequence_term = 'txid'.$taxon_id.'[Organism:exp]';
-	print $sequence_term."\n";
+	print OUTPLOG $sequence_term."\n";
 	my $sequence_search_limit = ($params->options->{'-slim'});
 	$sequence_search_limit = 999999999 if ($params->options->{'-count-seqs'} == 1);
 
@@ -323,7 +327,7 @@ sub download_target_taxa {
 	my @sequence_ids = ();
 	eval { @sequence_ids = $sequence_search->get_ids(); };
 	if ($@ || (scalar(@sequence_ids) == 0)) {
-		print "\tProblem in sequence_search. Retrying...\n";
+		print OUTPLOG "\tProblem in sequence_search. Retrying...\n";
 		if ($sequence_search_tries == $max_num_tries) {
 			$failed_search_hash_ref->{$target_taxon}->{'taxa_id'} = $taxon_id;
 			goto sequence_failed;
@@ -349,7 +353,7 @@ sub download_target_taxa {
 		usleep($sleep_time); 	# Sleep so you don't overload NCBI's servers.
 		goto just_count_seqs;
 	}
-	print "\tFound ".$number_seqs_found." sequences to download.\n";
+	print OUTPLOG "\tFound ".$number_seqs_found." sequences to download.\n";
 	##############################################################################
 	# Batch downloader
 	my $fetch_limit = $params->options->{'-sflim'}; # Fetch a limited number of seqs
@@ -358,7 +362,7 @@ sub download_target_taxa {
 	my $int_number_batches = int @sequence_ids / $ncbi_sequence_cap;
 	my $mod_number_batches = @sequence_ids % $ncbi_sequence_cap;
 	$int_number_batches++ if($mod_number_batches > 0);
-	print "\tSequences will be downloaded in ".$int_number_batches." batches\n";
+	print OUTPLOG "\tSequences will be downloaded in ".$int_number_batches." batches\n";
 	my $total_batched = 0;
 	for (my $batch_i = 0; $batch_i <= $int_number_batches; $batch_i++) {
 		my @sub_batch_list = ();
@@ -376,7 +380,7 @@ sub download_target_taxa {
 		} else {
 			$starting_count = $total_batched-$ncbi_sequence_cap;
 		}
-		print "\tDownloading sequences...[".$batch_i."] ".$starting_count." to ".$total_batched."\n";
+		print OUTPLOG "\tDownloading sequences...[".$batch_i."] ".$starting_count." to ".$total_batched."\n";
 		my $sub_batch_file = $batch_i."_".$sequence_file;
 		my $sequence_fetch = '';
 		if($slow_download != 0) {
@@ -392,8 +396,8 @@ sub download_target_taxa {
 			$sequence_fetch->get_Response(-file => $sub_batch_file);
 		};
 		if($@) {
-			print "\tProblem in sequence download. Retrying...\n";
-			print "\t".$@."\n";
+			print OUTPLOG "\tProblem in sequence download. Retrying...\n";
+			print OUTPLOG "\t".$@."\n";
 			if ($sequence_download_tries == $max_num_tries) {
 				$failed_search_hash_ref->{$target_taxon}->{'taxa_id'} = $taxon_id;
 				goto sequence_failed;
@@ -406,7 +410,7 @@ sub download_target_taxa {
 		last if $total_batched == $fetch_limit;
 	}
 
-	print "\tSequences downloaded to genbank format.\n";
+	print OUTPLOG "\tSequences downloaded to genbank format.\n";
 	##############################################################################
 
 	##############################################################################
@@ -480,7 +484,7 @@ sub download_target_taxa {
 			$current_accession =~ s/\s+$//; # remove trailing spaces
 			$current_accession =~ s/ /_/g; 	# replace inner whitespace
 			if(exists($accession_hash{$current_accession})) {
-				print $current_accession;
+				print OUTPLOG $current_accession;
 				$accession_hash{$current_accession}++;
 			} else {
 				$accession_hash{$current_accession} = 1;
@@ -677,7 +681,7 @@ sub download_target_taxa {
 		$seq_pubmed = undef; # Flush
 		if($@ || scalar @pubmed_ids == 0) {
 			$pubmed_esearch_tries++;
-			print "\tProblem in pubmed search. Retrying...\n";
+			print OUTPLOG "\tProblem in pubmed search. Retrying...\n";
 			if ($pubmed_esearch_tries == $max_pubmed_tries) {
 				$pubmed_hash_ref->{$cleaned_title}->{'abstract'}= 'NA';
 				$pubmed_hash_ref->{$cleaned_title}->{'name'} 	= 'NA';
@@ -704,7 +708,7 @@ sub download_target_taxa {
 		# Did find pubmed articles, get the summary
 		eval { $ds_pubmed = $seq_pubmed_summary->next_DocSum; };
 		if($@) {
-			print "\tProblem in pubmed summary. Retrying...\n";
+			print OUTPLOG "\tProblem in pubmed summary. Retrying...\n";
 
 			goto skip_pubmed if $pubmed_summary_tries == $max_pubmed_tries;
 			$pubmed_summary_tries++;
@@ -737,7 +741,7 @@ sub download_target_taxa {
 		my $pubmed_file = 'pubmed_'.$taxon_id.'.txt';
 		eval { $pubmed_fetch->get_Response(-file => $pubmed_file); };
 		if($@) {
-			print "\tProblem in pubmed fetch. Retrying...\n";
+			print OUTPLOG "\tProblem in pubmed fetch. Retrying...\n";
 			$pubmed_fetch_tries++;
 			goto skip_pubmed if $pubmed_fetch_tries == $max_pubmed_tries;
 			goto pubmed_fetch;
@@ -1030,10 +1034,10 @@ sub download_target_taxa {
 	# unlink $sequence_file or warn "Could not unlink $sequence_file\n";
 	unlink($sequence_file) if defined $sequence_file;
 
-	print "Duplicate accession Id's eliminated:\n";
+	print OUTPLOG "Duplicate accession Id's eliminated:\n";
 	for my $unique_id (sort keys %accession_hash) {
 		if($accession_hash{$unique_id} > 1) {
-			print $unique_id." => ".$accession_hash{$unique_id}."\n";
+			print OUTPLOG $unique_id." => ".$accession_hash{$unique_id}."\n";
 		}
 	}
 	return \@return_output_lines;
@@ -1041,8 +1045,8 @@ sub download_target_taxa {
 
 my $t1 = Benchmark->new;
 my $time_diff = timediff($t1, $t0);
-print "\n";
-print timestr($time_diff)."\n";
+print OUTPLOG "\n";
+print OUTPLOG timestr($time_diff)."\n";
 
 # Available database:
 # :pubmed, protein, nucleotide, nuccore, nucgss, nucest, structure, genome,
@@ -1071,14 +1075,14 @@ sub search_strings {
 		my @query_lines = <QUERY>;
 		foreach my $query_line (@query_lines) {
 			my @split_line = split(m/\=/, $query_line);
-			print $split_line[0]." => ".$split_line[1]."\n";
+			print OUTPLOG $split_line[0]." => ".$split_line[1]."\n";
 			$search_string_hash{$split_line[0]} = $split_line[1];
 		}
 	}
 
 	if(exists $search_string_hash{$short_name}) {
-		print "Executing search string: \n";
-		print $search_string_hash{$short_name}."\n";
+		print OUTPLOG "Executing search string: \n";
+		print OUTPLOG $search_string_hash{$short_name}."\n";
 		return $search_string_hash{$short_name};
 	} else {
 		return $short_name;
@@ -1092,6 +1096,6 @@ sub current_memory {
 
 	my $hash_ref = peek_my(0);
 
-	# print Dumper($hash_ref);
-	print "Total mem: ".total_size($hash_ref)."\n";
+	# print OUTPLOG Dumper($hash_ref);
+	print OUTPLOG "Total mem: ".total_size($hash_ref)."\n";
 }

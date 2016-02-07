@@ -3,3 +3,6 @@ wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF_000246855.1_ASM24685v1/GCF_00024
 
 # Single sequence no headers
 /seq_convert_genbank.pl -term Mopalia -query COI -exemplar-only 1 -sflim 1 -slim 1 -batch-output 1
+
+# Print output to standard out instead of text file
+./seq_convert_genbank.pl -term Mopalia -query COI -sflim 1 -slim 1 -std-out 1

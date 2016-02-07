@@ -2,7 +2,7 @@
 #
 # BioPerl module for Bio::Tree::TreeFunctionsI
 #
-# Please direct questions and support issues to <bioperl-l@bioperl.org> 
+# Please direct questions and support issues to <bioperl-l@bioperl.org>
 #
 # Cared for by Jason Stajich <jason-at-bioperl-dot-org>
 #
@@ -45,15 +45,15 @@ the Bioperl mailing list.  Your participation is much appreciated.
   bioperl-l@bioperl.org                  - General discussion
   http://bioperl.org/wiki/Mailing_lists  - About the mailing lists
 
-=head2 Support 
+=head2 Support
 
 Please direct usage questions or support issues to the mailing list:
 
 I<bioperl-l@bioperl.org>
 
-rather than to the module maintainer directly. Many experienced and 
-reponsive experts will be able look at the problem and quickly 
-address it. Please include a thorough description of the problem 
+rather than to the module maintainer directly. Many experienced and
+reponsive experts will be able look at the problem and quickly
+address it. Please include a thorough description of the problem
 with code and data examples if at all possible.
 
 =head2 Reporting Bugs
@@ -91,7 +91,7 @@ Internal methods are usually preceded with a _
 package Bio::Tree::TreeFunctionsI;
 use strict;
 
-use UNIVERSAL qw(isa);
+#use UNIVERSAL qw(isa);
 
 use base qw(Bio::Tree::TreeI);
 
@@ -100,7 +100,7 @@ use base qw(Bio::Tree::TreeI);
  Title   : find_node
  Usage   : my @nodes = $self->find_node(-id => 'node1');
  Function: returns all nodes that match a specific field, by default this
-           is id, but different branch_length, 
+           is id, but different branch_length,
  Returns : List of nodes which matched search
  Args    : text string to search for
            OR
@@ -110,21 +110,21 @@ use base qw(Bio::Tree::TreeI);
 
 sub find_node {
    my ($self,$type,$field) = @_;
-   if( ! defined $type ) { 
+   if( ! defined $type ) {
        $self->warn("Must request a either a string or field and string when searching");
    }
 
    # all this work for a '-' named field
-   # is so that we could potentially 
-   # expand to other constraints in 
+   # is so that we could potentially
+   # expand to other constraints in
    # different implementations
    # like 'find all nodes with boostrap < XX'
 
-   if( ! defined $field ) { 
+   if( ! defined $field ) {
        # only 1 argument, default to searching by id
-       $field= $type; 
+       $field= $type;
        $type = 'id';
-   } else {   
+   } else {
        $type =~ s/^-//;
    }
 
@@ -136,10 +136,10 @@ sub find_node {
    my @nodes = grep { $_->can($type) && defined $_->$type() &&
 		     $_->$type() eq $field } $self->get_nodes();
 
-   if ( wantarray) { 
+   if ( wantarray) {
        return @nodes;
-   } else { 
-       if( @nodes > 1 ) { 
+   } else {
+       if( @nodes > 1 ) {
 	   $self->warn("More than 1 node found but caller requested scalar, only returning first node");
        }
        return shift @nodes;
@@ -164,13 +164,13 @@ sub remove_Node {
    }  elsif( ! $input->isa('Bio::Tree::NodeI') ) {
        $self->warn("Did not provide either a valid Bio::Tree::NodeI object or id to remove_node");
        return 0;
-   } else { 
+   } else {
        $node = $input;
    }
-   if( ! $node->ancestor && 
+   if( ! $node->ancestor &&
        $self->get_root_node->internal_id != $node->internal_id) {
      $self->warn("Node (".$node->to_string . ") has no ancestor, can't remove!");
-   } else { 
+   } else {
      $node->ancestor->remove_Descendent($node);
    }
 }
@@ -196,7 +196,7 @@ sub get_lineage_nodes {
         $self->warn("Did not provide either a valid Bio::Tree::NodeI object or id to get_lineage_nodes");
         return;
     }
-    else { 
+    else {
         $node = $input;
     }
 
@@ -241,7 +241,7 @@ sub get_lineage_nodes {
 
            -preserve_lengths => 1 : setting this argument will splice out
            intermediate nodes, preserving the original total length between
-           the ancestor and the descendants of the spliced node. Undef 
+           the ancestor and the descendants of the spliced node. Undef
            by default.
 
 =cut
@@ -543,7 +543,7 @@ sub contract_linear_paths {
                the internal node is a true binary tree
                without polytomies
   Returns    : boolean
-  Exceptions : 
+  Exceptions :
   Args       : Internal node Bio::Tree::NodeI, optional
 
 
@@ -811,7 +811,7 @@ sub distance {
     $self->throw("Must provide 2 nodes") unless @{$nodes} == 2;
 
     my $lca = $self->get_lca(@{$nodes});
-    unless($lca) { 
+    unless($lca) {
         $self->warn("could not find the lca of supplied nodes; can't find distance either");
         return;
     }
@@ -839,7 +839,7 @@ sub distance {
 =head2 is_monophyletic
 
  Title   : is_monophyletic
- Usage   : if( $tree->is_monophyletic(-nodes => \@nodes, 
+ Usage   : if( $tree->is_monophyletic(-nodes => \@nodes,
 				      -outgroup => $outgroup)
  Function: Will do a test of monophyly for the nodes specified
            in comparison to a chosen outgroup
@@ -864,7 +864,7 @@ is_monophyletic");
    }
 
    my $clade_root = $self->get_lca(@{$nodes});
-   unless( defined $clade_root ) { 
+   unless( defined $clade_root ) {
        $self->warn("could not find clade root via lca");
        return;
    }
@@ -904,7 +904,7 @@ sub is_paraphyletic{
        $self->warn("Must suply -nodes and -outgroup parameters to the method is_paraphyletic");
        return;
    }
-   if( ref($nodes) !~ /ARRAY/i ) { 
+   if( ref($nodes) !~ /ARRAY/i ) {
        $self->warn("Must provide a valid array reference for -nodes");
        return;
    }
@@ -919,7 +919,7 @@ sub is_paraphyletic{
    }
 
    my $clade_root = $self->get_lca(-nodes => $nodes );
-   unless( defined $clade_root ) { 
+   unless( defined $clade_root ) {
        $self->warn("could not find clade root via lca");
        return;
    }
@@ -937,7 +937,7 @@ sub is_paraphyletic{
    my $tree = Bio::Tree::Tree->new(-root     => $clade_root,
 				  -nodelete => 1);
 
-   foreach my $n ( $tree->get_nodes() ) { 
+   foreach my $n ( $tree->get_nodes() ) {
        next unless $n->is_Leaf();
        # if any leaf node is not in the list
        # then it is part of the clade and so the list
@@ -991,7 +991,7 @@ sub reroot {
 
     $new_root->add_Descendent($former_anc);
     $tmp_node->remove_Descendent($former_anc);
-    
+
     $tmp_node = undef;
     $new_root->branch_length(undef);
     $new_root->remove_tag('B');
@@ -1006,7 +1006,7 @@ sub reroot {
 
  Title   : reroot_at_midpoint
  Usage   : $tree->reroot_at_midpoint($node, $new_root_id);
- Function: Reroots a tree on a new node created halfway between the 
+ Function: Reroots a tree on a new node created halfway between the
            argument and its ancestor
  Returns : the new midpoint Bio::Tree::NodeIon success, 0 on failure
  Args    : non-root Bio::Tree::NodeI currently in $tree
@@ -1037,7 +1037,7 @@ sub reroot_at_midpoint {
 
  Title   : findnode_by_id
  Usage   : my $node = $tree->findnode_by_id($id);
- Function: Get a node by its id (which should be 
+ Function: Get a node by its id (which should be
            unique for the tree)
  Returns : L<Bio::Tree::NodeI>
  Args    : node id

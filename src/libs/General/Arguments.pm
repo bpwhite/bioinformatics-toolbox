@@ -17,7 +17,7 @@
 package General::Arguments;
 
 use Moose;
-				   
+
 ########################################################################
 # Class Variables
 
@@ -65,18 +65,18 @@ sub BUILD {
 		die "Missing parameters.\n" if scalar @{$self->arguments_v} == 0;
 
 		my @help = grep { $_ eq '--help'} $self->arguments_v;
-		if (scalar(@help) > 0) { 
-			print $self->print_help; 
+		if (scalar(@help) > 0) {
+			# print $self-># print_help;
 			exit;
 		}
 		die "Odd number of parameters.\n" if scalar @{$self->arguments_v} %2;
 		# Set ARGV parameters
 		for (my $arg_i = 0; $arg_i < (scalar(@{$self->arguments_v})); $arg_i+=2) {
-			my $option = $self->arguments_v->[$arg_i];			
+			my $option = $self->arguments_v->[$arg_i];
 			if(exists($self->option_defs->{$option})) {
 				my $value 					= $self->arguments_v->[$arg_i+1];
 				$self->options->{$option} 	= $value;
-				print "\t".$option." => ".$value."\n";
+				# print "\t".$option." => ".$value."\n";
 			} else {
 				die "Parameter does not exist: $option";
 			}
@@ -85,17 +85,17 @@ sub BUILD {
 		while ( my ($key, $value) = each(%{$self->option_defs}) ) {
 			if (!exists ($self->options->{$key})) {
 				$self->options->{$key} = $self->option_defs->{$key};
-				print "\t$key => $value (default)\n";
+				# print "\t$key => $value (default)\n";
 			}
 		}
 	};
 	if ($@) {
 		my @parameter_error_split = split(/ /,$@);
 		my @parameter_error = grep $_ =~ /'/, @parameter_error_split;
-		print "*************************\n";
-		print "Fatal parameter error:\n\n";
-		print "$@";
-		print "*************************\n";
+		# print "*************************\n";
+		# print "Fatal parameter error:\n\n";
+		# print "$@";
+		# print "*************************\n";
 		exit;
 	}
 }
@@ -103,15 +103,15 @@ sub BUILD {
 
 sub print_options {
 	my $self = shift;
-	print "Using parameters...\n";
+	# print "Using parameters...\n";
 	while ( my ($key, $value) = each(%{$self->options}) ) {
-        print "\t$key => $value\n";
+        # print "\t$key => $value\n";
     }
 }
 
 sub print_help {
 	# my $self = shift;
-	
+
 	# print "seq_convert_genbank.pl help\n";
 	# while ( my ($key, $value) = each(%{$self->option_defs}) ) {
         # print "\t$key => $value\n";

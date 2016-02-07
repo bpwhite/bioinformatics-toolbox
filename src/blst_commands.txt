@@ -1,4 +1,10 @@
+# Browse available genomes
+http://www.ncbi.nlm.nih.gov/genome/browse/
+
+# Download a genome
 wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF_000246855.1_ASM24685v1/GCF_000246855.1_ASM24685v1_genomic.fna.gz
+
+# Scan genomes
 ~/data_analysis/apps/Python-3.5.1/python blst_scan_genomes.py
 
 # Single sequence no headers
@@ -6,3 +12,6 @@ wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF_000246855.1_ASM24685v1/GCF_00024
 
 # Print output to standard out instead of text file
 ./seq_convert_genbank.pl -term Mopalia -query COI -sflim 1 -slim 1 -std-out 1
+
+# Build taxa structure
+~/data_analysis/apps/Python-3.5.1/python blst_build_taxonomy.py

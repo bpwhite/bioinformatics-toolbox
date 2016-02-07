@@ -202,7 +202,8 @@ sub download_target_taxa {
 	# my $search_options = '';
 	my $taxon_limit = 1;
 	my $user_email = 'blah@blah.com';
-	my $dlm = ',';
+	#my $dlm = ',';
+	my $dlm = '\t';
 	my $endl = "\n";
 	my $output_file = $target_taxon."_output.csv";
 	my $sleep_time = 1000; # microsends, pause between seconds

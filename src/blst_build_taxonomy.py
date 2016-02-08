@@ -22,7 +22,7 @@ import subprocess
 import hashlib
 
 ## Local libraries
-from blst_libs import tistamp
+from blst_libs import tistamp,validate_taxa
 
 taxa_file = os.path.expanduser("~/data_analysis/data/genome_assemblies/test_genomes_02062016.tsv")
 
@@ -40,18 +40,21 @@ with open(taxa_file) as inputfile:
         for line in inputfile:
                 taxa.append(line.strip().split(','))
 
+validated_taxa = 0
+taxa_i = 0
 # Parse data
 for taxon in taxa[1:]:
 	#print(taxon[0])
-	tax_i = 0
+
 	split_tx = taxon[0].split('\t')
 
 	####################################
 	# Print header codes
 	if(parse_headers == 1):
+		headers_i = 0
 		for tax_col in split_tx:
-			print(tax_col + " \t\t= split_tx["+str(tax_i)+"]")
-			tax_i = tax_i + 1
+			print(tax_col + " \t\t= split_tx["+str(headers_i)+"]")
+			headers_i = headers_i + 1
 		exit()
 	####################################
 
@@ -90,36 +93,36 @@ for taxon in taxa[1:]:
 		+ "_" + gen_size_mb
 	key_hash = hashlib.sha224(gen_key.encode('utf-8')).hexdigest()
 	short_hash = key_hash[0:7]
-	print(tistamp(1) + "\t" + gen_key + "_" + short_hash)
+	print(tistamp(1) + "\t [" + str(taxa_i) + "] " + gen_organism + "_" + short_hash)
 	####################################
 
 	####################################
 	# Build taxonomy lookup command
-	taxa_lookup = seq_downloader + " -term \"" + gen_organism \
-		+ "\" -query COI " \
-		+ "-sflim 1 -slim 1 -std-out 1"
-	print(tistamp(1)+"\t"+taxa_lookup)
-	lookup_results = subprocess.check_output(taxa_lookup, shell=True).decode("utf-8")
-	# Find columns
+	seq_limit = 1
+	validation = validate_taxa(seq_downloader, gen_organism, seq_limit)
+	print(tistamp(1)+"\tValidation Report For: " + gen_organism)
+	print(tistamp(1)+"\t\tTaxonomic Hierarchy: "+ validation[0])
+	print(tistamp(1)+"\t\tTaxa Length (req): " + str(validation[1]))
+	print(tistamp(1)+"\t\tSame Hierarchy: " + str(validation[2]))
+	print(tistamp(1)+"\t\tNuc length: " + str(validation[3]))
+	print(tistamp(1)+"\t\tProt length: " + str(validation[4]))
 
-	lookup_split	= lookup_results.splitlines()
-	lookup_headers	= lookup_split[0]
-	lookup_data		= lookup_split[1]
+	taxon_hierarchy 		= validation[0]
+	tax_length_validation 	= validation[1]
+	nuc_validiation 		= validation[3]
+	prot_validation 		= validation[4]
 
-	headers_split 	= lookup_headers.split('\\t')
-	data_split		= lookup_data.split('\\t')
+	# Must have both a taxonomic hierarchy string and at least 1 type of sequence (prot or nuc)
+	if tax_length_validation == 'PASS' and (nuc_validiation == 'PASS' or prot_validation == 'PASS'):
+		print(tistamp(1)+"\t**Validation Successful**\n")
+		validated_taxa = validated_taxa + 1
+	else:
+		print(tistamp(1)+"\t**Validation Failed**\n")
 
-	#for data in data_split:
-	#	print(data)
+	taxa_i = taxa_i + 1
+	#exit()
 
-	tx_hierarchy = ''
-	header_i = 0
-	for header in headers_split:
-		if header == "\"tax_hierarchy\"":
-			tx_hierarchy = data_split[header_i]
-		header_i = header_i + 1
-	print(tistamp(1)+"\t"+tx_hierarchy)
-
+print(tistamp(1)+"\t Successfully validated: " + validated_taxa)
 
 '''
 Genome columns as of:

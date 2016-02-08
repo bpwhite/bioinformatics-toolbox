@@ -76,6 +76,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-match'		=> '',				# Match against a query sequence
 													'-batch-output'	=> '', # Output without headers for merging large lists of taxa
 													'-std-out' => 0, # print to std out instead of output files
+													'-sleep-time' => 100,
 													}
 													);
 # Initiate parameters
@@ -88,6 +89,7 @@ my $exemplar_only = $params->options->{'-exemplar-only'};
 my $match_aln_file = $params->options->{'-match'};
 my $batch_output = $params->options->{'-batch-output'};
 my $std_outp = $params->options->{'-std-out'};
+my $sleep_time = $params->options->{'-sleep-time'}; # microsends, pause between seconds
 
 # Create output files
 my $overall_output_file = $params->options->{'-outp'}.'.csv';
@@ -206,7 +208,6 @@ sub download_target_taxa {
 	my $dlm = '\t';
 	my $endl = "\n";
 	my $output_file = $target_taxon."_output.csv";
-	my $sleep_time = 1000; # microsends, pause between seconds
 	my $max_num_tries = 2;
 	my $max_pubmed_tries = 2;
 	my $sequence_file = '';

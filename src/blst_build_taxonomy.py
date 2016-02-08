@@ -93,7 +93,7 @@ for taxon in taxa[1:]:
 		+ "_" + gen_size_mb
 	key_hash = hashlib.sha224(gen_key.encode('utf-8')).hexdigest()
 	short_hash = key_hash[0:7]
-	
+
 	####################################
 
 	####################################
@@ -142,10 +142,8 @@ for taxon in taxa[1:]:
 	# Begin genome download
 	if validation_successful == 1:
 
-
-
 	taxa_i = taxa_i + 1
-	exit()
+	#exit()
 
 print(tistamp(1)+"\t Successfully validated: " + str(validated_taxa))
 

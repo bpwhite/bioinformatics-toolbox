@@ -93,19 +93,35 @@ for taxon in taxa[1:]:
 		+ "_" + gen_size_mb
 	key_hash = hashlib.sha224(gen_key.encode('utf-8')).hexdigest()
 	short_hash = key_hash[0:7]
-	print(tistamp(1) + "\t [" + str(taxa_i) + "] " + gen_organism + "_" + short_hash)
+	
+	####################################
+
+	####################################
+	# Print assembly data
+	print(tistamp(1) + "\t[" + str(taxa_i) + "] " + gen_organism + "_" + short_hash)
+	print(tistamp(1)+"\tBegin Validation Report")
+	print(tistamp(1) \
+		+ "\t\tBioSample: " + gen_biosample \
+		+ "\t\tBioProject: " + gen_bioproject \
+		+ "\t\tGroup: " + gen_group \
+		+ "\t\tSubGroup: " + gen_subgroup \
+		+ "\t\tSize: " + gen_size_mb + " MB" \
+		+ "\t\tGC Content: " + gen_GC_content \
+		+ "\t\tAssembly: " + gen_assembly)
 	####################################
 
 	####################################
 	# Build taxonomy lookup command
 	seq_limit = 1
 	validation = validate_taxa(seq_downloader, gen_organism, seq_limit)
-	print(tistamp(1)+"\tValidation Report For: " + gen_organism)
-	print(tistamp(1)+"\t\tTaxonomic Hierarchy: "+ validation[0])
-	print(tistamp(1)+"\t\tTaxa Length (req): " + str(validation[1]))
-	print(tistamp(1)+"\t\tSame Hierarchy: " + str(validation[2]))
-	print(tistamp(1)+"\t\tNuc length: " + str(validation[3]))
-	print(tistamp(1)+"\t\tProt length: " + str(validation[4]))
+
+
+	print(tistamp(1)+"\t\tTaxonomic Hierarchy: " + validation[0])
+	print(tistamp(1) \
+		+ "\t\tTaxa Length (req): " + str(validation[1]) \
+		+ "\t\tSame Hierarchy: " + str(validation[2]) \
+		+ "\t\tNuc length: " + str(validation[3]) \
+		+ "\t\tProt length: " + str(validation[4]))
 
 	taxon_hierarchy 		= validation[0]
 	tax_length_validation 	= validation[1]
@@ -113,16 +129,25 @@ for taxon in taxa[1:]:
 	prot_validation 		= validation[4]
 
 	# Must have both a taxonomic hierarchy string and at least 1 type of sequence (prot or nuc)
+	validation_successful = 0
 	if tax_length_validation == 'PASS' and (nuc_validiation == 'PASS' or prot_validation == 'PASS'):
 		print(tistamp(1)+"\t**Validation Successful**\n")
 		validated_taxa = validated_taxa + 1
+		validation_successful = 1
 	else:
 		print(tistamp(1)+"\t**Validation Failed**\n")
+	####################################
+
+	####################################
+	# Begin genome download
+	if validation_successful == 1:
+
+
 
 	taxa_i = taxa_i + 1
-	#exit()
+	exit()
 
-print(tistamp(1)+"\t Successfully validated: " + validated_taxa)
+print(tistamp(1)+"\t Successfully validated: " + str(validated_taxa))
 
 '''
 Genome columns as of:

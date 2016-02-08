@@ -150,34 +150,51 @@ for taxon in taxa[1:]:
 			print(tistamp(1)+"\tCreating: " + gen_directory)
 			os.makedirs(gen_directory)
 
-		#ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCA_001244265.1_MvSlA1A2r3c/GCA_001244265.1_MvSlA1A2r3c_genomic.fna.gz
+		####################################
+		# Genomic
 		print(tistamp(1)+"\tDownloading Genomic...")
-		genomic_download = "wget -O " + gen_directory + "/" + gen_assemblyname + "_genomic.fna.gz " + gen_genomic_ftp
-		print(tistamp(1)+"\t"+genomic_download)
-		try:
-			genomic_dl = subprocess.check_output(genomic_download, shell=True).decode("utf-8")
-		except:
-			print(tistamp(1)+"\tCould not download genome")
+
+		genomic_filename = gen_directory + "/" + gen_assemblyname + "_genomic.fna.gz"
+		genomic_download = "wget -O " + genomic_filename + " " + gen_genomic_ftp
+
+		if os.stat(genomic_filename).st_size < 1:
+			print(tistamp(1)+"\t"+genomic_download)
+			try:
+				genomic_dl = subprocess.check_output(genomic_download, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
+				print(genomic_dl)
+			except:
+				subprocess.check_output("rm "+genomic_filename, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
+				print(tistamp(1)+"\tCould not download genome")
+
 		print(tistamp(1)+"\tGenomic Complete")
+		####################################
 
+		####################################
+		# Protein
 		print(tistamp(1)+"\tDownloading Protein...")
-		protein_download = "wget -O " + gen_directory + "/" + gen_assemblyname + "_protein.fna.gz " +  gen_protein_ftp
-		print(tistamp(1)+"\t"+protein_download)
-		try:
-			prtein_dl = subprocess.check_output(protein_download, shell=True).decode("utf-8")
-		except:
-			print(tistamp(1)+"\tCould not download protein")
+		protein_filename = gen_directory + "/" + gen_assemblyname + "_protein.fna.gz"
+		protein_download = "wget -O " + protein_filename + " " +  gen_protein_ftp
+		if os.stat(protein_filename).st_size < 1:
+			try:
+				print(tistamp(1)+"\t"+protein_download)
+				prtein_dl = subprocess.check_output(protein_download, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
+			except:
+				print(tistamp(1)+"\tCould not download protein")
 		print(tistamp(1)+"\tProtein Complete.")
+		####################################
 
-		#ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCA_001244265.1_MvSlA1A2r3c/GCA_001244265.1_MvSlA1A2r3c_feature_table.txt.gz
+		####################################
+		# Features
 		print(tistamp(1)+"\tDownloading Features...")
 		feature_download = "wget -O " + gen_directory + "/" + gen_assemblyname + "_feature_table.txt.gz " +  gen_feature_table_ftp
 		print(tistamp(1)+"\t"+feature_download)
+		### ** size
 		try:
-			feature_dl = subprocess.check_output(feature_download, shell=True).decode("utf-8")
+			feature_dl = subprocess.check_output(feature_download, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
 		except:
 			print(tistamp(1)+"\tCould not download feature table")
 		print(tistamp(1)+"\tFeatures Complete.")
+		####################################
 
 	taxa_i = taxa_i + 1
 	exit()

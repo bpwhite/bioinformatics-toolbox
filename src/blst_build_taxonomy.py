@@ -25,8 +25,7 @@ import hashlib
 from blst_libs import tistamp,validate_taxa
 
 taxa_file = os.path.expanduser("~/data_analysis/data/genome_assemblies/test_genomes_02062016.tsv")
-
-output_path = "~/data_analysis/data/genome_assemblies/"
+output_path = os.path.expanduser("~/data_analysis/data/genome_assemblies")
 seq_downloader = os.path.expanduser("~/data_analysis/code/bioinformatics-toolbox/src/seq_convert_genbank.pl")
 
 # Parameters
@@ -81,9 +80,9 @@ for taxon in taxa[1:]:
 	gen_genbank_FTP 	= split_tx[18]
 	gen_final 			= split_tx[19]
 	gen_assemblyname 	= split_tx[24]
-	gen_genomic 		= split_tx[25]
-	gen_protein 		= split_tx[26]
-	gen_feature_table 	= split_tx[27]
+	gen_genomic_ftp 	= split_tx[25]
+	gen_protein_ftp		= split_tx[26]
+	gen_feature_table_ftp = split_tx[27]
 	####################################
 
 	####################################
@@ -93,7 +92,6 @@ for taxon in taxa[1:]:
 		+ "_" + gen_size_mb
 	key_hash = hashlib.sha224(gen_key.encode('utf-8')).hexdigest()
 	short_hash = key_hash[0:7]
-
 	####################################
 
 	####################################
@@ -131,19 +129,58 @@ for taxon in taxa[1:]:
 	# Must have both a taxonomic hierarchy string and at least 1 type of sequence (prot or nuc)
 	validation_successful = 0
 	if tax_length_validation == 'PASS' and (nuc_validiation == 'PASS' or prot_validation == 'PASS'):
-		print(tistamp(1)+"\t**Validation Successful**\n")
+		print(tistamp(1)+"\t**Validation Successful**")
 		validated_taxa = validated_taxa + 1
 		validation_successful = 1
 	else:
-		print(tistamp(1)+"\t**Validation Failed**\n")
+		print(tistamp(1)+"\t**Validation Failed**")
+	print(tistamp(1)+"\t**Validation Complete**")
+	print(tistamp(1)+"\t***********************")
 	####################################
 
 	####################################
 	# Begin genome download
 	if validation_successful == 1:
+		print(tistamp(1)+"\tBegin Genome Download")
+		# Check if assembly directory exists
+		gen_directory = output_path + "/" + gen_assemblyname + "_" + short_hash
+		print(tistamp(1)+"\tChecking directory...")
+		if not os.path.isdir(gen_directory):
+			print(tistamp(1)+"\tDirectory not found, creating directory")
+			print(tistamp(1)+"\tCreating: " + gen_directory)
+			os.makedirs(gen_directory)
+
+		#ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCA_001244265.1_MvSlA1A2r3c/GCA_001244265.1_MvSlA1A2r3c_genomic.fna.gz
+		print(tistamp(1)+"\tDownloading Genomic...")
+		genomic_download = "wget -O " + gen_directory + "/" + gen_assemblyname + "_genomic.fna.gz " + gen_genomic_ftp
+		print(tistamp(1)+"\t"+genomic_download)
+		try:
+			genomic_dl = subprocess.check_output(genomic_download, shell=True).decode("utf-8")
+		except:
+			print(tistamp(1)+"\tCould not download genome")
+		print(tistamp(1)+"\tGenomic Complete")
+
+		print(tistamp(1)+"\tDownloading Protein...")
+		protein_download = "wget -O " + gen_directory + "/" + gen_assemblyname + "_protein.fna.gz " +  gen_protein_ftp
+		print(tistamp(1)+"\t"+protein_download)
+		try:
+			prtein_dl = subprocess.check_output(protein_download, shell=True).decode("utf-8")
+		except:
+			print(tistamp(1)+"\tCould not download protein")
+		print(tistamp(1)+"\tProtein Complete.")
+
+		#ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCA_001244265.1_MvSlA1A2r3c/GCA_001244265.1_MvSlA1A2r3c_feature_table.txt.gz
+		print(tistamp(1)+"\tDownloading Features...")
+		feature_download = "wget -O " + gen_directory + "/" + gen_assemblyname + "_feature_table.txt.gz " +  gen_feature_table_ftp
+		print(tistamp(1)+"\t"+feature_download)
+		try:
+			feature_dl = subprocess.check_output(feature_download, shell=True).decode("utf-8")
+		except:
+			print(tistamp(1)+"\tCould not download feature table")
+		print(tistamp(1)+"\tFeatures Complete.")
 
 	taxa_i = taxa_i + 1
-	#exit()
+	exit()
 
 print(tistamp(1)+"\t Successfully validated: " + str(validated_taxa))
 

@@ -24,7 +24,11 @@ import hashlib
 ## Local libraries
 from blst_libs import tistamp,validate_taxa
 
-taxa_file = os.path.expanduser("~/data_analysis/data/genome_assemblies/test_genomes_02062016.tsv")
+#taxa_file = os.path.expanduser("~/data_analysis/data/genome_assemblies/test_genomes_02062016.tsv")
+taxa_file = os.path.expanduser("~/data_analysis/data/genome_assemblies/genomes_euks_Fungi_Protists_02082016.tsv")
+#taxa_file = os.path.expanduser("~/data_analysis/data/genome_assemblies/Sacch_with_headers.tsv")
+
+
 output_path = os.path.expanduser("~/data_analysis/data/genome_assemblies")
 seq_downloader = os.path.expanduser("~/data_analysis/code/bioinformatics-toolbox/src/seq_convert_genbank.pl")
 
@@ -36,16 +40,34 @@ taxa_col = 0
 print(tistamp(1)+"\tReading taxa...")
 taxa = []
 with open(taxa_file) as inputfile:
-        for line in inputfile:
-                taxa.append(line.strip().split(','))
+	for line in inputfile:
+		taxa.append(line.strip().split(','))
 
 validated_taxa = 0
 taxa_i = 0
+skip_to = 0
+end_at = 999
 # Parse data
 for taxon in taxa[1:]:
-	#print(taxon[0])
+	taxa_i = taxa_i + 1
 
+	# Skip ahead
+	if taxa_i <= skip_to:
+		continue
+	if taxa_i >= end_at:
+		break
+
+	split_tx = ''
+	#try:
 	split_tx = taxon[0].split('\t')
+	#except TaxonNonList:
+	#	try:
+	#		split_tx = taxon.split('\t')
+	#	except:
+	#		print(tistamp(1) + "Failed to parse genome data line " + str(taxa_i))
+	#else:
+	#	print(tistamp(1) + "Failed to parse genome data line " + str(taxa_i))
+	#	continue # next line
 
 	####################################
 	# Print header codes
@@ -60,6 +82,8 @@ for taxon in taxa[1:]:
 	####################################
 	# Genome database headers
 	gen_organism 		= split_tx[0]
+	gen_organism		= gen_organism.replace("\\","_")
+	gen_organism		= gen_organism.replace("/","_")
 	gen_strain 			= split_tx[1]
 	gen_biosample 		= split_tx[2]
 	gen_bioproject 		= split_tx[3]
@@ -102,7 +126,8 @@ for taxon in taxa[1:]:
 		+ "\t\tBioSample: " + gen_biosample \
 		+ "\t\tBioProject: " + gen_bioproject \
 		+ "\t\tGroup: " + gen_group \
-		+ "\t\tSubGroup: " + gen_subgroup \
+		+ "\t\tSubGroup: " + gen_subgroup)
+	print(tistamp(1) \
 		+ "\t\tSize: " + gen_size_mb + " MB" \
 		+ "\t\tGC Content: " + gen_GC_content \
 		+ "\t\tAssembly: " + gen_assembly)
@@ -133,73 +158,74 @@ for taxon in taxa[1:]:
 		validated_taxa = validated_taxa + 1
 		validation_successful = 1
 	else:
-		print(tistamp(1)+"\t**Validation Failed**")
-	print(tistamp(1)+"\t**Validation Complete**")
-	print(tistamp(1)+"\t***********************")
+		print(tistamp(1)+"\t**Validation FAILED**")
 	####################################
 
 	####################################
 	# Begin genome download
 	if validation_successful == 1:
-		print(tistamp(1)+"\tBegin Genome Download")
-		# Check if assembly directory exists
-		gen_directory = output_path + "/" + gen_assemblyname + "_" + short_hash
-		print(tistamp(1)+"\tChecking directory...")
-		if not os.path.isdir(gen_directory):
-			print(tistamp(1)+"\tDirectory not found, creating directory")
-			print(tistamp(1)+"\tCreating: " + gen_directory)
-			os.makedirs(gen_directory)
+		file_list = ("Genomic", "Protein", "Features")
+		file_types = {}
+		file_types['Genomic'] = "_genomic.fna.gz"
+		file_types['Protein'] = "_protein.fna.gz"
+		file_types['Features'] = "_feature_table.txt.gz"
 
-		####################################
-		# Genomic
-		print(tistamp(1)+"\tDownloading Genomic...")
+		for file_type in file_list:
+			print(tistamp(1)+"\tBegin " + file_type + " Download")
+			filename = file_types[file_type]
 
-		genomic_filename = gen_directory + "/" + gen_assemblyname + "_genomic.fna.gz"
-		genomic_download = "wget -O " + genomic_filename + " " + gen_genomic_ftp
+			ftp = ''
+			if file_type == "Genomic":
+				ftp = gen_genomic_ftp
+			if file_type == "Protein":
+				ftp = gen_protein_ftp
+			if file_type == "Features":
+				ftp = gen_feature_table_ftp
+			''' a'''
+			# Check if assembly directory exists
+			gen_directory = output_path + "/" + gen_assemblyname + "_" + short_hash
+			print(tistamp(1)+"\t\tChecking directory...")
+			if not os.path.isdir(gen_directory):
+				print(tistamp(1)+"\t\tDirectory not found, creating directory")
+				print(tistamp(1)+"\t\tCreating: " + gen_directory)
+				os.makedirs(gen_directory)
 
-		if os.stat(genomic_filename).st_size < 1:
-			print(tistamp(1)+"\t"+genomic_download)
-			try:
-				genomic_dl = subprocess.check_output(genomic_download, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
-				print(genomic_dl)
-			except:
-				subprocess.check_output("rm "+genomic_filename, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
-				print(tistamp(1)+"\tCould not download genome")
+			####################################
+			genomic_filename = gen_directory + "/" + gen_assemblyname + filename
+			download_string = "wget -O " + filename + " " + ftp
 
-		print(tistamp(1)+"\tGenomic Complete")
-		####################################
+			# Check size, download if 0
+			if (os.path.exists(filename) and os.stat(filename).st_size < 1) \
+				or not os.path.exists(filename):
+				print(tistamp(1)+"\t\t"+download_string)
+				try:
+					print(tistamp(1)+"\t\tDownloading "+ file_type + "...")
+					download_cmd = subprocess.check_output(download_string, shell=True, \
+						stderr=subprocess.STDOUT).decode("utf-8")
+					#print(download_cmd)
+					# Unzip file
+					if (os.path.exists(filename) and os.stat(filename).st_size > 1):
+						gunzip_file = filename.replace(".gz","")
+						gunzip_string = "gunzip -c " + filename + " > " + gunzip_file
+						print(tistamp(1)+"\t\tUnzipping...")
+						print(tistamp(1)+"\t\t"+gunzip_cmd)
+						gunzip_cmd = subprocess.check_output(gunzip_string, \
+							shell=True, stderr=subprocess.STDOUT).decode("utf-8")
 
-		####################################
-		# Protein
-		print(tistamp(1)+"\tDownloading Protein...")
-		protein_filename = gen_directory + "/" + gen_assemblyname + "_protein.fna.gz"
-		protein_download = "wget -O " + protein_filename + " " +  gen_protein_ftp
-		if os.stat(protein_filename).st_size < 1:
-			try:
-				print(tistamp(1)+"\t"+protein_download)
-				prtein_dl = subprocess.check_output(protein_download, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
-			except:
-				print(tistamp(1)+"\tCould not download protein")
-		print(tistamp(1)+"\tProtein Complete.")
-		####################################
+				except:
+					subprocess.check_output("rm "+filename, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
+					print(tistamp(1)+"\tCould not download "+file_type)
 
-		####################################
-		# Features
-		print(tistamp(1)+"\tDownloading Features...")
-		feature_download = "wget -O " + gen_directory + "/" + gen_assemblyname + "_feature_table.txt.gz " +  gen_feature_table_ftp
-		print(tistamp(1)+"\t"+feature_download)
-		### ** size
-		try:
-			feature_dl = subprocess.check_output(feature_download, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
-		except:
-			print(tistamp(1)+"\tCould not download feature table")
-		print(tistamp(1)+"\tFeatures Complete.")
-		####################################
+			print(tistamp(1)+"\t"+file_type+" Complete")
+			print(tistamp(1)+"\t***********************")
+			####################################
 
-	taxa_i = taxa_i + 1
-	exit()
 
-print(tistamp(1)+"\t Successfully validated: " + str(validated_taxa))
+
+	print(tistamp(1))
+	#exit()
+
+print(tistamp(1)+"\tSuccessfully validated: " + str(validated_taxa))
 
 '''
 Genome columns as of:

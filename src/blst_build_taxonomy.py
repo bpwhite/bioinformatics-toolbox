@@ -191,31 +191,39 @@ for taxon in taxa[1:]:
 				os.makedirs(gen_directory)
 
 			####################################
-			genomic_filename = gen_directory + "/" + gen_assemblyname + filename
-			download_string = "wget -O " + filename + " " + ftp
+			download_filename = gen_directory + "/" + gen_assemblyname + filename
+			download_string = "wget -O " + download_filename + " " + ftp
 
 			# Check size, download if 0
-			if (os.path.exists(filename) and os.stat(filename).st_size < 1) \
-				or not os.path.exists(filename):
+			if (os.path.exists(download_filename) and os.stat(download_filename).st_size < 1) \
+				or not os.path.exists(download_filename):
 				print(tistamp(1)+"\t\t"+download_string)
 				try:
 					print(tistamp(1)+"\t\tDownloading "+ file_type + "...")
 					download_cmd = subprocess.check_output(download_string, shell=True, \
 						stderr=subprocess.STDOUT).decode("utf-8")
 					#print(download_cmd)
-					# Unzip file
-					if (os.path.exists(filename) and os.stat(filename).st_size > 1):
-						gunzip_file = filename.replace(".gz","")
-						gunzip_string = "gunzip -c " + filename + " > " + gunzip_file
-						print(tistamp(1)+"\t\tUnzipping...")
-						print(tistamp(1)+"\t\t"+gunzip_cmd)
-						gunzip_cmd = subprocess.check_output(gunzip_string, \
-							shell=True, stderr=subprocess.STDOUT).decode("utf-8")
 
 				except:
-					subprocess.check_output("rm "+filename, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
-					print(tistamp(1)+"\tCould not download "+file_type)
+					subprocess.check_output("rm "+download_filename, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
+				#	print(tistamp(1)+"\tCould not download "+file_type)
 
+			# Unzip file
+			if (os.path.exists(download_filename) and os.stat(download_filename).st_size > 1):
+				gunzip_file = download_filename.replace(".gz","")
+				gunzip_string = "gunzip -c " + download_filename + " > " + gunzip_file
+				print(tistamp(1)+"\t\tUnzipping...")
+				# print(tistamp(1)+"\t\t"+gunzip_string)
+				gunzip_cmd = subprocess.check_output(gunzip_string, \
+					shell=True, stderr=subprocess.STDOUT).decode("utf-8")
+				bytes_to_mb = 1048576
+				unzipped_size = os.path.getsize(gunzip_file)/bytes_to_mb
+				if file_type == "Genomic":
+					pcnt_error = abs(float(gen_size_mb) - float(unzipped_size))/float(gen_size_mb)*100
+					print(tistamp(1)+"\t\tPercent Error Genome Size: " + str(round(pcnt_error,2)) + "%")
+					if pcnt_error > 5:
+						print(tistamp(1)+"\tWARNING: Download Size Too Small!")
+						print(tistamp(1)+"\t" + str(gen_size_mb) + " < " + str(unzipped_size))
 			print(tistamp(1)+"\t"+file_type+" Complete")
 			print(tistamp(1)+"\t***********************")
 			####################################

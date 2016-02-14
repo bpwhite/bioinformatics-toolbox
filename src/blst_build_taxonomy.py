@@ -20,6 +20,7 @@ import os
 import random
 import subprocess
 import hashlib
+import textwrap
 
 ## Local libraries
 from blst_libs import tistamp,validate_taxa
@@ -44,6 +45,7 @@ with open(taxa_file) as inputfile:
 		taxa.append(line.strip().split(','))
 
 validated_taxa = 0
+reset_validation = 1
 taxa_i = 0
 skip_to = 0
 end_at = 999
@@ -60,14 +62,6 @@ for taxon in taxa[1:]:
 	split_tx = ''
 	#try:
 	split_tx = taxon[0].split('\t')
-	#except TaxonNonList:
-	#	try:
-	#		split_tx = taxon.split('\t')
-	#	except:
-	#		print(tistamp(1) + "Failed to parse genome data line " + str(taxa_i))
-	#else:
-	#	print(tistamp(1) + "Failed to parse genome data line " + str(taxa_i))
-	#	continue # next line
 
 	####################################
 	# Print header codes
@@ -110,6 +104,20 @@ for taxon in taxa[1:]:
 	####################################
 
 	####################################
+	# Status key
+	status_d = {}
+	status_d['Genomic'] 		= ''
+	status_d['Protein'] 		= ''
+	status_d['Features'] 		= ''
+	status_d['taxon_hierarchy'] 	= ''
+	status_d['tax_length_validation'] 	= ''
+	status_d['nuc_validiation'] 	= ''
+	status_d['prot_validation'] 	= ''
+
+
+	####################################
+
+	####################################
 	# Build genome key
 	gen_key = gen_organism + "_" + gen_strain + "_" + gen_biosample \
 		+ "_" + gen_bioproject + "_" + gen_group + "_" + gen_subgroup \
@@ -120,7 +128,8 @@ for taxon in taxa[1:]:
 
 	####################################
 	# Print assembly data
-	print(tistamp(1) + "\t[" + str(taxa_i) + "] " + gen_organism + "_" + short_hash)
+	print(tistamp(1) + "\t[" + str(taxa_i) + "] " + gen_organism + "_" \
+		+ gen_strain + "_" + gen_group + "_" + gen_subgroup)
 	print(tistamp(1)+"\tBegin Validation Report")
 	print(tistamp(1) \
 		+ "\t\tBioSample: " + gen_biosample \
@@ -151,6 +160,13 @@ for taxon in taxa[1:]:
 	nuc_validiation 		= validation[3]
 	prot_validation 		= validation[4]
 
+	# STATUS #
+	status_d['taxon_hierarchy'] 	= taxon_hierarchy
+	status_d['tax_length_validation'] 	= tax_length_validation
+	status_d['nuc_validiation'] 	= nuc_validiation
+	status_d['prot_validation'] 	= prot_validation
+	# STATUS #
+
 	# Must have both a taxonomic hierarchy string and at least 1 type of sequence (prot or nuc)
 	validation_successful = 0
 	if tax_length_validation == 'PASS' and (nuc_validiation == 'PASS' or prot_validation == 'PASS'):
@@ -162,7 +178,17 @@ for taxon in taxa[1:]:
 	####################################
 
 	####################################
-	# Begin genome download
+	# Begin downloads
+	gen_directory = output_path + "/" + gen_assemblyname + "_" + short_hash
+	# Check if assembly directory exists
+	print(tistamp(1)+"\t\tChecking directory...")
+	if not os.path.isdir(gen_directory):
+		print(tistamp(1)+"\t\tDirectory not found, creating directory")
+		print(tistamp(1)+"\t\tCreating: " + gen_directory)
+		os.makedirs(gen_directory)
+	####################################
+
+	####################################
 	if validation_successful == 1:
 		file_list = ("Genomic", "Protein", "Features")
 		file_types = {}
@@ -173,6 +199,9 @@ for taxon in taxa[1:]:
 		for file_type in file_list:
 			print(tistamp(1)+"\tBegin " + file_type + " Download")
 			filename = file_types[file_type]
+			# STATUS #
+			status_d[file_type] = "Failed"
+			# STATUS #
 
 			ftp = ''
 			if file_type == "Genomic":
@@ -181,39 +210,51 @@ for taxon in taxa[1:]:
 				ftp = gen_protein_ftp
 			if file_type == "Features":
 				ftp = gen_feature_table_ftp
-			''' a'''
-			# Check if assembly directory exists
-			gen_directory = output_path + "/" + gen_assemblyname + "_" + short_hash
-			print(tistamp(1)+"\t\tChecking directory...")
-			if not os.path.isdir(gen_directory):
-				print(tistamp(1)+"\t\tDirectory not found, creating directory")
-				print(tistamp(1)+"\t\tCreating: " + gen_directory)
-				os.makedirs(gen_directory)
 
+
+
+			# STATUS #
+			status_d['assembly_directory'] = gen_directory
+			# STATUS #
 			####################################
 			download_filename = gen_directory + "/" + gen_assemblyname + filename
-			download_string = "wget -O " + download_filename + " " + ftp
+			download_string = "wget -nv -O " + download_filename + " " + ftp
 
+			# STATUS #
+			status_d[file_type+'_filename'] = download_filename
+			# STATUS #
+			if reset_validation == 1 and os.path.exists(download_filename):
+				subprocess.check_output("rm "+download_filename, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
+
+			####################################
 			# Check size, download if 0
 			if (os.path.exists(download_filename) and os.stat(download_filename).st_size < 1) \
 				or not os.path.exists(download_filename):
-				print(tistamp(1)+"\t\t"+download_string)
+				#print(tistamp(1)+"\t\t"+download_string)
 				try:
 					print(tistamp(1)+"\t\tDownloading "+ file_type + "...")
 					download_cmd = subprocess.check_output(download_string, shell=True, \
 						stderr=subprocess.STDOUT).decode("utf-8")
-					#print(download_cmd)
-
+					download_text = textwrap.wrap(download_cmd, width=100)
+					for dl_line in download_text:
+						print(tistamp(1)+"\t\t\t" + dl_line)
+					# Update status
+					# STATUS #
+					status_d[file_type] = "Downloaded"
+					# STATUS #
 				except:
 					subprocess.check_output("rm "+download_filename, shell=True, stderr=subprocess.STDOUT).decode("utf-8")
 				#	print(tistamp(1)+"\tCould not download "+file_type)
+			####################################
 
+			####################################
 			# Unzip file
 			if (os.path.exists(download_filename) and os.stat(download_filename).st_size > 1):
 				gunzip_file = download_filename.replace(".gz","")
 				gunzip_string = "gunzip -c " + download_filename + " > " + gunzip_file
 				print(tistamp(1)+"\t\tUnzipping...")
 				# print(tistamp(1)+"\t\t"+gunzip_string)
+				# Unzip file
 				gunzip_cmd = subprocess.check_output(gunzip_string, \
 					shell=True, stderr=subprocess.STDOUT).decode("utf-8")
 				bytes_to_mb = 1048576
@@ -224,16 +265,36 @@ for taxon in taxa[1:]:
 					if pcnt_error > 5:
 						print(tistamp(1)+"\tWARNING: Download Size Too Small!")
 						print(tistamp(1)+"\t" + str(gen_size_mb) + " < " + str(unzipped_size))
-			print(tistamp(1)+"\t"+file_type+" Complete")
-			print(tistamp(1)+"\t***********************")
+				check_unzip_cmd = subprocess.check_output("head -n 1 "+gunzip_file, \
+					shell=True, stderr=subprocess.STDOUT).decode("utf-8").rstrip()
+				print(tistamp(1)+"\t"+check_unzip_cmd)
+
+				# STATUS #
+				status_d[file_type+'_first_line'] = check_unzip_cmd
+				status_d[file_type+'_unzipped'] = "Unzipped"
+				status_d[file_type+'_unzipped_filename'] = gunzip_file
+				status_d[file_type+'_unzipped_size'] = unzipped_size
+				status_d[file_type+'_pcnt_error_genome'] = pcnt_error
+				# STATUS #
+			print(tistamp(1)+"\t\t"+file_type+" Complete")
 			####################################
+	####################################
+	# Print Status
+	print(tistamp(1)+"\tPrinting status...")
+	status_filename = gen_directory + "/" + gen_assemblyname \
+		+ "_" + short_hash + "_status.txt"
+	print(tistamp(1)+status_filename)
+	status_f = open(os.path.expanduser(status_filename), 'w')
+	for key, value in status_d.items():
+		print(tistamp(1)+"\t\t" + key + "=" + str(value))
+		status_f.write(key + "=" + str(value) + "\n")
+	####################################
 
-
-
+	print(tistamp(1)+"\t***********************")
 	print(tistamp(1))
 	#exit()
 
-print(tistamp(1)+"\tSuccessfully validated: " + str(validated_taxa))
+print(tistamp(1)+"\tSuccessfully validated: " + str(validated_taxa) + " out of "+ str(taxa_i))
 
 '''
 Genome columns as of:

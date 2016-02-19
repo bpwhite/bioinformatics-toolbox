@@ -19,16 +19,29 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
 
-db_file = "target_genomes.txt"
+#db_file = "target_genomes.txt"
+db_file = "target_assemblies_02142016.txt"
+
 blast_path = "~/data_analysis/apps/ncbi-blast-2.2.31+/bin/"
 db_type = "nucl"
+join_genomes = 1
 
-results = []
+genomes = []
 with open(db_file) as inputfile:
 	for line in inputfile:
-		results.append(line.strip().split(','))
+		genomes.append(line.strip().split(','))
 
-for blst_db in results:
-	makedb_command = blast_path+"makeblastdb"+" -dbtype "+db_type + " -in " + ''.join(blst_db)
-	print(makedb_command)
-	os.system(makedb_command)
+if join_genomes == 1:
+	print("A")
+	# Append genomes into a single file
+	f = open("bigfile.txt", "w")
+	for genome_file in genomes:
+		current_genome = os.path.expanduser(genome_file[0])
+		print(current_genome)
+		tmp = open(current_genome, "r")
+		f.write(tmp.read())
+else:
+	for blst_db in genomes:
+		makedb_command = blast_path+"makeblastdb"+" -dbtype "+db_type + " -in " + ''.join(blst_db)
+		print(makedb_command)
+		os.system(makedb_command)

@@ -26,11 +26,12 @@ import textwrap
 from blst_libs import tistamp,validate_taxa
 
 #taxa_file = os.path.expanduser("~/data_analysis/data/genome_assemblies/test_genomes_02062016.tsv")
-taxa_file = os.path.expanduser("~/data_analysis/data/genome_assemblies/genomes_euks_Fungi_Protists_02082016.tsv")
+taxa_file = os.path.expanduser("~/data_analysis/data/genome_assemblies/genome_lists/genomes_euks_Fungi_Protists_02082016.tsv")
+#taxa_file = os.path.expanduser("~/data_analysis/data/genome_assemblies/genome_lists/test_genomes_02062016.tsv")
 #taxa_file = os.path.expanduser("~/data_analysis/data/genome_assemblies/Sacch_with_headers.tsv")
 
 
-output_path = os.path.expanduser("~/data_analysis/data/genome_assemblies")
+output_path = os.path.expanduser("~/data_analysis/data/genome_assemblies/assemblies_02152016")
 seq_downloader = os.path.expanduser("~/data_analysis/code/bioinformatics-toolbox/src/seq_convert_genbank.pl")
 
 # Parameters
@@ -74,36 +75,6 @@ for taxon in taxa[1:]:
 	####################################
 
 	####################################
-	# Genome database headers
-	gen_organism 		= split_tx[0]
-	gen_organism		= gen_organism.replace("\\","_")
-	gen_organism		= gen_organism.replace("/","_")
-	gen_strain 			= split_tx[1]
-	gen_biosample 		= split_tx[2]
-	gen_bioproject 		= split_tx[3]
-	gen_group 			= split_tx[4]
-	gen_subgroup 		= split_tx[5]
-	gen_size_mb 		= split_tx[6]
-	gen_GC_content 		= split_tx[7]
-	gen_assembly 		= split_tx[8]
-	gen_replicons 		= split_tx[9]
-	gen_WGS 			= split_tx[10]
-	gen_scaffolds 		= split_tx[11]
-	gen_genes 			= split_tx[12]
-	gen_proteins 		= split_tx[13]
-	gen_release_d		= split_tx[14]
-	gen_modified_d 		= split_tx[15]
-	gen_level 			= split_tx[16]
-	gen_refseq_FTP 		= split_tx[17]
-	gen_genbank_FTP 	= split_tx[18]
-	gen_final 			= split_tx[19]
-	gen_assemblyname 	= split_tx[24]
-	gen_genomic_ftp 	= split_tx[25]
-	gen_protein_ftp		= split_tx[26]
-	gen_feature_table_ftp = split_tx[27]
-	####################################
-
-	####################################
 	# Status key
 	status_d = {}
 	status_d['Genomic'] 		= ''
@@ -113,9 +84,39 @@ for taxon in taxa[1:]:
 	status_d['tax_length_validation'] 	= ''
 	status_d['nuc_validiation'] 	= ''
 	status_d['prot_validation'] 	= ''
-
+	####################################
 
 	####################################
+	# Genome database headers
+	gen_organism 		= split_tx[0]
+	gen_organism		= gen_organism.replace("\\","_")
+	status_d['gen_organism'] 	= gen_organism			= gen_organism.replace("/","_")
+	status_d['gen_strain'] 		= gen_strain 			= split_tx[1]
+	status_d['gen_biosample'] 	= gen_biosample 		= split_tx[2]
+	status_d['gen_bioproject'] 	= gen_bioproject		= split_tx[3]
+	status_d['gen_group'] 		= gen_group 			= split_tx[4]
+	status_d['gen_subgroup'] 	= gen_subgroup 			= split_tx[5]
+	status_d['gen_size_mb'] 	= gen_size_mb 			= split_tx[6]
+	status_d['gen_GC_content'] 	= gen_GC_content 		= split_tx[7]
+	status_d['gen_assembly'] 	= gen_assembly 			= split_tx[8]
+	status_d['gen_replicons'] 	= gen_replicons			= split_tx[9]
+	status_d['gen_WGS'] 		= gen_WGS 				= split_tx[10]
+	status_d['gen_scaffolds'] 	= gen_scaffolds 		= split_tx[11]
+	status_d['gen_genes'] 		= gen_genes 			= split_tx[12]
+	status_d['gen_proteins']	= gen_proteins 			= split_tx[13]
+	status_d['gen_release_d'] 	= gen_release_d			= split_tx[14]
+	status_d['gen_modified_d'] 	= gen_modified_d 		= split_tx[15]
+	status_d['gen_level'] 		= gen_level 			= split_tx[16]
+	status_d['gen_refseq_FTP']	= gen_refseq_FTP		= split_tx[17]
+	status_d['gen_genbank_FTP'] = gen_genbank_FTP 		= split_tx[18]
+	status_d['gen_final'] 		= gen_final 			= split_tx[19]
+	status_d['gen_assemblyname']= gen_assemblyname 		= split_tx[24]
+	status_d['gen_genomic_ftp'] = gen_genomic_ftp 		= split_tx[25]
+	status_d['gen_protein_ftp'] = gen_protein_ftp		= split_tx[26]
+	status_d['gen_feature_table_ftp'] = gen_feature_table_ftp = split_tx[27]
+	####################################
+
+
 
 	####################################
 	# Build genome key
@@ -124,6 +125,8 @@ for taxon in taxa[1:]:
 		+ "_" + gen_size_mb
 	key_hash = hashlib.sha224(gen_key.encode('utf-8')).hexdigest()
 	short_hash = key_hash[0:7]
+	status_d['key_hash'] = key_hash
+	status_d['short_hash'] = short_hash
 	####################################
 
 	####################################
@@ -179,7 +182,7 @@ for taxon in taxa[1:]:
 
 	####################################
 	# Begin downloads
-	gen_directory = output_path + "/" + gen_assemblyname + "_" + short_hash
+	gen_directory = output_path + "/" + gen_assemblyname
 	# Check if assembly directory exists
 	print(tistamp(1)+"\t\tChecking directory...")
 	if not os.path.isdir(gen_directory):
@@ -282,8 +285,8 @@ for taxon in taxa[1:]:
 	# Print Status
 	print(tistamp(1)+"\tPrinting status...")
 	status_filename = gen_directory + "/" + gen_assemblyname \
-		+ "_" + short_hash + "_status.txt"
-	print(tistamp(1)+status_filename)
+		+ "_status.txt"
+	#print(tistamp(1)+status_filename)
 	status_f = open(os.path.expanduser(status_filename), 'w')
 	for key, value in status_d.items():
 		print(tistamp(1)+"\t\t" + key + "=" + str(value))

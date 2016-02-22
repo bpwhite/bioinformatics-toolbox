@@ -5,6 +5,10 @@ http://www.orthodb.org
 # Download a genome
 wget ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF_000246855.1_ASM24685v1/GCF_000246855.1_ASM24685v1_genomic.fna.gz
 
+# For FAST distance
+https://github.com/doukremt/distance
+python setup.py install --with-c
+
 # Scan genomes
 ~/data_analysis/apps/Python-3.5.1/python blst_scan_genomes.py
 

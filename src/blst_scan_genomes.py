@@ -159,7 +159,6 @@ for query_file in queries:
 		database = ''.join(database[0])
 		database_file_name = os.path.expanduser(database)
 
-		dist_cutoff = int(sl_window_size * dist_pcnt)
 		print(tistamp(1)+"\tLoading database: "+ database)
 		# Load database sequences
 		db_sequences = {}
@@ -187,6 +186,9 @@ for query_file in queries:
 			hits_i = 0
 			dup_hits_list = []
 
+			blst_size_cutoff = float(r_scan_size - r_scan_size*dist_pcnt)
+			print(tistamp(1)+"\t"+str(blst_size_cutoff))
+
 			#r_scan_sub_file = os.path.expanduser(output_path+"r_scan_contigs.fas")
 			r_scan_sub_file = query_path+"/r_scan_contigs.fas"
 			scan_file = query_file # Actual file that will be blasted against the database
@@ -204,12 +206,7 @@ for query_file in queries:
 			else:
 				print(tistamp(1)+"\tRefining query sequences from: " + str(len(found_seqs)))
 				current_expand_size = expand_size*search_i
-				current_window_size = current_expand_size*2+r_scan_size
-				current_window_increment = int(0.75*current_window_size)
-				dist_cutoff = int(current_window_size * dist_pcnt)
 				print(tistamp(1)+"\tExpanding: "+ str(current_expand_size))
-				print(tistamp(1)+"\tWindow Size: " + str(current_window_size))
-				print(tistamp(1)+"\tWindow Increment: " + str(current_window_increment))
 
 				r_scan_f = open(os.path.expanduser(r_scan_sub_file), 'w')
 				for q_pos, q_end in found_seqs.items():
@@ -241,12 +238,11 @@ for query_file in queries:
 			#sts = subprocess.Popen(scandb_command, shell=True).wait()
 			os.system(scandb_command)
 
-			print(tistamp(1)+"\t"+str(float(r_scan_size - r_scan_size*dist_pcnt)))
 			blst_results = []
 			with open(blst_results_file) as inputfile:
 			        for line in inputfile:
 			                blst_results.append(line.strip().split('\t'))
-			print("qseqid\t\t\t\t\tsseqid\t\tpident\t\tlength\t\tmismatch\t\tgapopen\t\tqstart\t\tqend\t\tsstart\t\tsend\t\tevalue\t\tbitscore")
+			#print("qseqid\tsseqid\tpident\tlength\tmismatch\tgapopen\tqstart\tqend\tsstart\tsend\tevalue\tbitscore")
 			# 		0				1			2		3			4			5		6			7		8		9		10		11
 			# Store blast hits
 			blst_hits = {}
@@ -272,12 +268,10 @@ for query_file in queries:
 					q_start = split_id[2]
 					q_end = split_id[3]
 					q_length = result[3]
-					for data in result:
-						print(data+"\t\t", end="")
-					print("")
-					if float(q_length) >= float(r_scan_size - r_scan_size*dist_pcnt):
+
+					if float(q_length) >= blst_size_cutoff:
 						if q_sid == unique_q_sid:
-							print(tistamp(1)+"\tFound at: " + str(q_start) + " => " + str(q_end))
+							print(tistamp(1)+"\tFound at: " + q_sid + ": "+ str(q_start) + " => " + str(q_end))
 							found_seqs[q_start] = q_end
 
 

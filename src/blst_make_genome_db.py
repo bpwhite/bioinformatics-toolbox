@@ -19,12 +19,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
 
-#db_file = "target_genomes.txt"
-db_file = "target_assemblies_02142016.txt"
+db_file = "target_genomes.txt"
+#db_file = "target_assemblies_02142016.txt"
 
 blast_path = "~/data_analysis/apps/ncbi-blast-2.2.31+/bin/"
 db_type = "nucl"
-join_genomes = 1
+join_genomes = 0
 
 genomes = []
 with open(db_file) as inputfile:
@@ -32,7 +32,6 @@ with open(db_file) as inputfile:
 		genomes.append(line.strip().split(','))
 
 if join_genomes == 1:
-	print("A")
 	# Append genomes into a single file
 	f = open("bigfile.txt", "w")
 	for genome_file in genomes:

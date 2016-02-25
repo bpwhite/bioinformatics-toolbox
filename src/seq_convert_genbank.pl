@@ -77,6 +77,7 @@ my $params = General::Arguments->new(	arguments_v => \@ARGV,
 													'-batch-output'	=> '', # Output without headers for merging large lists of taxa
 													'-std-out' => 0, # print to std out instead of output files
 													'-sleep-time' => 100,
+													'-delimiter' => ','
 													}
 													);
 # Initiate parameters
@@ -90,6 +91,7 @@ my $match_aln_file = $params->options->{'-match'};
 my $batch_output = $params->options->{'-batch-output'};
 my $std_outp = $params->options->{'-std-out'};
 my $sleep_time = $params->options->{'-sleep-time'}; # microsends, pause between seconds
+my $dlm = $params->options->{'-delimiter'};
 
 # Create output files
 my $overall_output_file = $params->options->{'-outp'}.'.csv';
@@ -204,8 +206,7 @@ sub download_target_taxa {
 	# my $search_options = '';
 	my $taxon_limit = 1;
 	my $user_email = 'blah@blah.com';
-	#my $dlm = ',';
-	my $dlm = '\t';
+
 	my $endl = "\n";
 	my $output_file = $target_taxon."_output.csv";
 	my $max_num_tries = 2;
@@ -251,6 +252,7 @@ sub download_target_taxa {
 		'aln_seq',$dlm,
 		'aln_score',$dlm,
 		'prot_seq',$dlm,
+		'distance',$dlm,
 		'primers',$dlm,
 		'codon_start',$dlm,
 		'collection_date',$dlm,

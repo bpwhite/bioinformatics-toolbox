@@ -46,25 +46,30 @@ sub aln2seq {
 	my $mafft_path 	= "..\\bin\\win32\\mafft";
 	if("$^O\n" =~ "Win32") {
 
-	} else {
-		print "Detected Linux\n";
+	} elsif ("$^O\n" =~ "linux") {
+		#print "Detected Linux\n";
 		$file_separator = "/";
 		$detected_os = 'linux';
-		$mafft_path = "..//bin//linux//mafft";
+		$mafft_path = "../bin/linux/mafft/mafft.bat";
+	} elsif("$^O\n" =~ "darwin") {
+		#print "Detected Mac OS X\n";
+		$file_separator = "/";
+		$detected_os = 'mac';
+		$mafft_path = "../bin/mac/mafft/mafft.bat";
 	}
-		
+
 	my $mafft_string = '';
-	
+
 	open(OUTPUT, '>seq_match_in.txt') or die "Couldn't open: $!";
 	print OUTPUT ">Seq1\n$seq1\n";
 	print OUTPUT ">Seq2\n$seq2\n";
 	close(OUTPUT);
-	
+
 	#unlink($aligned);
-	$mafft_string = $mafft_path.$file_separator."mafft --auto --preservecase --adjustdirection --preservecase --thread 1 --quiet seq_match_in.txt > seq_match_out.txt 2> nul";
-	print "Calling $mafft_string at depth a\n";
+	$mafft_string = $mafft_path." --auto --preservecase --adjustdirection --preservecase --thread 1 --quiet seq_match_in.txt > seq_match_out.txt 2> nul";
+	#print "Calling $mafft_string at depth a\n";
 	my $mafft_output = `$mafft_string`;
-	
+
 	# Import alignment
 	my $alignin = Bio::AlignIO->new(-format => 'fasta',
 									-file   => 'seq_match_out.txt' );
@@ -73,7 +78,7 @@ sub aln2seq {
 	foreach my $seq ($original_aln->each_seq) {
 		push(@seqs,$seq->seq);
 	}
-	
+
 	my $length = fast_seq_length($seqs[0]);
 	my ($k2p_distance, $transitions,$transversions,$bases_compared) = k2p_unpack($seqs[0], $seqs[1], $length);
 	return ($k2p_distance, $transitions,$transversions,$bases_compared,$seqs[1]);

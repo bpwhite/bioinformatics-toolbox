@@ -52,9 +52,6 @@ my $t0 = Benchmark->new;
 my $k2p1 = 0;
 ##################################################################
 
-
-
-
 my $params = General::Arguments->new(	arguments_v => \@ARGV,
 									option_defs => {'-list' 		=> '', 				# List file name
 													'-slim' 		=> 999999999,		# Sequence search limit

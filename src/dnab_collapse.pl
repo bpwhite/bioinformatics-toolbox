@@ -2,7 +2,7 @@
 # Condenses haplotypes based on haplotype and location so that remaining sequences
 # either differ by location or haplotype.
 # 
-# Copyright (c) 2013, Bryan White, bpcwhite@gmail.com
+# Copyright (c) 2013, Bryan White, bpw.informatics.com@gmail.com
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

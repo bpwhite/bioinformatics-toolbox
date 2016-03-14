@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # Batch download taxa 
 #
-# Copyright (c) 2014, Bryan White, bpcwhite@gmail.com
+# Copyright (c) 2014, Bryan White, bpw.informatics.com@gmail.com
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ use Getopt::Long;
 print "
 ******************************************************************
 
-Copyright (c) 2013-2014 Bryan White, bpcwhite\@gmail.com
+Copyright (c) 2013-2014 Bryan White, bpw.informatics\@gmail.com
 
 GNU General Public License, Version 3, 29 June 2007
 
